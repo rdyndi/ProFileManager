@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Client, DocType, DocumentData, DocumentItem } from '../types';
 import { Printer, Search, Calendar, User, FileCheck, Package, Plus, Trash2, Save, ArrowLeft } from 'lucide-react';
-import { getSettings } from '../services/storage';
+import { getCachedSettings } from '../services/storage';
 
 // --- Standalone Print Function (Exported) ---
 export const printDocument = (docData: DocumentData) => {
@@ -10,7 +10,8 @@ export const printDocument = (docData: DocumentData) => {
     const title = type === 'RECEIPT' ? 'TANDA TERIMA BERKAS' : 'SURAT JALAN DOKUMEN';
     const docTitle = `${type === 'RECEIPT' ? 'Tanda_Terima' : 'Surat_Jalan'}_${referenceNo.replace(/\//g, '-')}`;
     
-    const settings = getSettings();
+    // Menggunakan Cached Settings agar sync dengan data Firestore terbaru yang sudah di-cache oleh App.tsx
+    const settings = getCachedSettings();
     const companyName = settings.companyName;
     const companyAddress = settings.companyAddress;
     const companyContact = `Email: ${settings.companyEmail} | Telp: ${settings.companyPhone}`;

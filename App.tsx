@@ -2,14 +2,18 @@ import React, { useState, useEffect } from 'react';
 import { Layout } from './components/Layout';
 import { ClientForm } from './components/ClientForm';
 import { DocumentGenerator, printDocument } from './components/DocumentGenerator';
-import { getClients, saveClient, deleteClient, getSettings, saveSettings, getDocuments, saveDocument, updateDocument, deleteDocument } from './services/storage';
+import { 
+  subscribeClients, saveClient, deleteClient, 
+  subscribeDocuments, saveDocument, updateDocument, deleteDocument,
+  subscribeSettings, saveSettings, syncSettingsToLocalCache 
+} from './services/storage';
 import { Client, CompanySettings, DocumentData, DocType } from './types';
-import { Users, Search, Plus, Trash2, Eye, FileText, Briefcase, MoreVertical, ArrowUpRight, Save, Pencil, Printer } from 'lucide-react';
+import { Users, Search, Plus, Trash2, Eye, FileText, Briefcase, ArrowUpRight, Save, Pencil, Printer } from 'lucide-react';
 
 const App = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
   
-  // Data State
+  // Data State (Real-time synced)
   const [clients, setClients] = useState<Client[]>([]);
   const [documents, setDocuments] = useState<DocumentData[]>([]);
   
@@ -18,7 +22,7 @@ const App = () => {
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Document View State (Reusable for Receipt & Delivery)
+  // Document View State
   const [docViewState, setDocViewState] = useState<'list' | 'create' | 'edit'>('list');
   const [selectedDocument, setSelectedDocument] = useState<DocumentData | null>(null);
   const [docSearchQuery, setDocSearchQuery] = useState('');
@@ -31,51 +35,88 @@ const App = () => {
       companyPhone: ''
   });
 
+  // --- Real-time Subscriptions ---
   useEffect(() => {
-    setClients(getClients());
-    setDocuments(getDocuments());
-    setSettings(getSettings());
+    // Subscribe Clients
+    const unsubClients = subscribeClients((data) => {
+      setClients(data);
+    });
+
+    // Subscribe Documents
+    const unsubDocs = subscribeDocuments((data) => {
+      setDocuments(data);
+    });
+
+    // Subscribe Settings
+    const unsubSettings = subscribeSettings((data) => {
+      setSettings(data);
+      // Sync to local storage cache for synchronous printing
+      syncSettingsToLocalCache(data);
+    });
+
+    // Cleanup listeners on unmount
+    return () => {
+      unsubClients();
+      unsubDocs();
+      unsubSettings();
+    };
   }, []);
 
-  // --- Client Handlers ---
-  const handleSaveClient = (client: Client) => {
-    saveClient(client);
-    setClients(getClients());
-    setClientViewState('list');
-  };
-
-  const handleDeleteClient = (id: string) => {
-    if (window.confirm('Apakah Anda yakin ingin menghapus data ini?')) {
-      deleteClient(id);
-      setClients(getClients());
-      if (selectedClient?.id === id) setSelectedClient(null);
+  // --- Client Handlers (Async) ---
+  const handleSaveClient = async (client: Client) => {
+    try {
+      await saveClient(client);
       setClientViewState('list');
+    } catch (error) {
+      alert("Gagal menyimpan data klien: " + error);
     }
   };
 
-  // --- Document Handlers ---
-  const handleSaveDocument = (doc: DocumentData) => {
-    if (docViewState === 'edit') {
-        updateDocument(doc);
-    } else {
-        saveDocument(doc);
+  const handleDeleteClient = async (id: string) => {
+    if (window.confirm('Apakah Anda yakin ingin menghapus data ini?')) {
+      try {
+        await deleteClient(id);
+        if (selectedClient?.id === id) setSelectedClient(null);
+        setClientViewState('list');
+      } catch (error) {
+        alert("Gagal menghapus data: " + error);
+      }
     }
-    setDocuments(getDocuments());
-    alert('Dokumen berhasil disimpan!');
-    setDocViewState('list');
   };
 
-  const handleDeleteDocument = (id: string) => {
+  // --- Document Handlers (Async) ---
+  const handleSaveDocument = async (doc: DocumentData) => {
+    try {
+      if (docViewState === 'edit') {
+          await updateDocument(doc);
+      } else {
+          await saveDocument(doc);
+      }
+      alert('Dokumen berhasil disimpan ke database!');
+      setDocViewState('list');
+    } catch (error) {
+      alert("Gagal menyimpan dokumen: " + error);
+    }
+  };
+
+  const handleDeleteDocument = async (id: string) => {
      if (window.confirm('Apakah Anda yakin ingin menghapus dokumen ini?')) {
-         deleteDocument(id);
-         setDocuments(getDocuments());
+         try {
+           await deleteDocument(id);
+         } catch (error) {
+           alert("Gagal menghapus dokumen: " + error);
+         }
      }
   }
 
-  const handleSaveSettings = (e: React.FormEvent) => {
+  const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
-    saveSettings(settings);
-    alert('Pengaturan berhasil disimpan!');
+    try {
+      await saveSettings(settings);
+      alert('Pengaturan berhasil disimpan!');
+    } catch (error) {
+      alert("Gagal menyimpan pengaturan: " + error);
+    }
   };
 
   const filteredClients = clients.filter(c => 
@@ -90,8 +131,8 @@ const App = () => {
         .filter(d => 
             d.clientName.toLowerCase().includes(docSearchQuery.toLowerCase()) ||
             d.referenceNo.toLowerCase().includes(docSearchQuery.toLowerCase())
-        )
-        .reverse(); // Newest first
+        );
+        // Note: documents is already sorted in storage service
 
      return (
         <div className="space-y-6">
@@ -252,7 +293,7 @@ const App = () => {
                    </tr>
                 </thead>
                 <tbody>
-                   {clients.slice(-5).reverse().map(client => (
+                   {clients.slice(0, 5).map(client => ( // clients already sorted by date desc
                       <tr key={client.id} className="border-b border-slate-50 last:border-none hover:bg-slate-50">
                          <td className="px-6 py-3 font-medium text-slate-800">{client.name}</td>
                          <td className="px-6 py-3">
@@ -286,7 +327,7 @@ const App = () => {
     );
   };
 
-  // Client Detail View
+  // Client Detail View (No Changes Needed, re-used)
   const ClientDetail = ({ client }: { client: Client }) => (
     <div className="space-y-6">
         <div className="flex items-center justify-between">

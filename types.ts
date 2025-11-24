@@ -1,3 +1,4 @@
+
 export type EntityType = 'PT' | 'CV' | 'Perorangan';
 
 export interface Client {
@@ -46,4 +47,32 @@ export interface CompanySettings {
   companyAddress: string;
   companyEmail: string;
   companyPhone: string;
+}
+
+// --- DEED / AKTA TYPES ---
+
+export type AppearerRole = 'Self' | 'Proxy'; // Diri Sendiri | Kuasa
+
+export interface DeedGrantor {
+  id: string;
+  name: string;
+}
+
+export interface DeedAppearer {
+  id: string;
+  name: string;
+  role: AppearerRole;
+  grantors?: DeedGrantor[]; // Hanya jika role == Proxy, unlimited
+}
+
+export interface Deed {
+  id: string;
+  orderNumber: string; // Nomor Urut (Wajib)
+  clientId: string;
+  clientName: string; // Snapshot
+  deedNumber: string; // Nomor Akta (Manual, Wajib)
+  deedDate: string; // Tanggal Akta (Manual, Wajib)
+  deedTitle: string; // Judul Akta (Manual, Wajib)
+  appearers: DeedAppearer[]; // Unlimited Penghadap
+  createdAt: number;
 }

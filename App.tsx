@@ -1,14 +1,20 @@
+
 import React, { useState, useEffect } from 'react';
 import { Layout } from './components/Layout';
 import { ClientForm } from './components/ClientForm';
 import { DocumentGenerator, printDocument } from './components/DocumentGenerator';
+import { DeedForm } from './components/DeedForm';
+import { DeedReport } from './components/DeedReport';
 import { 
   subscribeClients, saveClient, deleteClient, 
   subscribeDocuments, saveDocument, updateDocument, deleteDocument,
-  subscribeSettings, saveSettings, syncSettingsToLocalCache 
+  subscribeSettings, saveSettings, syncSettingsToLocalCache,
+  subscribeDeeds, saveDeed, deleteDeed
 } from './services/storage';
-import { Client, CompanySettings, DocumentData, DocType } from './types';
-import { Users, Search, Plus, Trash2, Eye, FileText, Briefcase, ArrowUpRight, Save, Pencil, Printer } from 'lucide-react';
+import { auth } from './services/firebaseService';
+import { signInAnonymously } from "firebase/auth";
+import { Client, CompanySettings, DocumentData, DocType, Deed } from './types';
+import { Users, Search, Plus, Trash2, Eye, FileText, Briefcase, ArrowUpRight, Save, Pencil, Printer, ScrollText, BookOpen } from 'lucide-react';
 
 const App = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -16,6 +22,7 @@ const App = () => {
   // Data State (Real-time synced)
   const [clients, setClients] = useState<Client[]>([]);
   const [documents, setDocuments] = useState<DocumentData[]>([]);
+  const [deeds, setDeeds] = useState<Deed[]>([]);
   
   // UI State
   const [clientViewState, setClientViewState] = useState<'list' | 'add' | 'detail'>('list');
@@ -26,6 +33,11 @@ const App = () => {
   const [docViewState, setDocViewState] = useState<'list' | 'create' | 'edit'>('list');
   const [selectedDocument, setSelectedDocument] = useState<DocumentData | null>(null);
   const [docSearchQuery, setDocSearchQuery] = useState('');
+
+  // Deed View State
+  const [deedViewState, setDeedViewState] = useState<'list' | 'create' | 'edit' | 'report'>('list');
+  const [selectedDeed, setSelectedDeed] = useState<Deed | null>(null);
+  const [deedSearchQuery, setDeedSearchQuery] = useState('');
   
   // Settings State
   const [settings, setSettings] = useState<CompanySettings>({
@@ -35,30 +47,58 @@ const App = () => {
       companyPhone: ''
   });
 
-  // --- Real-time Subscriptions ---
+  // --- Real-time Subscriptions with Auth ---
   useEffect(() => {
-    // Subscribe Clients
-    const unsubClients = subscribeClients((data) => {
-      setClients(data);
-    });
+    let unsubClients: (() => void) | undefined;
+    let unsubDocs: (() => void) | undefined;
+    let unsubDeeds: (() => void) | undefined;
+    let unsubSettings: (() => void) | undefined;
 
-    // Subscribe Documents
-    const unsubDocs = subscribeDocuments((data) => {
-      setDocuments(data);
-    });
+    const initData = async () => {
+      // 1. Coba Autentikasi (Terpisah)
+      try {
+        await signInAnonymously(auth);
+        console.log("Status: Signed in anonymously");
+      } catch (error) {
+        console.warn("Auth Warning: Login anonim gagal atau belum diaktifkan di Console. Aplikasi akan mencoba akses database (jika Public Rules aktif).", error);
+      }
 
-    // Subscribe Settings
-    const unsubSettings = subscribeSettings((data) => {
-      setSettings(data);
-      // Sync to local storage cache for synchronous printing
-      syncSettingsToLocalCache(data);
-    });
+      // 2. Coba Subscribe Data (Terpisah, tetap jalan meski Auth gagal)
+      try {
+        // Subscribe Clients
+        unsubClients = subscribeClients((data) => {
+          setClients(data);
+        });
+
+        // Subscribe Documents
+        unsubDocs = subscribeDocuments((data) => {
+          setDocuments(data);
+        });
+
+        // Subscribe Deeds
+        unsubDeeds = subscribeDeeds((data) => {
+          setDeeds(data);
+        });
+
+        // Subscribe Settings
+        unsubSettings = subscribeSettings((data) => {
+          setSettings(data);
+          // Sync to local storage cache for synchronous printing
+          syncSettingsToLocalCache(data);
+        });
+      } catch (e) {
+        console.error("Failed to subscribe to Firestore streams:", e);
+      }
+    };
+
+    initData();
 
     // Cleanup listeners on unmount
     return () => {
-      unsubClients();
-      unsubDocs();
-      unsubSettings();
+      if (unsubClients) unsubClients();
+      if (unsubDocs) unsubDocs();
+      if (unsubDeeds) unsubDeeds();
+      if (unsubSettings) unsubSettings();
     };
   }, []);
 
@@ -67,8 +107,9 @@ const App = () => {
     try {
       await saveClient(client);
       setClientViewState('list');
-    } catch (error) {
-      alert("Gagal menyimpan data klien: " + error);
+    } catch (error: any) {
+      console.error(error);
+      alert("Gagal menyimpan data klien. Pastikan Firestore Rules mengizinkan write.\nError: " + error.message);
     }
   };
 
@@ -78,8 +119,8 @@ const App = () => {
         await deleteClient(id);
         if (selectedClient?.id === id) setSelectedClient(null);
         setClientViewState('list');
-      } catch (error) {
-        alert("Gagal menghapus data: " + error);
+      } catch (error: any) {
+        alert("Gagal menghapus data: " + error.message);
       }
     }
   };
@@ -94,8 +135,8 @@ const App = () => {
       }
       alert('Dokumen berhasil disimpan ke database!');
       setDocViewState('list');
-    } catch (error) {
-      alert("Gagal menyimpan dokumen: " + error);
+    } catch (error: any) {
+      alert("Gagal menyimpan dokumen: " + error.message);
     }
   };
 
@@ -103,10 +144,31 @@ const App = () => {
      if (window.confirm('Apakah Anda yakin ingin menghapus dokumen ini?')) {
          try {
            await deleteDocument(id);
-         } catch (error) {
-           alert("Gagal menghapus dokumen: " + error);
+         } catch (error: any) {
+           alert("Gagal menghapus dokumen: " + error.message);
          }
      }
+  }
+
+  // --- Deed Handlers (Async) ---
+  const handleSaveDeed = async (deed: Deed) => {
+    try {
+        await saveDeed(deed);
+        alert('Data Akta berhasil disimpan!');
+        setDeedViewState('list');
+    } catch (error: any) {
+        alert("Gagal menyimpan akta: " + error.message);
+    }
+  }
+
+  const handleDeleteDeed = async (id: string) => {
+      if (window.confirm('Apakah Anda yakin ingin menghapus data Akta ini?')) {
+          try {
+              await deleteDeed(id);
+          } catch (error: any) {
+              alert("Gagal menghapus akta: " + error.message);
+          }
+      }
   }
 
   const handleSaveSettings = async (e: React.FormEvent) => {
@@ -114,8 +176,8 @@ const App = () => {
     try {
       await saveSettings(settings);
       alert('Pengaturan berhasil disimpan!');
-    } catch (error) {
-      alert("Gagal menyimpan pengaturan: " + error);
+    } catch (error: any) {
+      alert("Gagal menyimpan pengaturan: " + error.message);
     }
   };
 
@@ -225,11 +287,12 @@ const App = () => {
     const total = clients.length;
     const ptCount = clients.filter(c => c.type === 'PT').length;
     const cvCount = clients.filter(c => c.type === 'CV').length;
+    const totalDeeds = deeds.length;
 
     return (
       <div className="space-y-6">
         <h2 className="text-2xl font-bold text-slate-800">Dashboard Overview</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
            <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
               <div className="flex items-center justify-between">
                  <div>
@@ -240,9 +303,17 @@ const App = () => {
                     <Users className="w-6 h-6" />
                  </div>
               </div>
-              <div className="mt-4 text-sm text-green-600 flex items-center gap-1">
-                <ArrowUpRight className="w-4 h-4" />
-                <span>Aktif</span>
+           </div>
+
+           <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+              <div className="flex items-center justify-between">
+                 <div>
+                    <p className="text-sm text-slate-500 mb-1">Total Akta</p>
+                    <h3 className="text-3xl font-bold text-slate-800">{totalDeeds}</h3>
+                 </div>
+                 <div className="p-3 bg-emerald-50 rounded-lg text-emerald-600">
+                    <ScrollText className="w-6 h-6" />
+                 </div>
               </div>
            </div>
 
@@ -256,9 +327,6 @@ const App = () => {
                     <Briefcase className="w-6 h-6" />
                  </div>
               </div>
-              <div className="w-full bg-slate-100 h-1.5 rounded-full mt-4">
-                 <div className="bg-indigo-500 h-1.5 rounded-full" style={{ width: `${total ? (ptCount/total)*100 : 0}%` }}></div>
-              </div>
            </div>
 
            <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
@@ -271,52 +339,36 @@ const App = () => {
                     <Briefcase className="w-6 h-6" />
                  </div>
               </div>
-               <div className="w-full bg-slate-100 h-1.5 rounded-full mt-4">
-                 <div className="bg-purple-500 h-1.5 rounded-full" style={{ width: `${total ? (cvCount/total)*100 : 0}%` }}></div>
-              </div>
            </div>
         </div>
 
-        {/* Recent Clients Table */}
+        {/* Recent Deeds Table */}
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
            <div className="px-6 py-4 border-b border-slate-100">
-              <h3 className="font-semibold text-slate-800">Klien Terbaru</h3>
+              <h3 className="font-semibold text-slate-800">Akta Terbaru</h3>
            </div>
            <div className="overflow-x-auto">
              <table className="w-full text-sm text-left">
                 <thead className="bg-slate-50 text-slate-500 font-medium">
                    <tr>
-                      <th className="px-6 py-3">Nama</th>
-                      <th className="px-6 py-3">Tipe</th>
-                      <th className="px-6 py-3">Tanggal Input</th>
-                      <th className="px-6 py-3 text-right">Aksi</th>
+                      <th className="px-6 py-3">Tanggal</th>
+                      <th className="px-6 py-3">No. Akta</th>
+                      <th className="px-6 py-3">Judul</th>
+                      <th className="px-6 py-3">Klien</th>
                    </tr>
                 </thead>
                 <tbody>
-                   {clients.slice(0, 5).map(client => ( // clients already sorted by date desc
-                      <tr key={client.id} className="border-b border-slate-50 last:border-none hover:bg-slate-50">
-                         <td className="px-6 py-3 font-medium text-slate-800">{client.name}</td>
-                         <td className="px-6 py-3">
-                            <span className={`px-2 py-1 rounded text-xs font-medium 
-                                ${client.type === 'PT' ? 'bg-indigo-100 text-indigo-700' : 
-                                  client.type === 'CV' ? 'bg-purple-100 text-purple-700' : 
-                                  'bg-orange-100 text-orange-700'}`}>
-                                {client.type}
-                            </span>
-                         </td>
-                         <td className="px-6 py-3 text-slate-500">{new Date(client.createdAt).toLocaleDateString('id-ID')}</td>
-                         <td className="px-6 py-3 text-right">
-                            <button 
-                                onClick={() => { setActiveTab('clients'); setClientViewState('detail'); setSelectedClient(client); }}
-                                className="text-primary-600 hover:text-primary-800 font-medium text-xs">
-                                Lihat
-                            </button>
-                         </td>
+                   {deeds.slice(0, 5).map(deed => (
+                      <tr key={deed.id} className="border-b border-slate-50 last:border-none hover:bg-slate-50">
+                         <td className="px-6 py-3 text-slate-500">{new Date(deed.deedDate).toLocaleDateString('id-ID')}</td>
+                         <td className="px-6 py-3 font-medium text-slate-800">{deed.deedNumber}</td>
+                         <td className="px-6 py-3">{deed.deedTitle}</td>
+                         <td className="px-6 py-3 text-slate-600">{deed.clientName}</td>
                       </tr>
                    ))}
-                   {clients.length === 0 && (
+                   {deeds.length === 0 && (
                       <tr>
-                         <td colSpan={4} className="px-6 py-8 text-center text-slate-400">Belum ada data klien.</td>
+                         <td colSpan={4} className="px-6 py-8 text-center text-slate-400">Belum ada data akta.</td>
                       </tr>
                    )}
                 </tbody>
@@ -411,8 +463,10 @@ const App = () => {
             setActiveTab(tab); 
             setClientViewState('list'); 
             setSelectedClient(null);
-            setDocViewState('list'); // Reset doc view when changing tabs
+            setDocViewState('list'); 
             setSelectedDocument(null);
+            setDeedViewState('list');
+            setSelectedDeed(null);
         }}
     >
       {activeTab === 'dashboard' && <Dashboard />}
@@ -510,37 +564,123 @@ const App = () => {
         </div>
       )}
 
-      {activeTab === 'receipt' && (
-        <>
-            {docViewState === 'list' ? (
-                <DocumentList type="RECEIPT" />
-            ) : (
-                <DocumentGenerator 
-                    type="RECEIPT" 
-                    clients={clients} 
-                    onSave={handleSaveDocument}
-                    onCancel={() => setDocViewState('list')}
-                    initialData={selectedDocument}
-                />
-            )}
-        </>
+      {/* --- AKTA TAB --- */}
+      {activeTab === 'akta' && (
+          <div className="space-y-6">
+             {deedViewState === 'list' ? (
+                 <>
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <h2 className="text-2xl font-bold text-slate-800">Daftar Akta</h2>
+                        <div className="flex gap-2">
+                            <button 
+                                onClick={() => setDeedViewState('report')}
+                                className="bg-white border border-slate-300 text-slate-700 px-4 py-2 rounded-lg hover:bg-slate-50 flex items-center gap-2 transition shadow-sm"
+                            >
+                                <BookOpen className="w-4 h-4" />
+                                Laporan Buku Akta
+                            </button>
+                            <button 
+                                onClick={() => { setDeedViewState('create'); setSelectedDeed(null); }}
+                                className="bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 flex items-center gap-2 transition shadow-sm"
+                            >
+                                <Plus className="w-4 h-4" />
+                                Buat Akta Baru
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="bg-white rounded-xl shadow-sm border border-slate-200">
+                        <div className="p-4 border-b border-slate-100">
+                            <div className="relative max-w-md">
+                                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
+                                <input 
+                                    type="text" 
+                                    placeholder="Cari nomor akta, judul, atau klien..." 
+                                    className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none text-sm"
+                                    value={deedSearchQuery}
+                                    onChange={(e) => setDeedSearchQuery(e.target.value)}
+                                />
+                            </div>
+                        </div>
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-sm text-left">
+                                <thead className="bg-slate-50 text-slate-500 font-medium">
+                                    <tr>
+                                        <th className="px-6 py-3">No. Urut</th>
+                                        <th className="px-6 py-3">No. Akta</th>
+                                        <th className="px-6 py-3">Tanggal</th>
+                                        <th className="px-6 py-3">Judul Akta</th>
+                                        <th className="px-6 py-3">Klien</th>
+                                        <th className="px-6 py-3 text-right">Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {deeds
+                                        .filter(d => 
+                                            d.deedNumber.toLowerCase().includes(deedSearchQuery.toLowerCase()) || 
+                                            d.deedTitle.toLowerCase().includes(deedSearchQuery.toLowerCase()) ||
+                                            d.clientName.toLowerCase().includes(deedSearchQuery.toLowerCase())
+                                        )
+                                        .map(deed => (
+                                        <tr key={deed.id} className="border-b border-slate-50 last:border-none hover:bg-slate-50 transition-colors">
+                                            <td className="px-6 py-4 font-mono text-slate-500">{deed.orderNumber}</td>
+                                            <td className="px-6 py-4 font-bold text-slate-800">{deed.deedNumber}</td>
+                                            <td className="px-6 py-4 text-slate-600">{new Date(deed.deedDate).toLocaleDateString('id-ID')}</td>
+                                            <td className="px-6 py-4 font-medium">{deed.deedTitle}</td>
+                                            <td className="px-6 py-4 text-slate-600">{deed.clientName}</td>
+                                            <td className="px-6 py-4 text-right">
+                                                <div className="flex items-center justify-end gap-2">
+                                                    <button 
+                                                        onClick={() => { setSelectedDeed(deed); setDeedViewState('edit'); }}
+                                                        className="p-2 text-slate-400 hover:text-primary-600 rounded-full hover:bg-blue-50 transition"
+                                                        title="Edit"
+                                                    >
+                                                        <Pencil className="w-4 h-4" />
+                                                    </button>
+                                                    <button 
+                                                        onClick={() => handleDeleteDeed(deed.id)}
+                                                        className="p-2 text-slate-400 hover:text-red-600 rounded-full hover:bg-red-50 transition"
+                                                        title="Hapus"
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                    {deeds.length === 0 && (
+                                        <tr>
+                                            <td colSpan={6} className="px-6 py-12 text-center text-slate-400">
+                                                Belum ada data akta.
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                 </>
+             ) : deedViewState === 'report' ? (
+                 <DeedReport 
+                    deeds={deeds}
+                    onBack={() => setDeedViewState('list')}
+                 />
+             ) : (
+                 <DeedForm 
+                    clients={clients}
+                    onSave={handleSaveDeed}
+                    onCancel={() => setDeedViewState('list')}
+                    initialData={selectedDeed || undefined}
+                 />
+             )}
+          </div>
       )}
 
-      {activeTab === 'delivery' && (
-         <>
-            {docViewState === 'list' ? (
-                <DocumentList type="DELIVERY" />
-            ) : (
-                <DocumentGenerator 
-                    type="DELIVERY" 
-                    clients={clients} 
-                    onSave={handleSaveDocument}
-                    onCancel={() => setDocViewState('list')}
-                    initialData={selectedDocument}
-                />
-            )}
-        </>
-      )}
+      {activeTab === 'receipt' && docViewState === 'list' && <DocumentList type="RECEIPT" />}
+      {activeTab === 'receipt' && docViewState !== 'list' && <DocumentGenerator type="RECEIPT" clients={clients} onSave={handleSaveDocument} onCancel={() => setDocViewState('list')} initialData={selectedDocument} />}
+      
+      {activeTab === 'delivery' && docViewState === 'list' && <DocumentList type="DELIVERY" />}
+      {activeTab === 'delivery' && docViewState !== 'list' && <DocumentGenerator type="DELIVERY" clients={clients} onSave={handleSaveDocument} onCancel={() => setDocViewState('list')} initialData={selectedDocument} />}
 
       {activeTab === 'settings' && (
         <div className="max-w-2xl mx-auto space-y-6">
@@ -548,55 +688,13 @@ const App = () => {
             <form onSubmit={handleSaveSettings} className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
                 <h3 className="font-semibold mb-4 text-slate-800 border-b pb-2">Profil Perusahaan (Kop Surat)</h3>
                 <div className="space-y-4">
-                    <div>
-                        <label className="text-sm font-medium text-slate-700 block mb-1">Nama Perusahaan</label>
-                        <input 
-                            type="text" 
-                            value={settings.companyName} 
-                            onChange={(e) => setSettings({...settings, companyName: e.target.value})}
-                            className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none transition-all" 
-                            required
-                        />
+                    <div><label className="text-sm">Nama</label><input type="text" value={settings.companyName} onChange={e=>setSettings({...settings, companyName:e.target.value})} className="w-full border p-2 rounded"/></div>
+                    <div><label className="text-sm">Alamat</label><textarea value={settings.companyAddress} onChange={e=>setSettings({...settings, companyAddress:e.target.value})} className="w-full border p-2 rounded"/></div>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div><label className="text-sm">Email</label><input type="text" value={settings.companyEmail} onChange={e=>setSettings({...settings, companyEmail:e.target.value})} className="w-full border p-2 rounded"/></div>
+                        <div><label className="text-sm">Telp</label><input type="text" value={settings.companyPhone} onChange={e=>setSettings({...settings, companyPhone:e.target.value})} className="w-full border p-2 rounded"/></div>
                     </div>
-                    <div>
-                        <label className="text-sm font-medium text-slate-700 block mb-1">Alamat Kantor</label>
-                        <textarea 
-                            value={settings.companyAddress}
-                            onChange={(e) => setSettings({...settings, companyAddress: e.target.value})}
-                            className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none transition-all" 
-                            rows={3}
-                            required
-                        />
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label className="text-sm font-medium text-slate-700 block mb-1">Email</label>
-                            <input 
-                                type="email" 
-                                value={settings.companyEmail} 
-                                onChange={(e) => setSettings({...settings, companyEmail: e.target.value})}
-                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none transition-all" 
-                                required
-                            />
-                        </div>
-                        <div>
-                            <label className="text-sm font-medium text-slate-700 block mb-1">Nomor Telepon</label>
-                            <input 
-                                type="text" 
-                                value={settings.companyPhone} 
-                                onChange={(e) => setSettings({...settings, companyPhone: e.target.value})}
-                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none transition-all" 
-                                required
-                            />
-                        </div>
-                    </div>
-                    
-                    <div className="pt-4 flex justify-end">
-                        <button type="submit" className="bg-primary-600 text-white px-6 py-2 rounded-lg hover:bg-primary-700 transition flex items-center gap-2">
-                            <Save className="w-4 h-4" />
-                            Simpan Pengaturan
-                        </button>
-                    </div>
+                    <button className="bg-primary-600 text-white px-4 py-2 rounded mt-4">Simpan</button>
                 </div>
             </form>
         </div>

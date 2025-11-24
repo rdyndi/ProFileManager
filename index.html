@@ -37,7 +37,6 @@
       };
     </script>
 
-    <!-- Print -->
     <style>
       @media print {
         .no-print {
@@ -58,20 +57,23 @@
       }
     </style>
 
-    <!-- Import map -->
+    <!-- Import map asli kamu -->
     <script type="importmap">
       {
         "imports": {
+          "lucide-react": "https://aistudiocdn.com/lucide-react@^0.554.0",
+          "react/": "https://aistudiocdn.com/react@^19.2.0/",
           "react": "https://aistudiocdn.com/react@^19.2.0",
-          "react-dom/client": "https://aistudiocdn.com/react-dom@^19.2.0/client",
+          "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
           "firebase/app": "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js",
-          "firebase/firestore": "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js"
+          "firebase/firestore": "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js",
+          "firebase/": "https://aistudiocdn.com/firebase@^12.6.0/"
         }
       }
     </script>
   </head>
 
-  <body class="bg-slate-50 text-slate-900 antialiased font-sans">
+  <body class="bg-slate-50 text-slate-900 antialiased">
     <div id="root"></div>
 
     <script type="module">
@@ -91,7 +93,7 @@
         orderBy
       } from "firebase/firestore";
 
-      // Firebase config kamu
+      // CONFIG FIREBASE KAMU
       const firebaseConfig = {
         apiKey: "AIzaSyClChxcL4T1Rc3b8l6Zobbj6ynAQLWPGwY",
         authDomain: "dompetpintar-d50e0.firebaseapp.com",
@@ -102,162 +104,61 @@
         measurementId: "G-3BV80BW6ZN"
       };
 
-      const app = initializeApp(firebaseConfig);
-      const db = getFirestore(app);
-      const clientsCol = collection(db, "clients");
+      let db = null;
+      let firebaseInitError = null;
+      try {
+        const app = initializeApp(firebaseConfig);
+        db = getFirestore(app);
+      } catch (e) {
+        console.error("Firebase init error:", e);
+        firebaseInitError = e;
+      }
 
       function App() {
-        const [activePage, setActivePage] = React.useState("dashboard"); // dashboard | clients | tanda | surat | settings
-        const [clients, setClients] = React.useState([]);
-        const [loading, setLoading] = React.useState(true);
-        const [saving, setSaving] = React.useState(false);
-        const [deletingId, setDeletingId] = React.useState(null);
+        const [activePage, setActivePage] = React.useState("dashboard");
 
+        const [clients, setClients] = React.useState([]);
+        const [loadingClients, setLoadingClients] = React.useState(true);
+        const [errorGlobal, setErrorGlobal] = React.useState(
+          firebaseInitError
+            ? "Gagal inisialisasi Firebase: " +
+                (firebaseInitError.code || firebaseInitError.message || "")
+            : ""
+        );
+
+        // Data Klien
         const [nama, setNama] = React.useState("");
         const [tipe, setTipe] = React.useState("PT");
         const [kontak, setKontak] = React.useState("");
         const [catatan, setCatatan] = React.useState("");
-        const [editingId, setEditingId] = React.useState(null);
+        const [editingClientId, setEditingClientId] = React.useState(null);
+        const [savingClient, setSavingClient] = React.useState(false);
+        const [deletingClientId, setDeletingClientId] = React.useState(null);
+        const [filterClient, setFilterClient] = React.useState("");
 
-        const [filter, setFilter] = React.useState("");
+        // Tanda Terima
+        const [receipts, setReceipts] = React.useState([]);
+        const [loadingReceipts, setLoadingReceipts] = React.useState(true);
+        const [receiptId, setReceiptId] = React.useState(null);
+        const [receiptClientId, setReceiptClientId] = React.useState("");
+        const [receiptTitle, setReceiptTitle] = React.useState("");
+        const [receiptNote, setReceiptNote] = React.useState("");
+        const [savingReceipt, setSavingReceipt] = React.useState(false);
+        const [deletingReceiptId, setDeletingReceiptId] = React.useState(null);
 
-        const [error, setError] = React.useState("");
-        const [success, setSuccess] = React.useState("");
+        // Surat Jalan
+        const [deliveries, setDeliveries] = React.useState([]);
+        const [loadingDeliveries, setLoadingDeliveries] = React.useState(true);
+        const [deliveryId, setDeliveryId] = React.useState(null);
+        const [deliveryClientId, setDeliveryClientId] = React.useState("");
+        const [deliveryTitle, setDeliveryTitle] = React.useState("");
+        const [deliveryNote, setDeliveryNote] = React.useState("");
+        const [savingDelivery, setSavingDelivery] = React.useState(false);
+        const [deletingDeliveryId, setDeletingDeliveryId] = React.useState(null);
 
-        const [selectedClientPrint, setSelectedClientPrint] = React.useState(null);
-        const [printType, setPrintType] = React.useState(null); // tanda | surat | null
-
-        async function loadClients() {
-          setLoading(true);
-          setError("");
-          try {
-            const q = query(clientsCol, orderBy("createdAt", "desc"));
-            const snap = await getDocs(q);
-            const data = [];
-            snap.forEach((d) => data.push({ id: d.id, ...d.data() }));
-            setClients(data);
-          } catch (err) {
-            console.error("getDocs error:", err);
-            setError(
-              "Gagal ambil data klien: " +
-                (err.code || err.message || "cek Firestore rules.")
-            );
-          }
-          setLoading(false);
-        }
-
-        React.useEffect(() => {
-          loadClients();
-        }, []);
-
-        function resetForm() {
-          setNama("");
-          setTipe("PT");
-          setKontak("");
-          setCatatan("");
-          setEditingId(null);
-        }
-
-        async function handleSubmit(e) {
-          e.preventDefault();
-          setError("");
-          setSuccess("");
-
-          if (!nama.trim()) {
-            setError("Nama klien wajib diisi.");
-            return;
-          }
-
-          setSaving(true);
-          try {
-            if (editingId) {
-              const ref = doc(db, "clients", editingId);
-              await updateDoc(ref, {
-                nama,
-                tipe,
-                kontak,
-                catatan
-              });
-              setSuccess("Data klien berhasil diperbarui ✅");
-            } else {
-              await addDoc(clientsCol, {
-                nama,
-                tipe,
-                kontak,
-                catatan,
-                createdAt: serverTimestamp()
-              });
-              setSuccess("Data klien berhasil disimpan ✅");
-            }
-            resetForm();
-            await loadClients();
-          } catch (err) {
-            console.error("save error:", err);
-            setError(
-              "Gagal menyimpan data klien: " +
-                (err.code || err.message || "")
-            );
-          }
-          setSaving(false);
-        }
-
-        function handleEdit(client) {
-          setEditingId(client.id);
-          setNama(client.nama || "");
-          setTipe(client.tipe || "PT");
-          setKontak(client.kontak || "");
-          setCatatan(client.catatan || "");
-          setActivePage("clients");
-        }
-
-        async function handleDelete(id) {
-          const yakin = confirm("Yakin hapus data klien ini?");
-          if (!yakin) return;
-          setError("");
-          setSuccess("");
-          setDeletingId(id);
-          try {
-            const ref = doc(db, "clients", id);
-            await deleteDoc(ref);
-            setSuccess("Data klien berhasil dihapus 🗑️");
-            await loadClients();
-          } catch (err) {
-            console.error("delete error:", err);
-            setError(
-              "Gagal menghapus data klien: " +
-                (err.code || err.message || "")
-            );
-          }
-          setDeletingId(null);
-        }
-
-        function handlePrint(type, client) {
-          setSelectedClientPrint(client);
-          setPrintType(type);
-          setTimeout(() => {
-            window.print();
-            setTimeout(() => setPrintType(null), 300);
-          }, 100);
-        }
-
-        const filteredClients = clients.filter((c) => {
-          if (!filter.trim()) return true;
-          const text =
-            (c.nama || "") +
-            " " +
-            (c.tipe || "") +
-            " " +
-            (c.kontak || "") +
-            " " +
-            (c.catatan || "");
-          return text.toLowerCase().includes(filter.toLowerCase());
-        });
-
-        const totalClients = clients.length;
-        const totalPT = clients.filter((c) => c.tipe === "PT").length;
-        const totalCV = clients.filter((c) => c.tipe === "CV").length;
-
-        const latestClients = clients.slice(0, 5);
+        // Print
+        const [printType, setPrintType] = React.useState(null); // "tanda" | "surat" | null
+        const [printDoc, setPrintDoc] = React.useState(null);
 
         const todayStr = new Date().toLocaleDateString("id-ID", {
           day: "2-digit",
@@ -265,7 +166,323 @@
           year: "numeric"
         });
 
-        // Sidebar item helper
+        // LOAD DATA
+        async function loadClients() {
+          if (!db) {
+            setLoadingClients(false);
+            return;
+          }
+          setLoadingClients(true);
+          try {
+            const col = collection(db, "clients");
+            const qCol = query(col, orderBy("createdAt", "desc"));
+            const snap = await getDocs(qCol);
+            const arr = [];
+            snap.forEach((d) => arr.push({ id: d.id, ...d.data() }));
+            setClients(arr);
+          } catch (e) {
+            console.error("loadClients error:", e);
+            setErrorGlobal(
+              "Gagal ambil data klien: " +
+                (e.code || e.message || "cek Firestore rules.")
+            );
+          }
+          setLoadingClients(false);
+        }
+
+        async function loadReceipts() {
+          if (!db) {
+            setLoadingReceipts(false);
+            return;
+          }
+          setLoadingReceipts(true);
+          try {
+            const col = collection(db, "tanda_terima");
+            const qCol = query(col, orderBy("createdAt", "desc"));
+            const snap = await getDocs(qCol);
+            const arr = [];
+            snap.forEach((d) => arr.push({ id: d.id, ...d.data() }));
+            setReceipts(arr);
+          } catch (e) {
+            console.error("loadReceipts error:", e);
+          }
+          setLoadingReceipts(false);
+        }
+
+        async function loadDeliveries() {
+          if (!db) {
+            setLoadingDeliveries(false);
+            return;
+          }
+          setLoadingDeliveries(true);
+          try {
+            const col = collection(db, "surat_jalan");
+            const qCol = query(col, orderBy("createdAt", "desc"));
+            const snap = await getDocs(qCol);
+            const arr = [];
+            snap.forEach((d) => arr.push({ id: d.id, ...d.data() }));
+            setDeliveries(arr);
+          } catch (e) {
+            console.error("loadDeliveries error:", e);
+          }
+          setLoadingDeliveries(false);
+        }
+
+        React.useEffect(() => {
+          loadClients();
+          loadReceipts();
+          loadDeliveries();
+        }, []);
+
+        // ===== DATA KLIEN HANDLER =====
+        function resetClientForm() {
+          setNama("");
+          setTipe("PT");
+          setKontak("");
+          setCatatan("");
+          setEditingClientId(null);
+        }
+
+        async function handleClientSubmit(e) {
+          e.preventDefault();
+          if (!db) return;
+          if (!nama.trim()) {
+            setErrorGlobal("Nama klien wajib diisi.");
+            return;
+          }
+          setErrorGlobal("");
+          setSavingClient(true);
+          try {
+            if (editingClientId) {
+              const ref = doc(db, "clients", editingClientId);
+              await updateDoc(ref, {
+                nama,
+                tipe,
+                kontak,
+                catatan
+              });
+            } else {
+              const col = collection(db, "clients");
+              await addDoc(col, {
+                nama,
+                tipe,
+                kontak,
+                catatan,
+                createdAt: serverTimestamp()
+              });
+            }
+            resetClientForm();
+            await loadClients();
+          } catch (e) {
+            console.error("save client error:", e);
+            setErrorGlobal(
+              "Gagal menyimpan data klien: " +
+                (e.code || e.message || "")
+            );
+          }
+          setSavingClient(false);
+        }
+
+        function handleClientEdit(c) {
+          setEditingClientId(c.id);
+          setNama(c.nama || "");
+          setTipe(c.tipe || "PT");
+          setKontak(c.kontak || "");
+          setCatatan(c.catatan || "");
+          setActivePage("clients");
+        }
+
+        async function handleClientDelete(id) {
+          if (!db) return;
+          const yakin = confirm("Yakin hapus klien ini?");
+          if (!yakin) return;
+          setDeletingClientId(id);
+          try {
+            const ref = doc(db, "clients", id);
+            await deleteDoc(ref);
+            await loadClients();
+          } catch (e) {
+            console.error("delete client error:", e);
+            setErrorGlobal(
+              "Gagal menghapus klien: " + (e.code || e.message || "")
+            );
+          }
+          setDeletingClientId(null);
+        }
+
+        // ===== TANDA TERIMA =====
+        function resetReceiptForm() {
+          setReceiptId(null);
+          setReceiptClientId("");
+          setReceiptTitle("");
+          setReceiptNote("");
+        }
+
+        async function handleReceiptSubmit(e) {
+          e.preventDefault();
+          if (!db) return;
+          if (!receiptClientId || !receiptTitle.trim()) {
+            setErrorGlobal(
+              "Klien dan judul/uraian tanda terima wajib diisi."
+            );
+            return;
+          }
+          setSavingReceipt(true);
+          try {
+            const client = clients.find((c) => c.id === receiptClientId) || {};
+            if (receiptId) {
+              const ref = doc(db, "tanda_terima", receiptId);
+              await updateDoc(ref, {
+                clientId: receiptClientId,
+                clientName: client.nama || "",
+                title: receiptTitle,
+                note: receiptNote
+              });
+            } else {
+              const col = collection(db, "tanda_terima");
+              await addDoc(col, {
+                clientId: receiptClientId,
+                clientName: client.nama || "",
+                title: receiptTitle,
+                note: receiptNote,
+                createdAt: serverTimestamp()
+              });
+            }
+            resetReceiptForm();
+            await loadReceipts();
+          } catch (e) {
+            console.error("save receipt error:", e);
+            setErrorGlobal(
+              "Gagal menyimpan tanda terima: " +
+                (e.code || e.message || "")
+            );
+          }
+          setSavingReceipt(false);
+        }
+
+        function handleReceiptEdit(r) {
+          setReceiptId(r.id);
+          setReceiptClientId(r.clientId || "");
+          setReceiptTitle(r.title || "");
+          setReceiptNote(r.note || "");
+        }
+
+        async function handleReceiptDelete(id) {
+          if (!db) return;
+          const yakin = confirm("Yakin hapus tanda terima ini?");
+          if (!yakin) return;
+          setDeletingReceiptId(id);
+          try {
+            const ref = doc(db, "tanda_terima", id);
+            await deleteDoc(ref);
+            await loadReceipts();
+          } catch (e) {
+            console.error("delete receipt error:", e);
+            setErrorGlobal(
+              "Gagal menghapus tanda terima: " +
+                (e.code || e.message || "")
+            );
+          }
+          setDeletingReceiptId(null);
+        }
+
+        // ===== SURAT JALAN =====
+        function resetDeliveryForm() {
+          setDeliveryId(null);
+          setDeliveryClientId("");
+          setDeliveryTitle("");
+          setDeliveryNote("");
+        }
+
+        async function handleDeliverySubmit(e) {
+          e.preventDefault();
+          if (!db) return;
+          if (!deliveryClientId || !deliveryTitle.trim()) {
+            setErrorGlobal(
+              "Klien dan judul/uraian surat jalan wajib diisi."
+            );
+            return;
+          }
+          setSavingDelivery(true);
+          try {
+            const client = clients.find((c) => c.id === deliveryClientId) || {};
+            if (deliveryId) {
+              const ref = doc(db, "surat_jalan", deliveryId);
+              await updateDoc(ref, {
+                clientId: deliveryClientId,
+                clientName: client.nama || "",
+                title: deliveryTitle,
+                note: deliveryNote
+              });
+            } else {
+              const col = collection(db, "surat_jalan");
+              await addDoc(col, {
+                clientId: deliveryClientId,
+                clientName: client.nama || "",
+                title: deliveryTitle,
+                note: deliveryNote,
+                createdAt: serverTimestamp()
+              });
+            }
+            resetDeliveryForm();
+            await loadDeliveries();
+          } catch (e) {
+            console.error("save delivery error:", e);
+            setErrorGlobal(
+              "Gagal menyimpan surat jalan: " +
+                (e.code || e.message || "")
+            );
+          }
+          setSavingDelivery(false);
+        }
+
+        function handleDeliveryEdit(dv) {
+          setDeliveryId(dv.id);
+          setDeliveryClientId(dv.clientId || "");
+          setDeliveryTitle(dv.title || "");
+          setDeliveryNote(dv.note || "");
+        }
+
+        async function handleDeliveryDelete(id) {
+          if (!db) return;
+          const yakin = confirm("Yakin hapus surat jalan ini?");
+          if (!yakin) return;
+          setDeletingDeliveryId(id);
+          try {
+            const ref = doc(db, "surat_jalan", id);
+            await deleteDoc(ref);
+            await loadDeliveries();
+          } catch (e) {
+            console.error("delete delivery error:", e);
+            setErrorGlobal(
+              "Gagal menghapus surat jalan: " +
+                (e.code || e.message || "")
+            );
+          }
+          setDeletingDeliveryId(null);
+        }
+
+        // PRINT
+        function triggerPrint(type, source, docRow) {
+          setPrintType(type);
+          const client =
+            clients.find((c) => c.id === docRow.clientId) || null;
+          setPrintDoc({
+            ...docRow,
+            clientName: docRow.clientName || (client && client.nama) || "",
+            clientKontak: client && client.kontak,
+            clientTipe: client && client.tipe
+          });
+          setTimeout(() => {
+            window.print();
+            setTimeout(() => {
+              setPrintType(null);
+              setPrintDoc(null);
+            }, 300);
+          }, 100);
+        }
+
+        // ====== UI HELPERS ======
         function navItem(key, label, icon) {
           const active = activePage === key;
           return React.createElement(
@@ -292,7 +509,27 @@
           );
         }
 
-        // DASHBOARD PAGE
+        const totalClients = clients.length;
+        const totalPT = clients.filter((c) => c.tipe === "PT").length;
+        const totalCV = clients.filter((c) => c.tipe === "CV").length;
+        const latestClients = clients.slice(0, 5);
+
+        // FILTER CLIENTS LIST
+        const filteredClients = clients.filter((c) => {
+          if (!filterClient.trim()) return true;
+          const text =
+            (c.nama || "") +
+            " " +
+            (c.tipe || "") +
+            " " +
+            (c.kontak || "") +
+            " " +
+            (c.catatan || "");
+          return text.toLowerCase().includes(filterClient.toLowerCase());
+        });
+
+        // ===== PAGE CONTENTS =====
+        // Dashboard
         const pageDashboard = React.createElement(
           "div",
           { className: "space-y-6" },
@@ -304,20 +541,22 @@
           React.createElement(
             "div",
             { className: "grid grid-cols-1 md:grid-cols-3 gap-4" },
-
-            // total
+            // total klien
             React.createElement(
               "div",
               {
                 className:
-                  "bg-white rounded-2xl border border-slate-100 p-4 shadow-sm flex flex-col gap-2"
+                  "bg-white rounded-2xl border border-slate-100 p-4 shadow-sm"
               },
               React.createElement(
                 "div",
-                { className: "flex items-center justify-between" },
+                { className: "flex items-center justify-between mb-2" },
                 React.createElement(
                   "p",
-                  { className: "text-xs uppercase tracking-wide text-slate-500" },
+                  {
+                    className:
+                      "text-xs uppercase tracking-wide text-slate-500"
+                  },
                   "Total Klien"
                 ),
                 React.createElement(
@@ -336,24 +575,26 @@
               ),
               React.createElement(
                 "p",
-                { className: "text-xs text-emerald-600" },
+                { className: "text-xs text-emerald-600 mt-1" },
                 totalClients > 0 ? "Aktif" : "Belum ada klien"
               )
             ),
-
             // PT
             React.createElement(
               "div",
               {
                 className:
-                  "bg-white rounded-2xl border border-slate-100 p-4 shadow-sm flex flex-col gap-2"
+                  "bg-white rounded-2xl border border-slate-100 p-4 shadow-sm"
               },
               React.createElement(
                 "div",
-                { className: "flex items-center justify-between" },
+                { className: "flex items-center justify-between mb-2" },
                 React.createElement(
                   "p",
-                  { className: "text-xs uppercase tracking-wide text-slate-500" },
+                  {
+                    className:
+                      "text-xs uppercase tracking-wide text-slate-500"
+                  },
                   "Badan Usaha PT"
                 ),
                 React.createElement(
@@ -384,20 +625,22 @@
                 })
               )
             ),
-
             // CV
             React.createElement(
               "div",
               {
                 className:
-                  "bg-white rounded-2xl border border-slate-100 p-4 shadow-sm flex flex-col gap-2"
+                  "bg-white rounded-2xl border border-slate-100 p-4 shadow-sm"
               },
               React.createElement(
                 "div",
-                { className: "flex items-center justify-between" },
+                { className: "flex items-center justify-between mb-2" },
                 React.createElement(
                   "p",
-                  { className: "text-xs uppercase tracking-wide text-slate-500" },
+                  {
+                    className:
+                      "text-xs uppercase tracking-wide text-slate-500"
+                  },
                   "Badan Usaha CV"
                 ),
                 React.createElement(
@@ -429,14 +672,19 @@
               )
             )
           ),
-
-          // Latest clients table
+          // tabel klien terbaru
           React.createElement(
             "div",
-            { className: "bg-white rounded-2xl border border-slate-100 shadow-sm" },
+            {
+              className:
+                "bg-white rounded-2xl border border-slate-100 shadow-sm"
+            },
             React.createElement(
               "div",
-              { className: "px-4 py-3 border-b border-slate-100 flex items-center justify-between" },
+              {
+                className:
+                  "px-4 py-3 border-b border-slate-100 flex items-center justify-between"
+              },
               React.createElement(
                 "h2",
                 { className: "text-sm font-semibold" },
@@ -478,27 +726,23 @@
                     React.createElement(
                       "th",
                       { className: "text-left px-4 py-2 font-medium" },
-                      "Tanggal Input"
-                    ),
-                    React.createElement(
-                      "th",
-                      { className: "text-right px-4 py-2 font-medium" },
-                      "Aksi"
+                      "Tanggal"
                     )
                   )
                 ),
                 React.createElement(
                   "tbody",
                   null,
-                  loading
+                  loadingClients
                     ? React.createElement(
                         "tr",
                         null,
                         React.createElement(
                           "td",
                           {
-                            colSpan: 4,
-                            className: "px-4 py-6 text-center text-slate-500"
+                            colSpan: 3,
+                            className:
+                              "px-4 py-6 text-center text-slate-500"
                           },
                           "Memuat data..."
                         )
@@ -510,8 +754,9 @@
                         React.createElement(
                           "td",
                           {
-                            colSpan: 4,
-                            className: "px-4 py-6 text-center text-slate-400"
+                            colSpan: 3,
+                            className:
+                              "px-4 py-6 text-center text-slate-400"
                           },
                           "Belum ada data klien."
                         )
@@ -519,7 +764,10 @@
                     : latestClients.map((c) =>
                         React.createElement(
                           "tr",
-                          { key: c.id, className: "border-t border-slate-100" },
+                          {
+                            key: c.id,
+                            className: "border-t border-slate-100"
+                          },
                           React.createElement(
                             "td",
                             { className: "px-4 py-2" },
@@ -527,31 +775,23 @@
                           ),
                           React.createElement(
                             "td",
-                            { className: "px-4 py-2 text-slate-600 text-xs" },
+                            {
+                              className:
+                                "px-4 py-2 text-xs text-slate-600"
+                            },
                             c.tipe || "-"
                           ),
                           React.createElement(
                             "td",
-                            { className: "px-4 py-2 text-slate-600 text-xs" },
+                            {
+                              className:
+                                "px-4 py-2 text-xs text-slate-600"
+                            },
                             c.createdAt && c.createdAt.toDate
                               ? c.createdAt
                                   .toDate()
                                   .toLocaleDateString("id-ID")
                               : "-"
-                          ),
-                          React.createElement(
-                            "td",
-                            { className: "px-4 py-2 text-right" },
-                            React.createElement(
-                              "button",
-                              {
-                                type: "button",
-                                onClick: () => handleEdit(c),
-                                className:
-                                  "text-xs px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50"
-                              },
-                              "Edit"
-                            )
                           )
                         )
                       )
@@ -561,7 +801,7 @@
           )
         );
 
-        // DATA KLIEN PAGE
+        // Data Klien
         const pageClients = React.createElement(
           "div",
           { className: "space-y-4" },
@@ -581,25 +821,27 @@
               "div",
               {
                 className:
-                  "bg-white rounded-2xl shadow-sm border border-slate-100 p-5"
+                  "bg-white rounded-2xl border border-slate-100 shadow-sm p-5"
               },
               React.createElement(
                 "div",
-                { className: "flex items-center justify-between mb-3" },
+                {
+                  className:
+                    "flex items-center justify-between mb-3"
+                },
                 React.createElement(
                   "h2",
                   { className: "text-lg font-semibold" },
-                  editingId ? "Edit Klien" : "Tambah Klien"
+                  editingClientId ? "Edit Klien" : "Tambah Klien"
                 ),
-                editingId &&
+                editingClientId &&
                   React.createElement(
                     "button",
                     {
                       type: "button",
                       onClick: () => {
-                        resetForm();
-                        setSuccess("");
-                        setError("");
+                        resetClientForm();
+                        setErrorGlobal("");
                       },
                       className:
                         "text-xs px-3 py-1 rounded-full border border-slate-200 text-slate-500 hover:bg-slate-50"
@@ -609,7 +851,7 @@
               ),
               React.createElement(
                 "form",
-                { className: "space-y-3", onSubmit: handleSubmit },
+                { className: "space-y-3", onSubmit: handleClientSubmit },
                 React.createElement(
                   "div",
                   { className: "space-y-1" },
@@ -688,15 +930,15 @@
                   "button",
                   {
                     type: "submit",
-                    disabled: saving,
+                    disabled: savingClient,
                     className:
                       "w-full rounded-lg bg-primary-600 text-white text-sm font-medium px-4 py-2 mt-1 hover:bg-primary-700 disabled:opacity-60"
                   },
-                  saving
-                    ? editingId
+                  savingClient
+                    ? editingClientId
                       ? "Menyimpan Perubahan..."
                       : "Menyimpan..."
-                    : editingId
+                    : editingClientId
                     ? "Update Klien"
                     : "Simpan Klien"
                 )
@@ -707,7 +949,7 @@
               "div",
               {
                 className:
-                  "bg-white rounded-2xl shadow-sm border border-slate-100 p-5 flex flex-col gap-3"
+                  "bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex flex-col gap-3"
               },
               React.createElement(
                 "div",
@@ -726,7 +968,7 @@
                   React.createElement(
                     "p",
                     { className: "text-xs text-slate-500" },
-                    "Klik nama untuk edit, tombol kanan untuk cetak / hapus."
+                    "Klik nama untuk edit, tombol kanan untuk hapus."
                   )
                 ),
                 React.createElement(
@@ -736,8 +978,8 @@
                     className:
                       "flex-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500",
                     placeholder: "Cari nama / tipe / kontak",
-                    value: filter,
-                    onChange: (e) => setFilter(e.target.value)
+                    value: filterClient,
+                    onChange: (e) => setFilterClient(e.target.value)
                   }),
                   React.createElement(
                     "button",
@@ -751,7 +993,7 @@
                   )
                 )
               ),
-              loading
+              loadingClients
                 ? React.createElement(
                     "p",
                     { className: "text-sm text-slate-500" },
@@ -772,89 +1014,61 @@
                         {
                           key: c.id,
                           className:
-                            "border border-slate-100 rounded-lg px-3 py-2 text-sm flex flex-col gap-1"
+                            "border border-slate-100 rounded-lg px-3 py-2 text-sm flex justify-between gap-2"
                         },
                         React.createElement(
-                          "div",
+                          "button",
                           {
+                            type: "button",
+                            onClick: () => handleClientEdit(c),
                             className:
-                              "flex items-start justify-between gap-2"
+                              "text-left flex-1 hover:text-primary-700"
                           },
                           React.createElement(
-                            "button",
+                            "div",
                             {
-                              type: "button",
-                              onClick: () => handleEdit(c),
                               className:
-                                "flex-1 text-left hover:text-primary-700"
+                                "font-medium text-slate-800"
                             },
-                            React.createElement(
-                              "div",
-                              { className: "font-medium text-slate-800" },
-                              c.nama || "-"
-                            ),
-                            React.createElement(
-                              "div",
-                              { className: "text-[11px] text-slate-500" },
-                              c.tipe || "-"
-                            ),
-                            c.kontak &&
-                              React.createElement(
-                                "div",
-                                {
-                                  className:
-                                    "text-[11px] text-slate-500 mt-0.5"
-                                },
-                                c.kontak
-                              ),
-                            c.catatan &&
-                              React.createElement(
-                                "div",
-                                {
-                                  className:
-                                    "text-[11px] text-slate-400 mt-0.5"
-                                },
-                                c.catatan
-                              )
+                            c.nama || "-"
                           ),
                           React.createElement(
                             "div",
                             {
                               className:
-                                "flex flex-col items-end gap-1 text-[11px]"
+                                "text-[11px] text-slate-500"
                             },
+                            c.tipe || "-"
+                          ),
+                          c.kontak &&
                             React.createElement(
-                              "button",
+                              "div",
                               {
-                                type: "button",
-                                onClick: () => handlePrint("tanda", c),
                                 className:
-                                  "px-2 py-1 rounded-md border border-slate-200 text-slate-600 hover:bg-slate-50"
+                                  "text-[11px] text-slate-500 mt-0.5"
                               },
-                              "Tanda Terima"
+                              c.kontak
                             ),
+                          c.catatan &&
                             React.createElement(
-                              "button",
+                              "div",
                               {
-                                type: "button",
-                                onClick: () => handlePrint("surat", c),
                                 className:
-                                  "px-2 py-1 rounded-md border border-slate-200 text-slate-600 hover:bg-slate-50"
+                                  "text-[11px] text-slate-400 mt-0.5"
                               },
-                              "Surat Jalan"
-                            ),
-                            React.createElement(
-                              "button",
-                              {
-                                type: "button",
-                                onClick: () => handleDelete(c.id),
-                                disabled: deletingId === c.id,
-                                className:
-                                  "px-2 py-1 rounded-md border border-red-200 text-red-600 hover:bg-red-50 disabled:opacity-60"
-                              },
-                              deletingId === c.id ? "Hapus..." : "Hapus"
+                              c.catatan
                             )
-                          )
+                        ),
+                        React.createElement(
+                          "button",
+                          {
+                            type: "button",
+                            onClick: () => handleClientDelete(c.id),
+                            disabled: deletingClientId === c.id,
+                            className:
+                              "text-[11px] px-2 py-1 rounded-md border border-red-200 text-red-600 hover:bg-red-50 disabled:opacity-60"
+                          },
+                          deletingClientId === c.id ? "Hapus..." : "Hapus"
                         )
                       )
                     )
@@ -863,7 +1077,7 @@
           )
         );
 
-        // TANDA TERIMA PAGE
+        // Tanda Terima
         const pageTanda = React.createElement(
           "div",
           { className: "space-y-4" },
@@ -874,66 +1088,241 @@
           ),
           React.createElement(
             "div",
-            { className: "bg-white rounded-2xl border border-slate-100 shadow-sm p-5 max-w-xl" },
-            React.createElement(
-              "p",
-              { className: "text-sm text-slate-600 mb-3" },
-              "Pilih klien, lalu cetak tanda terima berkas."
-            ),
+            {
+              className:
+                "grid grid-cols-1 md:grid-cols-2 gap-6 items-start"
+            },
+            // form
             React.createElement(
               "div",
-              { className: "space-y-3" },
+              {
+                className:
+                  "bg-white rounded-2xl border border-slate-100 shadow-sm p-5"
+              },
               React.createElement(
-                "div",
-                { className: "space-y-1" },
-                React.createElement(
-                  "label",
-                  { className: "text-sm font-medium text-slate-700" },
-                  "Pilih Klien"
-                ),
-                React.createElement(
-                  "select",
-                  {
-                    className:
-                      "w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500",
-                    value: selectedClientPrint ? selectedClientPrint.id : "",
-                    onChange: (e) => {
-                      const id = e.target.value;
-                      const found = clients.find((c) => c.id === id) || null;
-                      setSelectedClientPrint(found);
-                    }
-                  },
-                  React.createElement(
-                    "option",
-                    { value: "" },
-                    "Pilih salah satu klien"
-                  ),
-                  clients.map((c) =>
-                    React.createElement(
-                      "option",
-                      { key: c.id, value: c.id },
-                      c.nama || "-"
-                    )
-                  )
-                )
+                "h2",
+                { className: "text-lg font-semibold mb-3" },
+                receiptId ? "Edit Tanda Terima" : "Input Tanda Terima"
               ),
               React.createElement(
-                "button",
-                {
-                  type: "button",
-                  disabled: !selectedClientPrint,
-                  onClick: () =>
-                    selectedClientPrint && handlePrint("tanda", selectedClientPrint),
-                  className:
-                    "w-full rounded-lg bg-primary-600 text-white text-sm font-medium px-4 py-2 mt-2 hover:bg-primary-700 disabled:opacity-60"
-                },
-                "Cetak Tanda Terima"
+                "form",
+                { className: "space-y-3", onSubmit: handleReceiptSubmit },
+                React.createElement(
+                  "div",
+                  { className: "space-y-1" },
+                  React.createElement(
+                    "label",
+                    { className: "text-sm font-medium text-slate-700" },
+                    "Klien"
+                  ),
+                  React.createElement(
+                    "select",
+                    {
+                      className:
+                        "w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500",
+                      value: receiptClientId,
+                      onChange: (e) => setReceiptClientId(e.target.value)
+                    },
+                    React.createElement(
+                      "option",
+                      { value: "" },
+                      "Pilih klien"
+                    ),
+                    clients.map((c) =>
+                      React.createElement(
+                        "option",
+                        { key: c.id, value: c.id },
+                        c.nama || "-"
+                      )
+                    )
+                  )
+                ),
+                React.createElement(
+                  "div",
+                  { className: "space-y-1" },
+                  React.createElement(
+                    "label",
+                    { className: "text-sm font-medium text-slate-700" },
+                    "Judul / Uraian Berkas"
+                  ),
+                  React.createElement("input", {
+                    className:
+                      "w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500",
+                    value: receiptTitle,
+                    onChange: (e) => setReceiptTitle(e.target.value),
+                    placeholder: "Contoh: Berkas legalitas usaha"
+                  })
+                ),
+                React.createElement(
+                  "div",
+                  { className: "space-y-1" },
+                  React.createElement(
+                    "label",
+                    { className: "text-sm font-medium text-slate-700" },
+                    "Catatan (opsional)"
+                  ),
+                  React.createElement("textarea", {
+                    className:
+                      "w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500",
+                    rows: 3,
+                    value: receiptNote,
+                    onChange: (e) => setReceiptNote(e.target.value),
+                    placeholder: "Keterangan tambahan / nomor referensi internal"
+                  })
+                ),
+                React.createElement(
+                  "div",
+                  { className: "flex gap-2" },
+                  React.createElement(
+                    "button",
+                    {
+                      type: "submit",
+                      disabled: savingReceipt,
+                      className:
+                        "flex-1 rounded-lg bg-primary-600 text-white text-sm font-medium px-4 py-2 hover:bg-primary-700 disabled:opacity-60"
+                    },
+                    savingReceipt
+                      ? receiptId
+                        ? "Menyimpan Perubahan..."
+                        : "Menyimpan..."
+                      : receiptId
+                      ? "Update Tanda Terima"
+                      : "Simpan Tanda Terima"
+                  ),
+                  receiptId &&
+                    React.createElement(
+                      "button",
+                      {
+                        type: "button",
+                        onClick: () => resetReceiptForm(),
+                        className:
+                          "px-4 py-2 rounded-lg border border-slate-200 text-xs text-slate-600 hover:bg-slate-50"
+                      },
+                      "Batal"
+                    )
+                )
               )
+            ),
+            // list
+            React.createElement(
+              "div",
+              {
+                className:
+                  "bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex flex-col gap-3"
+              },
+              React.createElement(
+                "div",
+                { className: "flex items-center justify-between mb-1" },
+                React.createElement(
+                  "h2",
+                  { className: "text-lg font-semibold" },
+                  "Riwayat Tanda Terima"
+                ),
+                React.createElement(
+                  "button",
+                  {
+                    type: "button",
+                    onClick: loadReceipts,
+                    className:
+                      "text-xs px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50"
+                  },
+                  "Refresh"
+                )
+              ),
+              loadingReceipts
+                ? React.createElement(
+                    "p",
+                    { className: "text-sm text-slate-500" },
+                    "Memuat data..."
+                  )
+                : receipts.length === 0
+                ? React.createElement(
+                    "p",
+                    { className: "text-sm text-slate-500" },
+                    "Belum ada tanda terima."
+                  )
+                : React.createElement(
+                    "ul",
+                    { className: "space-y-2 max-h-80 overflow-auto pr-1" },
+                    receipts.map((r) =>
+                      React.createElement(
+                        "li",
+                        {
+                          key: r.id,
+                          className:
+                            "border border-slate-100 rounded-lg px-3 py-2 text-sm flex justify-between gap-2"
+                        },
+                        React.createElement(
+                          "button",
+                          {
+                            type: "button",
+                            onClick: () => handleReceiptEdit(r),
+                            className:
+                              "text-left flex-1 hover:text-primary-700"
+                          },
+                          React.createElement(
+                            "div",
+                            {
+                              className:
+                                "font-medium text-slate-800"
+                            },
+                            r.clientName || "-"
+                          ),
+                          React.createElement(
+                            "div",
+                            {
+                              className:
+                                "text-[11px] text-slate-500"
+                            },
+                            r.title || "-"
+                          ),
+                          r.note &&
+                            React.createElement(
+                              "div",
+                              {
+                                className:
+                                  "text-[11px] text-slate-400 mt-0.5"
+                              },
+                              r.note
+                            )
+                        ),
+                        React.createElement(
+                          "div",
+                          {
+                            className:
+                              "flex flex-col items-end gap-1 text-[11px]"
+                          },
+                          React.createElement(
+                            "button",
+                            {
+                              type: "button",
+                              onClick: () =>
+                                triggerPrint("tanda", "list", r),
+                              className:
+                                "px-2 py-1 rounded-md border border-slate-200 text-slate-600 hover:bg-slate-50"
+                            },
+                            "Print"
+                          ),
+                          React.createElement(
+                            "button",
+                            {
+                              type: "button",
+                              onClick: () => handleReceiptDelete(r.id),
+                              disabled: deletingReceiptId === r.id,
+                              className:
+                                "px-2 py-1 rounded-md border border-red-200 text-red-600 hover:bg-red-50 disabled:opacity-60"
+                            },
+                            deletingReceiptId === r.id ? "Hapus..." : "Hapus"
+                          )
+                        )
+                      )
+                    )
+                  )
             )
           )
         );
 
-        // SURAT JALAN PAGE
+        // Surat Jalan
         const pageSurat = React.createElement(
           "div",
           { className: "space-y-4" },
@@ -944,66 +1333,247 @@
           ),
           React.createElement(
             "div",
-            { className: "bg-white rounded-2xl border border-slate-100 shadow-sm p-5 max-w-xl" },
-            React.createElement(
-              "p",
-              { className: "text-sm text-slate-600 mb-3" },
-              "Pilih klien, lalu cetak surat jalan berkas."
-            ),
+            {
+              className:
+                "grid grid-cols-1 md:grid-cols-2 gap-6 items-start"
+            },
+            // form
             React.createElement(
               "div",
-              { className: "space-y-3" },
+              {
+                className:
+                  "bg-white rounded-2xl border border-slate-100 shadow-sm p-5"
+              },
               React.createElement(
-                "div",
-                { className: "space-y-1" },
-                React.createElement(
-                  "label",
-                  { className: "text-sm font-medium text-slate-700" },
-                  "Pilih Klien"
-                ),
-                React.createElement(
-                  "select",
-                  {
-                    className:
-                      "w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500",
-                    value: selectedClientPrint ? selectedClientPrint.id : "",
-                    onChange: (e) => {
-                      const id = e.target.value;
-                      const found = clients.find((c) => c.id === id) || null;
-                      setSelectedClientPrint(found);
-                    }
-                  },
-                  React.createElement(
-                    "option",
-                    { value: "" },
-                    "Pilih salah satu klien"
-                  ),
-                  clients.map((c) =>
-                    React.createElement(
-                      "option",
-                      { key: c.id, value: c.id },
-                      c.nama || "-"
-                    )
-                  )
-                )
+                "h2",
+                { className: "text-lg font-semibold mb-3" },
+                deliveryId ? "Edit Surat Jalan" : "Input Surat Jalan"
               ),
               React.createElement(
-                "button",
-                {
-                  type: "button",
-                  disabled: !selectedClientPrint,
-                  onClick: () =>
-                    selectedClientPrint && handlePrint("surat", selectedClientPrint),
-                  className:
-                    "w-full rounded-lg bg-primary-600 text-white text-sm font-medium px-4 py-2 mt-2 hover:bg-primary-700 disabled:opacity-60"
-                },
-                "Cetak Surat Jalan"
+                "form",
+                { className: "space-y-3", onSubmit: handleDeliverySubmit },
+                React.createElement(
+                  "div",
+                  { className: "space-y-1" },
+                  React.createElement(
+                    "label",
+                    { className: "text-sm font-medium text-slate-700" },
+                    "Klien"
+                  ),
+                  React.createElement(
+                    "select",
+                    {
+                      className:
+                        "w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500",
+                      value: deliveryClientId,
+                      onChange: (e) =>
+                        setDeliveryClientId(e.target.value)
+                    },
+                    React.createElement(
+                      "option",
+                      { value: "" },
+                      "Pilih klien"
+                    ),
+                    clients.map((c) =>
+                      React.createElement(
+                        "option",
+                        { key: c.id, value: c.id },
+                        c.nama || "-"
+                      )
+                    )
+                  )
+                ),
+                React.createElement(
+                  "div",
+                  { className: "space-y-1" },
+                  React.createElement(
+                    "label",
+                    { className: "text-sm font-medium text-slate-700" },
+                    "Judul / Uraian Pengiriman"
+                  ),
+                  React.createElement("input", {
+                    className:
+                      "w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500",
+                    value: deliveryTitle,
+                    onChange: (e) =>
+                      setDeliveryTitle(e.target.value),
+                    placeholder: "Contoh: Pengiriman berkas legalitas ke klien"
+                  })
+                ),
+                React.createElement(
+                  "div",
+                  { className: "space-y-1" },
+                  React.createElement(
+                    "label",
+                    { className: "text-sm font-medium text-slate-700" },
+                    "Catatan (opsional)"
+                  ),
+                  React.createElement("textarea", {
+                    className:
+                      "w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500",
+                    rows: 3,
+                    value: deliveryNote,
+                    onChange: (e) =>
+                      setDeliveryNote(e.target.value),
+                    placeholder: "Keterangan tambahan / nomor referensi"
+                  })
+                ),
+                React.createElement(
+                  "div",
+                  { className: "flex gap-2" },
+                  React.createElement(
+                    "button",
+                    {
+                      type: "submit",
+                      disabled: savingDelivery,
+                      className:
+                        "flex-1 rounded-lg bg-primary-600 text-white text-sm font-medium px-4 py-2 hover:bg-primary-700 disabled:opacity-60"
+                    },
+                    savingDelivery
+                      ? deliveryId
+                        ? "Menyimpan Perubahan..."
+                        : "Menyimpan..."
+                      : deliveryId
+                      ? "Update Surat Jalan"
+                      : "Simpan Surat Jalan"
+                  ),
+                  deliveryId &&
+                    React.createElement(
+                      "button",
+                      {
+                        type: "button",
+                        onClick: () => resetDeliveryForm(),
+                        className:
+                          "px-4 py-2 rounded-lg border border-slate-200 text-xs text-slate-600 hover:bg-slate-50"
+                      },
+                      "Batal"
+                    )
+                )
               )
+            ),
+            // list
+            React.createElement(
+              "div",
+              {
+                className:
+                  "bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex flex-col gap-3"
+              },
+              React.createElement(
+                "div",
+                { className: "flex items-center justify-between mb-1" },
+                React.createElement(
+                  "h2",
+                  { className: "text-lg font-semibold" },
+                  "Riwayat Surat Jalan"
+                ),
+                React.createElement(
+                  "button",
+                  {
+                    type: "button",
+                    onClick: loadDeliveries,
+                    className:
+                      "text-xs px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50"
+                  },
+                  "Refresh"
+                )
+              ),
+              loadingDeliveries
+                ? React.createElement(
+                    "p",
+                    { className: "text-sm text-slate-500" },
+                    "Memuat data..."
+                  )
+                : deliveries.length === 0
+                ? React.createElement(
+                    "p",
+                    { className: "text-sm text-slate-500" },
+                    "Belum ada surat jalan."
+                  )
+                : React.createElement(
+                    "ul",
+                    { className: "space-y-2 max-h-80 overflow-auto pr-1" },
+                    deliveries.map((d) =>
+                      React.createElement(
+                        "li",
+                        {
+                          key: d.id,
+                          className:
+                            "border border-slate-100 rounded-lg px-3 py-2 text-sm flex justify-between gap-2"
+                        },
+                        React.createElement(
+                          "button",
+                          {
+                            type: "button",
+                            onClick: () => handleDeliveryEdit(d),
+                            className:
+                              "text-left flex-1 hover:text-primary-700"
+                          },
+                          React.createElement(
+                            "div",
+                            {
+                              className:
+                                "font-medium text-slate-800"
+                            },
+                            d.clientName || "-"
+                          ),
+                          React.createElement(
+                            "div",
+                            {
+                              className:
+                                "text-[11px] text-slate-500"
+                            },
+                            d.title || "-"
+                          ),
+                          d.note &&
+                            React.createElement(
+                              "div",
+                              {
+                                className:
+                                  "text-[11px] text-slate-400 mt-0.5"
+                              },
+                              d.note
+                            )
+                        ),
+                        React.createElement(
+                          "div",
+                          {
+                            className:
+                              "flex flex-col items-end gap-1 text-[11px]"
+                          },
+                          React.createElement(
+                            "button",
+                            {
+                              type: "button",
+                              onClick: () =>
+                                triggerPrint("surat", "list", d),
+                              className:
+                                "px-2 py-1 rounded-md border border-slate-200 text-slate-600 hover:bg-slate-50"
+                            },
+                            "Print"
+                          ),
+                          React.createElement(
+                            "button",
+                            {
+                              type: "button",
+                              onClick: () =>
+                                handleDeliveryDelete(d.id),
+                              disabled: deletingDeliveryId === d.id,
+                              className:
+                                "px-2 py-1 rounded-md border border-red-200 text-red-600 hover:bg-red-50 disabled:opacity-60"
+                            },
+                            deletingDeliveryId === d.id
+                              ? "Hapus..."
+                              : "Hapus"
+                          )
+                        )
+                      )
+                    )
+                  )
             )
           )
         );
 
-        // SETTINGS PAGE (dummy dulu)
+        // Settings
         const pageSettings = React.createElement(
           "div",
           { className: "space-y-4" },
@@ -1014,16 +1584,19 @@
           ),
           React.createElement(
             "div",
-            { className: "bg-white rounded-2xl border border-slate-100 shadow-sm p-5 max-w-xl" },
+            {
+              className:
+                "bg-white rounded-2xl border border-slate-100 shadow-sm p-5 max-w-xl"
+            },
             React.createElement(
               "p",
               { className: "text-sm text-slate-600" },
-              "Area ini bisa dipakai untuk pengaturan nama sistem, logo, atau template tanda terima & surat jalan di versi berikutnya."
+              "Area ini bisa dipakai nanti untuk pengaturan nama sistem, logo, atau template cetak."
             ),
             React.createElement(
               "p",
               { className: "mt-4 text-xs text-slate-400" },
-              "Versi Sistem: v1.0.0 Enterprise"
+              "Versi Sistem: v1.0.0"
             )
           )
         );
@@ -1035,15 +1608,18 @@
         if (activePage === "settings") pageContent = pageSettings;
 
         // PRINT UI
-        let titlePrint = "";
-        if (printType === "tanda") titlePrint = "TANDA TERIMA BERKAS";
-        if (printType === "surat") titlePrint = "SURAT JALAN BERKAS";
+        let printTitle = "";
+        if (printType === "tanda") printTitle = "TANDA TERIMA BERKAS";
+        if (printType === "surat") printTitle = "SURAT JALAN BERKAS";
 
         const printUi =
-          printType && selectedClientPrint
+          printType && printDoc
             ? React.createElement(
                 "div",
-                { className: "print-only min-h-screen flex justify-center px-4 py-6" },
+                {
+                  className:
+                    "print-only min-h-screen flex justify-center px-4 py-6"
+                },
                 React.createElement(
                   "div",
                   { className: "w-full max-w-2xl text-slate-900" },
@@ -1056,7 +1632,7 @@
                         className:
                           "text-xl font-bold tracking-wide border-b pb-2 mb-2"
                       },
-                      titlePrint
+                      printTitle
                     ),
                     React.createElement(
                       "p",
@@ -1083,7 +1659,7 @@
                           "td",
                           { className: "align-top pb-1" },
                           ": ",
-                          selectedClientPrint.nama || "-"
+                          printDoc.clientName || "-"
                         )
                       ),
                       React.createElement(
@@ -1098,7 +1674,7 @@
                           "td",
                           { className: "align-top pb-1" },
                           ": ",
-                          selectedClientPrint.tipe || "-"
+                          printDoc.clientTipe || "-"
                         )
                       ),
                       React.createElement(
@@ -1113,7 +1689,22 @@
                           "td",
                           { className: "align-top pb-1" },
                           ": ",
-                          selectedClientPrint.kontak || "-"
+                          printDoc.clientKontak || "-"
+                        )
+                      ),
+                      React.createElement(
+                        "tr",
+                        null,
+                        React.createElement(
+                          "td",
+                          { className: "align-top pb-1" },
+                          "Judul"
+                        ),
+                        React.createElement(
+                          "td",
+                          { className: "align-top pb-1" },
+                          ": ",
+                          printDoc.title || "-"
                         )
                       ),
                       React.createElement(
@@ -1128,7 +1719,7 @@
                           "td",
                           { className: "align-top pb-1" },
                           ": ",
-                          selectedClientPrint.catatan || "-"
+                          printDoc.note || "-"
                         )
                       )
                     )
@@ -1138,7 +1729,7 @@
                     { className: "text-sm mb-6" },
                     printType === "tanda"
                       ? "Dengan ini kami menyatakan telah menerima berkas dari klien dengan data sebagaimana tercantum di atas untuk diproses lebih lanjut."
-                      : "Dengan ini kami menyatakan telah menyerahkan / mengirimkan berkas kepada klien dengan data sebagaimana tercantum di atas."
+                      : "Dengan ini kami menyatakan telah mengirimkan/menyerahkan berkas kepada klien sebagaimana tercantum di atas."
                   ),
                   React.createElement(
                     "div",
@@ -1157,7 +1748,7 @@
                           className:
                             "border-t border-slate-400 inline-block px-4 pt-1"
                         },
-                        selectedClientPrint.nama || "________________"
+                        printDoc.clientName || "________________"
                       )
                     ),
                     React.createElement(
@@ -1179,7 +1770,6 @@
               )
             : React.createElement("div", { className: "print-only" });
 
-        // MAIN LAYOUT (NO PRINT)
         const mainUi = React.createElement(
           "div",
           { className: "no-print min-h-screen flex" },
@@ -1192,7 +1782,10 @@
             },
             React.createElement(
               "div",
-              { className: "px-5 py-4 border-b border-slate-100 flex items-center gap-2" },
+              {
+                className:
+                  "px-5 py-4 border-b border-slate-100 flex items-center gap-2"
+              },
               React.createElement(
                 "div",
                 {
@@ -1232,12 +1825,15 @@
             ),
             React.createElement(
               "div",
-              { className: "px-4 py-4 border-t border-slate-100 text-xs text-slate-400" },
+              {
+                className:
+                  "px-4 py-4 border-t border-slate-100 text-xs text-slate-400"
+              },
               React.createElement("p", null, "Versi Sistem"),
               React.createElement(
                 "p",
                 { className: "font-medium text-slate-600" },
-                "v1.0.0 Enterprise"
+                "v1.0.0"
               )
             )
           ),
@@ -1248,28 +1844,14 @@
             React.createElement(
               "div",
               { className: "max-w-6xl mx-auto px-4 py-6 space-y-3" },
-              (error || success) &&
+              errorGlobal &&
                 React.createElement(
                   "div",
-                  { className: "space-y-2" },
-                  error &&
-                    React.createElement(
-                      "div",
-                      {
-                        className:
-                          "rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700"
-                      },
-                      error
-                    ),
-                  success &&
-                    React.createElement(
-                      "div",
-                      {
-                        className:
-                          "rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-700"
-                      },
-                      success
-                    )
+                  {
+                    className:
+                      "rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700"
+                  },
+                  errorGlobal
                 ),
               pageContent
             )
@@ -1284,7 +1866,8 @@
         );
       }
 
-      const root = createRoot(document.getElementById("root"));
+      const rootEl = document.getElementById("root");
+      const root = createRoot(rootEl);
       root.render(React.createElement(App));
     </script>
   </body>

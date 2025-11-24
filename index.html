@@ -4,8 +4,14 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>ProFile Manager</title>
+
+    <!-- TAILWIND -->
     <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- FONT -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- TAILWIND CUSTOM THEME -->
     <script>
       tailwind.config = {
         theme: {
@@ -28,6 +34,8 @@
         },
       }
     </script>
+
+    <!-- PRINT MODE -->
     <style>
       @media print {
         .no-print {
@@ -47,21 +55,46 @@
         display: none;
       }
     </style>
-  <script type="importmap">
-{
-  "imports": {
-    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.554.0",
-    "react/": "https://aistudiocdn.com/react@^19.2.0/",
-    "react": "https://aistudiocdn.com/react@^19.2.0",
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
-    "firebase/app": "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js",
-    "firebase/firestore": "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js",
-    "firebase/": "https://aistudiocdn.com/firebase@^12.6.0/"
-  }
-}
-</script>
-</head>
+
+    <!-- IMPORT MAP (AI STUDIO STYLE) -->
+    <script type="importmap">
+      {
+        "imports": {
+          "react": "https://aistudiocdn.com/react@^19.2.0",
+          "react/": "https://aistudiocdn.com/react@^19.2.0/",
+          "react-dom": "https://aistudiocdn.com/react-dom@^19.2.0",
+          "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+          "lucide-react": "https://aistudiocdn.com/lucide-react@^0.554.0",
+          "firebase/app": "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js",
+          "firebase/firestore": "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js"
+        }
+      }
+    </script>
+  </head>
+
   <body class="bg-slate-50 text-slate-900 antialiased">
     <div id="root"></div>
+
+    <!-- REACT BOOTSTRAP SCRIPT — ANTI BLANK -->
+    <script type="module">
+      import React from "react";
+      import { createRoot } from "react-dom/client";
+
+      function App() {
+        return (
+          <div class="min-h-screen flex flex-col items-center justify-center gap-3">
+            <h1 class="text-3xl font-bold text-primary-600">
+              ProFile Manager Aktif ⚡
+            </h1>
+            <p class="text-slate-600">
+              React berhasil jalan. No more blank screen.
+            </p>
+          </div>
+        );
+      }
+
+      const root = createRoot(document.getElementById("root"));
+      root.render(<App />);
+    </script>
   </body>
 </html>

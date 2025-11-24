@@ -1,14 +1,136 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="id">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ProFile Manager</title>
-  </head>
-  <body>
+    <title>Dompet Pintar - Profile</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Inter', 'sans-serif'],
+            },
+          },
+        },
+      }
+    </script>
+
+    <script type="importmap">
+    {
+      "imports": {
+        "react": "https://esm.sh/react@18.2.0",
+        "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+        "firebase/app": "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js",
+        "firebase/firestore": "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js"
+      }
+    }
+    </script>
+</head>
+<body class="bg-slate-50 text-slate-900 antialiased">
     <div id="root"></div>
-    <!-- Vite akan build file ini -->
-    <script type="module" src="/index.tsx"></script>
-  </body>
+
+    <script type="module">
+      import React, { useState, useEffect } from 'react';
+      import { createRoot } from 'react-dom/client';
+      import { initializeApp } from 'firebase/app';
+      import { getFirestore, collection, addDoc } from 'firebase/firestore';
+
+      // --- KONFIGURASI DOMPET PINTAR ---
+      const firebaseConfig = {
+        apiKey: "AIzaSyClChxcL4T1Rc3b8l6Zobbj6ynAQLWPGwY",
+        authDomain: "dompetpintar-d50e0.firebaseapp.com",
+        projectId: "dompetpintar-d50e0",
+        storageBucket: "dompetpintar-d50e0.firebasestorage.app",
+        messagingSenderId: "804793025772",
+        appId: "1:804793025772:web:eb3ecc3f4edd030b86d1c9",
+        measurementId: "G-3BV80BW6ZN"
+      };
+
+      // Inisialisasi Firebase
+      const app = initializeApp(firebaseConfig);
+      const db = getFirestore(app);
+
+      // --- TAMPILAN (COMPONENT) ---
+      function App() {
+        const [nama, setNama] = useState("");
+        const [status, setStatus] = useState(""); 
+        const [loading, setLoading] = useState(false);
+
+        const handleSave = async (e) => {
+          e.preventDefault();
+          if(!nama) return;
+
+          setLoading(true);
+          setStatus("");
+
+          try {
+            // Simpan ke koleksi 'pengguna'
+            await addDoc(collection(db, "pengguna"), {
+              nama_lengkap: nama,
+              waktu_daftar: new Date().toISOString(),
+              device: navigator.userAgent
+            });
+            
+            setStatus("Sukses! Data tersimpan di Firestore.");
+            setNama(""); // Kosongkan input setelah sukses
+          } catch (error) {
+            console.error("Error Firebase:", error);
+            setStatus("Gagal: " + error.message);
+          } finally {
+            setLoading(false);
+          }
+        };
+
+        // Kita menggunakan React.createElement karena browser tidak bisa baca JSX (<div>) tanpa build tools
+        return React.createElement(
+          "div", 
+          { className: "min-h-screen flex items-center justify-center p-4" },
+          React.createElement("div", { className: "bg-white p-8 rounded-2xl shadow-xl w-full max-w-md border border-slate-100" },
+            // Header
+            React.createElement("div", { className: "text-center mb-8" },
+              React.createElement("h1", { className: "text-2xl font-bold text-blue-600" }, "Dompet Pintar"),
+              React.createElement("p", { className: "text-slate-500 text-sm mt-1" }, "Simpan data profil ke Cloud")
+            ),
+            
+            // Form
+            React.createElement("form", { onSubmit: handleSave, className: "space-y-5" },
+              React.createElement("div", {},
+                React.createElement("label", { className: "block text-sm font-medium text-slate-700 mb-1" }, "Nama Pengguna"),
+                React.createElement("input", {
+                  type: "text",
+                  value: nama,
+                  onChange: (e) => setNama(e.target.value),
+                  className: "w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition",
+                  placeholder: "Ketik nama Anda...",
+                  required: true
+                })
+              ),
+              
+              React.createElement("button", {
+                type: "submit",
+                disabled: loading,
+                className: `w-full font-semibold py-3 px-4 rounded-lg transition shadow-md ${
+                  loading ? "bg-slate-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700 text-white"
+                }`
+              }, loading ? "Menyimpan..." : "Simpan ke Database")
+            ),
+
+            // Status Message
+            status && React.createElement("div", { 
+              className: `mt-6 p-4 rounded-lg text-sm text-center font-medium ${
+                status.includes("Gagal") ? "bg-red-50 text-red-600 border border-red-100" : "bg-green-50 text-green-600 border border-green-100"
+              }` 
+            }, status)
+          )
+        );
+      }
+
+      // Render ke layar
+      const root = createRoot(document.getElementById('root'));
+      root.render(React.createElement(App));
+    </script>
+</body>
 </html>

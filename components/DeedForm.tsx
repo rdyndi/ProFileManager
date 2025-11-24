@@ -1,16 +1,16 @@
-
 import React, { useState } from 'react';
 import { Client, Deed, DeedAppearer, DeedGrantor } from '../types';
-import { Save, X, Plus, Trash2, Search, User } from 'lucide-react';
+import { Save, X, Plus, Trash2, Search, User, UserPlus } from 'lucide-react';
 
 interface DeedFormProps {
   clients: Client[];
   onSave: (deed: Deed) => void;
   onCancel: () => void;
+  onAddClient: () => void; // Prop baru
   initialData?: Deed;
 }
 
-export const DeedForm: React.FC<DeedFormProps> = ({ clients, onSave, onCancel, initialData }) => {
+export const DeedForm: React.FC<DeedFormProps> = ({ clients, onSave, onCancel, onAddClient, initialData }) => {
   const [formData, setFormData] = useState<Partial<Deed>>(initialData || {
     orderNumber: '',
     deedNumber: '',
@@ -45,11 +45,9 @@ export const DeedForm: React.FC<DeedFormProps> = ({ clients, onSave, onCancel, i
     // @ts-ignore
     newAppearers[index] = { ...newAppearers[index], [field]: value };
     
-    // Jika role berubah jadi Self, hapus grantors
     if (field === 'role' && value === 'Self') {
         delete newAppearers[index].grantors;
     }
-    // Jika role berubah jadi Proxy dan belum ada grantors, inisialisasi
     if (field === 'role' && value === 'Proxy' && !newAppearers[index].grantors) {
         newAppearers[index].grantors = [{ id: Math.random().toString(36).substr(2, 9), name: '' }];
     }
@@ -92,14 +90,12 @@ export const DeedForm: React.FC<DeedFormProps> = ({ clients, onSave, onCancel, i
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validasi
     if (!formData.orderNumber) return alert("Nomor Urut wajib diisi");
     if (!selectedClientId) return alert("Pilih Klien wajib diisi");
     if (!formData.deedNumber) return alert("Nomor Akta wajib diisi");
     if (!formData.deedDate) return alert("Tanggal Akta wajib diisi");
     if (!formData.deedTitle) return alert("Judul Akta wajib diisi");
     
-    // Validasi Penghadap
     for (const app of appearers) {
         if (!app.name) return alert("Nama Penghadap wajib diisi");
         if (app.role === 'Proxy') {
@@ -172,8 +168,18 @@ export const DeedForm: React.FC<DeedFormProps> = ({ clients, onSave, onCancel, i
                         ))}
                     </select>
                 </div>
+                {/* Tombol Tambah Klien Cepat */}
+                <button 
+                    type="button"
+                    onClick={onAddClient}
+                    className="text-xs text-primary-600 hover:text-primary-800 font-medium mt-2 flex items-center gap-1 ml-1"
+                >
+                    <UserPlus className="w-3 h-3" />
+                    Input Klien Baru
+                </button>
             </div>
 
+            {/* ... Sisa form ... */}
             <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Nomor Akta <span className="text-red-500">*</span></label>
                 <input

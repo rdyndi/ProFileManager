@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Client, DocType, DocumentData, DocumentItem } from '../types';
-import { Printer, Search, Calendar, User, FileCheck, Package, Plus, Trash2, Save, ArrowLeft } from 'lucide-react';
+import { Printer, Search, Calendar, User, FileCheck, Package, Plus, Trash2, Save, ArrowLeft, UserPlus } from 'lucide-react';
 import { getCachedSettings } from '../services/storage';
 
 // --- Standalone Print Function (Exported) ---
@@ -164,10 +164,11 @@ interface DocGeneratorProps {
   clients: Client[];
   onSave: (doc: DocumentData) => void;
   onCancel: () => void;
+  onAddClient: () => void; // Prop baru
   initialData?: DocumentData | null;
 }
 
-export const DocumentGenerator: React.FC<DocGeneratorProps> = ({ type, clients, onSave, onCancel, initialData }) => {
+export const DocumentGenerator: React.FC<DocGeneratorProps> = ({ type, clients, onSave, onCancel, onAddClient, initialData }) => {
   const [selectedClientId, setSelectedClientId] = useState('');
   const [docItems, setDocItems] = useState<DocumentItem[]>([
     { description: '', type: 'Asli' }
@@ -215,8 +216,6 @@ export const DocumentGenerator: React.FC<DocGeneratorProps> = ({ type, clients, 
   const constructDocumentData = (): DocumentData | null => {
     if (!selectedClientId) return null;
     
-    // For editing, if client not in list (deleted), we might rely on initialData details.
-    // But for simplicty, assume client exists or use fallback.
     const clientName = selectedClient?.name || initialData?.clientName || "Unknown Client";
     const clientPic = selectedClient?.picName || initialData?.clientPic || "";
     const clientAddress = selectedClient?.address || initialData?.clientAddress || "";
@@ -298,6 +297,15 @@ export const DocumentGenerator: React.FC<DocGeneratorProps> = ({ type, clients, 
                         ))}
                     </select>
                 </div>
+                {/* Tombol Tambah Klien Cepat */}
+                <button 
+                    type="button"
+                    onClick={onAddClient}
+                    className="text-xs text-primary-600 hover:text-primary-800 font-medium mt-2 flex items-center gap-1 ml-1"
+                >
+                    <UserPlus className="w-3 h-3" />
+                    Input Klien Baru
+                </button>
             </div>
 
             {selectedClient && (

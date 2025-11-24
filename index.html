@@ -1,124 +1,261 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ProFile Manager</title>
+    <title>Profile Manager</title>
+
+    <!-- React + Tailwind -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <script>
-      tailwind.config = {
-        theme: {
-          extend: {
-            fontFamily: {
-              sans: ['Inter', 'sans-serif'],
-            },
-          },
-        },
-      }
-    </script>
 
     <script type="importmap">
     {
       "imports": {
-        "react": "https://esm.sh/react@18.2.0",
-        "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
-        "firebase/app": "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js",
-        "firebase/firestore": "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js"
+        "react": "https://esm.sh/react@18",
+        "react-dom": "https://esm.sh/react-dom@18",
+        "firebase/app": "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js",
+        "firebase/firestore": "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js"
       }
     }
     </script>
-</head>
-<body class="bg-slate-50 text-slate-900 antialiased">
+
+    <style>
+      body { font-family: Inter, sans-serif; }
+      @media print {
+        .no-print { display: none !important; }
+        .print-only { display: block !important; }
+      }
+      .print-only { display: none; }
+    </style>
+
+  </head>
+
+  <body class="bg-gray-50">
     <div id="root"></div>
 
     <script type="module">
-      import React, { useState, useEffect } from 'react';
-      import { createRoot } from 'react-dom/client';
-      import { initializeApp } from 'firebase/app';
-      import { getFirestore, collection, addDoc, getDocs } from 'firebase/firestore';
+      import React from "react";
+      import { createRoot } from "react-dom";
+      import { initializeApp } from "firebase/app";
+      import {
+        getFirestore,
+        collection,
+        getDocs,
+        addDoc,
+        updateDoc,
+        deleteDoc,
+        doc,
+        serverTimestamp
+      } from "firebase/firestore";
 
-      // --- KONFIGURASI FIREBASE ---
-      // CARA MENDAPATKANNYA: Buka Firebase Console -> Project Settings -> General -> Your Apps -> SDK Setup
+      // Firebase config kamu
       const firebaseConfig = {
-        apiKey: "GANTI_DENGAN_API_KEY_KAMU",
-        authDomain: "GANTI_DENGAN_PROJECT_ID.firebaseapp.com",
-        projectId: "GANTI_DENGAN_PROJECT_ID",
-        storageBucket: "GANTI_DENGAN_PROJECT_ID.appspot.com",
-        messagingSenderId: "NOMOR_SENDER_ID",
-        appId: "APP_ID_KAMU"
+        apiKey: "AIzaSyClChxcL4T1Rc3b8l6Zobbj6ynAQLWPGwY",
+        authDomain: "dompetpintar-d50e0.firebaseapp.com",
+        projectId: "dompetpintar-d50e0",
+        storageBucket: "dompetpintar-d50e0.firebasestorage.app",
+        messagingSenderId: "804793025772",
+        appId: "1:804793025772:web:eb3ecc3f4edd030b86d1c9",
+        measurementId: "G-3BV80BW6ZN"
       };
 
-      // Inisialisasi Firebase
       const app = initializeApp(firebaseConfig);
       const db = getFirestore(app);
 
-      // --- KOMPONEN REACT ---
+      // =============================
+      //  APP
+      // =============================
       function App() {
-        const [nama, setNama] = useState("");
-        const [status, setStatus] = useState(""); // Untuk pesan sukses/gagal
-        const [loading, setLoading] = useState(false);
+        const [page, setPage] = React.useState("dashboard");
 
-        // Fungsi Simpan ke Firebase
-        const handleSave = async (e) => {
-          e.preventDefault();
-          setLoading(true);
-          setStatus("");
-
-          try {
-            // Menyimpan ke koleksi bernama 'profiles'
-            await addDoc(collection(db, "profiles"), {
-              nama: nama,
-              tanggal: new Date().toISOString()
-            });
-            setStatus("Berhasil disimpan!");
-            setNama(""); // Reset form
-          } catch (error) {
-            console.error("Error:", error);
-            setStatus("Gagal menyimpan: " + error.message);
-          } finally {
-            setLoading(false);
-          }
-        };
-
-        return React.createElement(
-          "div", 
-          { className: "min-h-screen flex items-center justify-center p-4" },
-          React.createElement("div", { className: "bg-white p-8 rounded-xl shadow-lg w-full max-w-md" },
-            React.createElement("h1", { className: "text-2xl font-bold mb-6 text-center text-blue-600" }, "ProFile Manager"),
-            
-            // Form Input
-            React.createElement("form", { onSubmit: handleSave, className: "space-y-4" },
-              React.createElement("div", {},
-                React.createElement("label", { className: "block text-sm font-medium text-gray-700 mb-1" }, "Nama Lengkap"),
-                React.createElement("input", {
-                  type: "text",
-                  value: nama,
-                  onChange: (e) => setNama(e.target.value),
-                  className: "w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500",
-                  placeholder: "Masukkan nama...",
-                  required: true
-                })
-              ),
-              
-              React.createElement("button", {
-                type: "submit",
-                disabled: loading,
-                className: "w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md transition disabled:opacity-50"
-              }, loading ? "Menyimpan..." : "Simpan Data")
-            ),
-
-            // Status Message
-            status && React.createElement("div", { 
-              className: `mt-4 p-3 rounded text-sm text-center ${status.includes("Gagal") ? "bg-red-100 text-red-700" : "bg-green-100 text-green-700"}` 
-            }, status)
-          )
+        return (
+          <div className="flex min-h-screen">
+            <Sidebar page={page} setPage={setPage} />
+            <Main page={page} db={db} />
+          </div>
         );
       }
 
-      // --- RENDER KE DOM ---
-      const root = createRoot(document.getElementById('root'));
-      root.render(React.createElement(App));
+      // =============================
+      // SIDEBAR (UI Google AI Studio)
+      // =============================
+      function Sidebar({ page, setPage }) {
+        const item = (key, label, icon) => (
+          <button
+            onClick={() => setPage(key)}
+            className={
+              "flex items-center gap-3 px-4 py-2 w-full rounded-md text-left " +
+              (page === key
+                ? "bg-blue-100 text-blue-700"
+                : "hover:bg-gray-100 text-gray-700")
+            }
+          >
+            <span>{icon}</span>
+            <span>{label}</span>
+          </button>
+        );
+
+        return (
+          <div className="w-64 bg-white border-r p-4 space-y-3">
+            <div className="font-bold text-xl text-blue-700">Profile Manager</div>
+
+            {item("dashboard", "Dashboard", "📊")}
+            {item("clients", "Clients", "👤")}
+            {item("receipts", "File Receipt", "🧾")}
+            {item("delivery", "File Delivery", "🚚")}
+            {item("settings", "Settings", "⚙️")}
+          </div>
+        );
+      }
+
+      // =============================
+      // MAIN CONTENT LOADER
+      // =============================
+      function Main({ page, db }) {
+        return (
+          <div className="flex-1 p-6">
+            {page === "dashboard" && <Dashboard db={db} />}
+            {page === "clients" && <Clients db={db} />}
+            {page === "receipts" && <Receipts db={db} />}
+            {page === "delivery" && <Delivery db={db} />}
+            {page === "settings" && <Settings />}
+          </div>
+        );
+      }
+
+      // =============================
+      // DASHBOARD (Sederhana)
+      // =============================
+      function Dashboard() {
+        return (
+          <div>
+            <h1 className="text-2xl font-bold mb-4">Dashboard</h1>
+            <p className="text-gray-600">Welcome to your dashboard.</p>
+          </div>
+        );
+      }
+
+      // =============================
+      // CLIENTS (CRUD)
+      // =============================
+      function Clients({ db }) {
+        const [items, setItems] = React.useState([]);
+        const [nama, setNama] = React.useState("");
+        const [tipe, setTipe] = React.useState("PT");
+        const [editId, setEditId] = React.useState(null);
+
+        async function load() {
+          const snap = await getDocs(collection(db, "clients"));
+          const arr = [];
+          snap.forEach((d) => arr.push({ id: d.id, ...d.data() }));
+          setItems(arr);
+        }
+
+        async function save() {
+          if (!nama.trim()) return;
+          if (editId) {
+            await updateDoc(doc(db, "clients", editId), {
+              nama,
+              tipe
+            });
+          } else {
+            await addDoc(collection(db, "clients"), {
+              nama,
+              tipe,
+              createdAt: serverTimestamp()
+            });
+          }
+          setNama("");
+          setTipe("PT");
+          setEditId(null);
+          load();
+        }
+
+        async function remove(id) {
+          await deleteDoc(doc(db, "clients", id));
+          load();
+        }
+
+        React.useEffect(() => {
+          load();
+        }, []);
+
+        return (
+          <div className="space-y-4">
+            <h1 className="text-xl font-bold">Clients</h1>
+
+            <div className="space-y-2 bg-white p-4 rounded-md border">
+              <input
+                className="border p-2 rounded w-full"
+                placeholder="Client name"
+                value={nama}
+                onChange={(e) => setNama(e.target.value)}
+              />
+              <select
+                className="border p-2 rounded w-full"
+                value={tipe}
+                onChange={(e) => setTipe(e.target.value)}
+              >
+                <option>PT</option>
+                <option>CV</option>
+                <option>Perorangan</option>
+              </select>
+              <button onClick={save} className="bg-blue-600 text-white px-4 py-2 rounded">
+                {editId ? "Update" : "Save"}
+              </button>
+            </div>
+
+            <div className="space-y-2">
+              {items.map((c) => (
+                <div key={c.id} className="p-3 bg-white border rounded flex justify-between">
+                  <div>
+                    <div className="font-medium">{c.nama}</div>
+                    <div className="text-sm text-gray-500">{c.tipe}</div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => {
+                        setNama(c.nama);
+                        setTipe(c.tipe);
+                        setEditId(c.id);
+                      }}
+                      className="text-blue-600"
+                    >
+                      Edit
+                    </button>
+                    <button onClick={() => remove(c.id)} className="text-red-600">
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      }
+
+      // =============================
+      // FILE RECEIPT
+      // =============================
+      function Receipts({ db }) {
+        return <div>File Receipt module (nyambung firestore)</div>;
+      }
+
+      // =============================
+      // FILE DELIVERY
+      // =============================
+      function Delivery({ db }) {
+        return <div>File Delivery module (nyambung firestore)</div>;
+      }
+
+      // =============================
+      // SETTINGS
+      // =============================
+      function Settings() {
+        return <div>Settings page</div>;
+      }
+
+      createRoot(document.getElementById("root")).render(<App />);
     </script>
-</body>
+  </body>
 </html>

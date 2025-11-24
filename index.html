@@ -9,33 +9,36 @@
     <script src="https://cdn.tailwindcss.com"></script>
 
     <!-- FONT -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
 
-    <!-- TAILWIND THEME -->
+    <!-- TAILWIND CONFIG -->
     <script>
       tailwind.config = {
         theme: {
           extend: {
             fontFamily: {
-              sans: ['Inter', 'sans-serif'],
+              sans: ["Inter", "sans-serif"],
             },
             colors: {
               primary: {
-                50: '#eff6ff',
-                100: '#dbeafe',
-                500: '#3b82f6',
-                600: '#2563eb',
-                700: '#1d4ed8',
-                800: '#1e40af',
-                900: '#1e3a8a',
-              }
-            }
+                50: "#eff6ff",
+                100: "#dbeafe",
+                500: "#3b82f6",
+                600: "#2563eb",
+                700: "#1d4ed8",
+                800: "#1e40af",
+                900: "#1e3a8a",
+              },
+            },
           },
         },
       };
     </script>
 
-    <!-- IMPORT MAP -->
+    <!-- IMPORT MAP UNTUK REACT & FIREBASE -->
     <script type="importmap">
       {
         "imports": {
@@ -48,10 +51,9 @@
     </script>
   </head>
 
-  <body class="bg-slate-50 text-slate-900 antialiased">
+  <body class="bg-slate-50 text-slate-900 antialiased font-sans">
     <div id="root"></div>
 
-    <!-- APP -->
     <script type="module">
       import React from "react";
       import { createRoot } from "react-dom/client";
@@ -61,10 +63,15 @@
         collection,
         addDoc,
         getDocs,
-        serverTimestamp
+        updateDoc,
+        deleteDoc,
+        doc,
+        serverTimestamp,
+        query,
+        orderBy
       } from "firebase/firestore";
 
-      // 🔥 CONFIG FIREBASE KAMU — SUDAH DIMASUKKAN
+      // CONFIG FIREBASE KAMU
       const firebaseConfig = {
         apiKey: "AIzaSyClChxcL4T1Rc3b8l6Zobbj6ynAQLWPGwY",
         authDomain: "dompetpintar-d50e0.firebaseapp.com",
@@ -77,145 +84,459 @@
 
       const app = initializeApp(firebaseConfig);
       const db = getFirestore(app);
+      const clientsCol = collection(db, "clients");
 
       function App() {
         const [clients, setClients] = React.useState([]);
         const [loading, setLoading] = React.useState(true);
         const [saving, setSaving] = React.useState(false);
+        const [deletingId, setDeletingId] = React.useState(null);
 
         const [nama, setNama] = React.useState("");
         const [tipe, setTipe] = React.useState("PT");
         const [kontak, setKontak] = React.useState("");
-        const [error, setError] = React.useState("");
+        const [catatan, setCatatan] = React.useState("");
 
-        async function loadData() {
+        const [filter, setFilter] = React.useState("");
+        const [editingId, setEditingId] = React.useState(null);
+
+        const [error, setError] = React.useState("");
+        const [success, setSuccess] = React.useState("");
+
+        async function loadClients() {
           setLoading(true);
+          setError("");
           try {
-            const snap = await getDocs(collection(db, "clients"));
-            let data = [];
-            snap.forEach(doc => data.push({ id: doc.id, ...doc.data() }));
+            const q = query(clientsCol, orderBy("createdAt", "desc"));
+            const snap = await getDocs(q);
+            const data = [];
+            snap.forEach((d) => {
+              data.push({ id: d.id, ...d.data() });
+            });
             setClients(data);
           } catch (err) {
-            setError("Gagal ambil data.");
+            console.error("getDocs error:", err);
+            setError("Gagal ambil data klien. Cek Firestore rules & koneksi.");
           }
           setLoading(false);
         }
 
         React.useEffect(() => {
-          loadData();
+          loadClients();
         }, []);
 
-        async function saveClient(e) {
+        function resetForm() {
+          setNama("");
+          setTipe("PT");
+          setKontak("");
+          setCatatan("");
+          setEditingId(null);
+        }
+
+        async function handleSubmit(e) {
           e.preventDefault();
+          setError("");
+          setSuccess("");
+
           if (!nama.trim()) {
-            setError("Nama wajib diisi.");
+            setError("Nama klien wajib diisi.");
             return;
           }
 
           setSaving(true);
           try {
-            await addDoc(collection(db, "clients"), {
-              nama,
-              tipe,
-              kontak,
-              createdAt: serverTimestamp()
-            });
+            if (editingId) {
+              // UPDATE
+              const ref = doc(db, "clients", editingId);
+              await updateDoc(ref, {
+                nama,
+                tipe,
+                kontak,
+                catatan,
+              });
+              setSuccess("Data klien berhasil diperbarui ✅");
+            } else {
+              // CREATE
+              await addDoc(clientsCol, {
+                nama,
+                tipe,
+                kontak,
+                catatan,
+                createdAt: serverTimestamp(),
+              });
+              setSuccess("Data klien berhasil disimpan ✅");
+            }
 
-            setNama("");
-            setKontak("");
-            loadData();
-
+            resetForm();
+            await loadClients();
           } catch (err) {
-            setError("Gagal simpan.");
+            console.error("save error:", err);
+            setError("Gagal menyimpan data klien.");
           }
           setSaving(false);
         }
 
+        function handleEdit(client) {
+          setEditingId(client.id);
+          setNama(client.nama || "");
+          setTipe(client.tipe || "PT");
+          setKontak(client.kontak || "");
+          setCatatan(client.catatan || "");
+          setSuccess("");
+          setError("");
+        }
+
+        async function handleDelete(id) {
+          setError("");
+          setSuccess("");
+          const yakin = confirm("Yakin hapus data klien ini?");
+          if (!yakin) return;
+
+          setDeletingId(id);
+          try {
+            const ref = doc(db, "clients", id);
+            await deleteDoc(ref);
+            setSuccess("Data klien berhasil dihapus 🗑️");
+            await loadClients();
+          } catch (err) {
+            console.error("delete error:", err);
+            setError("Gagal menghapus data klien.");
+          }
+          setDeletingId(null);
+        }
+
+        // FILTERED DATA
+        const filteredClients = clients.filter((c) => {
+          if (!filter.trim()) return true;
+          const text = (c.nama || "") + " " + (c.tipe || "") + " " + (c.kontak || "");
+          return text.toLowerCase().includes(filter.toLowerCase());
+        });
+
         return React.createElement(
           "div",
-          { className: "min-h-screen p-6 flex flex-col items-center" },
+          { className: "min-h-screen flex flex-col items-center py-8 px-4" },
 
-          React.createElement("h1", { className: "text-3xl font-bold text-primary-700 mb-4" }, "ProFile Manager"),
-
-          error ? React.createElement("div", { className: "text-red-600 mb-3" }, error) : null,
-
-          // FORM
+          // HEADER
           React.createElement(
-            "form",
-            { className: "bg-white border rounded-xl p-5 w-full max-w-xl shadow mb-6", onSubmit: saveClient },
-
-            React.createElement("label", { className: "block text-sm font-medium" }, "Nama Klien"),
-            React.createElement("input", {
-              className: "w-full border rounded p-2 text-sm mb-3",
-              value: nama,
-              onChange: e => setNama(e.target.value),
-              placeholder: "Contoh: PT Sinar Abadi"
-            }),
-
-            React.createElement("label", { className: "block text-sm font-medium" }, "Tipe Klien"),
+            "div",
+            { className: "w-full max-w-5xl mb-6 flex flex-col gap-2" },
             React.createElement(
-              "select",
-              {
-                className: "w-full border rounded p-2 text-sm mb-3",
-                value: tipe,
-                onChange: e => setTipe(e.target.value)
-              },
-              React.createElement("option", { value: "PT" }, "PT"),
-              React.createElement("option", { value: "CV" }, "CV"),
-              React.createElement("option", { value: "Perorangan" }, "Perorangan")
+              "h1",
+              { className: "text-3xl font-bold text-primary-700" },
+              "ProFile Manager"
             ),
-
-            React.createElement("label", { className: "block text-sm font-medium" }, "Kontak (opsional)"),
-            React.createElement("input", {
-              className: "w-full border rounded p-2 text-sm mb-4",
-              value: kontak,
-              onChange: e => setKontak(e.target.value),
-              placeholder: "No HP / email"
-            }),
-
             React.createElement(
-              "button",
-              {
-                type: "submit",
-                className:
-                  "w-full bg-primary-600 text-white rounded p-2 text-sm font-medium hover:bg-primary-700",
-                disabled: saving
-              },
-              saving ? "Menyimpan..." : "Simpan Klien"
+              "p",
+              { className: "text-sm text-slate-600" },
+              "Kelola data klien (PT / CV / Perorangan) dengan integrasi langsung ke Firestore."
             )
           ),
 
-          // LIST
+          // ALERT
+          (error || success) &&
+            React.createElement(
+              "div",
+              { className: "w-full max-w-5xl mb-4 space-y-2" },
+              error &&
+                React.createElement(
+                  "div",
+                  {
+                    className:
+                      "rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700",
+                  },
+                  error
+                ),
+              success &&
+                React.createElement(
+                  "div",
+                  {
+                    className:
+                      "rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-700",
+                  },
+                  success
+                )
+            ),
+
+          // MAIN GRID
           React.createElement(
             "div",
-            { className: "w-full max-w-xl bg-white rounded-xl border shadow p-5" },
+            {
+              className:
+                "w-full max-w-5xl grid grid-cols-1 md:grid-cols-2 gap-6 items-start",
+            },
 
-            React.createElement("h2", { className: "text-lg font-semibold mb-3" }, "Daftar Klien"),
+            // FORM
+            React.createElement(
+              "div",
+              {
+                className:
+                  "bg-white rounded-2xl shadow-sm border border-slate-100 p-5",
+              },
+              React.createElement(
+                "div",
+                { className: "flex items-center justify-between mb-3" },
+                React.createElement(
+                  "h2",
+                  { className: "text-lg font-semibold" },
+                  editingId ? "Edit Klien" : "Tambah Klien"
+                ),
+                editingId &&
+                  React.createElement(
+                    "button",
+                    {
+                      type: "button",
+                      onClick: resetForm,
+                      className:
+                        "text-xs px-3 py-1 rounded-full border border-slate-200 text-slate-500 hover:bg-slate-50",
+                    },
+                    "Batal Edit"
+                  )
+              ),
 
-            loading
-              ? React.createElement("p", null, "Memuat data...")
-              : clients.length === 0
-              ? React.createElement("p", null, "Belum ada klien.")
-              : React.createElement(
-                  "ul",
-                  { className: "space-y-3" },
-                  clients.map(c =>
+              React.createElement(
+                "form",
+                { className: "space-y-3", onSubmit: handleSubmit },
+
+                // NAMA
+                React.createElement(
+                  "div",
+                  { className: "space-y-1" },
+                  React.createElement(
+                    "label",
+                    { className: "text-sm font-medium text-slate-700" },
+                    "Nama Klien"
+                  ),
+                  React.createElement("input", {
+                    className:
+                      "w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500",
+                    placeholder: "Contoh: PT Maju Mundur Sejahtera",
+                    value: nama,
+                    onChange: (e) => setNama(e.target.value),
+                  })
+                ),
+
+                // TIPE
+                React.createElement(
+                  "div",
+                  { className: "space-y-1" },
+                  React.createElement(
+                    "label",
+                    { className: "text-sm font-medium text-slate-700" },
+                    "Tipe Klien"
+                  ),
+                  React.createElement(
+                    "select",
+                    {
+                      className:
+                        "w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500",
+                      value: tipe,
+                      onChange: (e) => setTipe(e.target.value),
+                    },
+                    React.createElement("option", { value: "PT" }, "PT"),
+                    React.createElement("option", { value: "CV" }, "CV"),
                     React.createElement(
-                      "li",
-                      { key: c.id, className: "border rounded p-3 text-sm" },
-                      React.createElement("div", { className: "font-semibold" }, c.nama),
-                      React.createElement("div", { className: "text-xs text-slate-500" }, c.tipe),
-                      c.kontak
-                        ? React.createElement("div", { className: "text-xs text-slate-400" }, c.kontak)
-                        : null
+                      "option",
+                      { value: "Perorangan" },
+                      "Perorangan"
                     )
                   )
+                ),
+
+                // KONTAK
+                React.createElement(
+                  "div",
+                  { className: "space-y-1" },
+                  React.createElement(
+                    "label",
+                    { className: "text-sm font-medium text-slate-700" },
+                    "Kontak (opsional)"
+                  ),
+                  React.createElement("input", {
+                    className:
+                      "w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500",
+                    placeholder: "No HP / email",
+                    value: kontak,
+                    onChange: (e) => setKontak(e.target.value),
+                  })
+                ),
+
+                // CATATAN
+                React.createElement(
+                  "div",
+                  { className: "space-y-1" },
+                  React.createElement(
+                    "label",
+                    { className: "text-sm font-medium text-slate-700" },
+                    "Catatan (opsional)"
+                  ),
+                  React.createElement("textarea", {
+                    className:
+                      "w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500",
+                    placeholder: "Catatan singkat tentang klien",
+                    rows: 3,
+                    value: catatan,
+                    onChange: (e) => setCatatan(e.target.value),
+                  })
+                ),
+
+                // BUTTON
+                React.createElement(
+                  "button",
+                  {
+                    type: "submit",
+                    disabled: saving,
+                    className:
+                      "w-full inline-flex items-center justify-center rounded-lg bg-primary-600 text-white text-sm font-medium px-4 py-2 mt-2 hover:bg-primary-700 disabled:opacity-60 disabled:cursor-not-allowed",
+                  },
+                  saving
+                    ? editingId
+                      ? "Menyimpan Perubahan..."
+                      : "Menyimpan..."
+                    : editingId
+                    ? "Update Klien"
+                    : "Simpan Klien"
                 )
+              )
+            ),
+
+            // LIST
+            React.createElement(
+              "div",
+              {
+                className:
+                  "bg-white rounded-2xl shadow-sm border border-slate-100 p-5 flex flex-col gap-3",
+              },
+
+              // FILTER + REFRESH
+              React.createElement(
+                "div",
+                { className: "flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between" },
+                React.createElement(
+                  "div",
+                  { className: "flex-1" },
+                  React.createElement(
+                    "h2",
+                    { className: "text-lg font-semibold" },
+                    "Daftar Klien"
+                  ),
+                  React.createElement(
+                    "p",
+                    { className: "text-xs text-slate-500" },
+                    "Klik nama untuk edit, klik hapus untuk menghapus."
+                  )
+                ),
+                React.createElement(
+                  "div",
+                  { className: "flex gap-2 mt-2 sm:mt-0" },
+                  React.createElement("input", {
+                    className:
+                      "flex-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500",
+                    placeholder: "Cari nama / tipe / kontak",
+                    value: filter,
+                    onChange: (e) => setFilter(e.target.value),
+                  }),
+                  React.createElement(
+                    "button",
+                    {
+                      type: "button",
+                      onClick: loadClients,
+                      className:
+                        "text-xs px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 whitespace-nowrap",
+                    },
+                    "Refresh"
+                  )
+                )
+              ),
+
+              // LIST CONTENT
+              loading
+                ? React.createElement(
+                    "p",
+                    { className: "text-sm text-slate-500" },
+                    "Memuat data..."
+                  )
+                : filteredClients.length === 0
+                ? React.createElement(
+                    "p",
+                    { className: "text-sm text-slate-500" },
+                    "Tidak ada data klien."
+                  )
+                : React.createElement(
+                    "ul",
+                    { className: "space-y-2 max-h-80 overflow-auto pr-1" },
+                    filteredClients.map((client) =>
+                      React.createElement(
+                        "li",
+                        {
+                          key: client.id,
+                          className:
+                            "border border-slate-100 rounded-lg px-3 py-2 text-sm flex flex-col gap-1",
+                        },
+                        React.createElement(
+                          "div",
+                          {
+                            className:
+                              "flex items-start justify-between gap-2",
+                          },
+                          React.createElement(
+                            "button",
+                            {
+                              type: "button",
+                              onClick: () => handleEdit(client),
+                              className:
+                                "text-left flex-1 hover:text-primary-700",
+                            },
+                            React.createElement(
+                              "div",
+                              { className: "font-medium text-slate-800" },
+                              client.nama || "-"
+                            ),
+                            React.createElement(
+                              "div",
+                              { className: "text-[11px] text-slate-500" },
+                              client.tipe || "-"
+                            ),
+                            client.kontak &&
+                              React.createElement(
+                                "div",
+                                {
+                                  className:
+                                    "text-[11px] text-slate-500 mt-0.5",
+                                },
+                                client.kontak
+                              ),
+                            client.catatan &&
+                              React.createElement(
+                                "div",
+                                {
+                                  className:
+                                    "text-[11px] text-slate-400 mt-0.5",
+                                },
+                                client.catatan
+                              )
+                          ),
+                          React.createElement(
+                            "button",
+                            {
+                              type: "button",
+                              onClick: () => handleDelete(client.id),
+                              disabled: deletingId === client.id,
+                              className:
+                                "text-[11px] px-2 py-1 rounded-md border border-red-200 text-red-600 hover:bg-red-50 disabled:opacity-60 disabled:cursor-not-allowed",
+                            },
+                            deletingId === client.id ? "Hapus..." : "Hapus"
+                          )
+                        )
+                      )
+                    )
+                  )
+            )
           )
         );
       }
 
-      createRoot(document.getElementById("root")).render(React.createElement(App));
+      const root = createRoot(document.getElementById("root"));
+      root.render(React.createElement(App));
     </script>
   </body>
 </html>

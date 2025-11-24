@@ -5,16 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>ProFile Manager</title>
 
-    <!-- TAILWIND -->
+    <!-- Tailwind -->
     <script src="https://cdn.tailwindcss.com"></script>
 
-    <!-- FONT -->
+    <!-- Font -->
     <link
       href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
       rel="stylesheet"
     />
 
-    <!-- TAILWIND CONFIG -->
     <script>
       tailwind.config = {
         theme: {
@@ -38,7 +37,7 @@
       };
     </script>
 
-    <!-- PRINT STYLE -->
+    <!-- Print -->
     <style>
       @media print {
         .no-print {
@@ -59,7 +58,7 @@
       }
     </style>
 
-    <!-- IMPORT MAP UNTUK REACT & FIREBASE -->
+    <!-- Import map -->
     <script type="importmap">
       {
         "imports": {
@@ -92,7 +91,7 @@
         orderBy
       } from "firebase/firestore";
 
-      // CONFIG FIREBASE KAMU
+      // Firebase config kamu
       const firebaseConfig = {
         apiKey: "AIzaSyClChxcL4T1Rc3b8l6Zobbj6ynAQLWPGwY",
         authDomain: "dompetpintar-d50e0.firebaseapp.com",
@@ -108,6 +107,7 @@
       const clientsCol = collection(db, "clients");
 
       function App() {
+        const [activePage, setActivePage] = React.useState("dashboard"); // dashboard | clients | tanda | surat | settings
         const [clients, setClients] = React.useState([]);
         const [loading, setLoading] = React.useState(true);
         const [saving, setSaving] = React.useState(false);
@@ -117,15 +117,15 @@
         const [tipe, setTipe] = React.useState("PT");
         const [kontak, setKontak] = React.useState("");
         const [catatan, setCatatan] = React.useState("");
-
-        const [filter, setFilter] = React.useState("");
         const [editingId, setEditingId] = React.useState(null);
 
-        const [selectedClient, setSelectedClient] = React.useState(null);
-        const [printType, setPrintType] = React.useState(null); // "tanda" | "surat" | null
+        const [filter, setFilter] = React.useState("");
 
         const [error, setError] = React.useState("");
         const [success, setSuccess] = React.useState("");
+
+        const [selectedClientPrint, setSelectedClientPrint] = React.useState(null);
+        const [printType, setPrintType] = React.useState(null); // tanda | surat | null
 
         async function loadClients() {
           setLoading(true);
@@ -134,15 +134,13 @@
             const q = query(clientsCol, orderBy("createdAt", "desc"));
             const snap = await getDocs(q);
             const data = [];
-            snap.forEach((d) => {
-              data.push({ id: d.id, ...d.data() });
-            });
+            snap.forEach((d) => data.push({ id: d.id, ...d.data() }));
             setClients(data);
           } catch (err) {
             console.error("getDocs error:", err);
             setError(
               "Gagal ambil data klien: " +
-                (err.code || err.message || "cek Firestore rules & koneksi.")
+                (err.code || err.message || "cek Firestore rules.")
             );
           }
           setLoading(false);
@@ -191,7 +189,6 @@
               });
               setSuccess("Data klien berhasil disimpan ✅");
             }
-
             resetForm();
             await loadClients();
           } catch (err) {
@@ -210,17 +207,14 @@
           setTipe(client.tipe || "PT");
           setKontak(client.kontak || "");
           setCatatan(client.catatan || "");
-          setSelectedClient(client);
-          setSuccess("");
-          setError("");
+          setActivePage("clients");
         }
 
         async function handleDelete(id) {
-          setError("");
-          setSuccess("");
           const yakin = confirm("Yakin hapus data klien ini?");
           if (!yakin) return;
-
+          setError("");
+          setSuccess("");
           setDeletingId(id);
           try {
             const ref = doc(db, "clients", id);
@@ -238,11 +232,11 @@
         }
 
         function handlePrint(type, client) {
-          setSelectedClient(client);
+          setSelectedClientPrint(client);
           setPrintType(type);
           setTimeout(() => {
             window.print();
-            setTimeout(() => setPrintType(null), 500);
+            setTimeout(() => setPrintType(null), 300);
           }, 100);
         }
 
@@ -259,67 +253,330 @@
           return text.toLowerCase().includes(filter.toLowerCase());
         });
 
+        const totalClients = clients.length;
+        const totalPT = clients.filter((c) => c.tipe === "PT").length;
+        const totalCV = clients.filter((c) => c.tipe === "CV").length;
+
+        const latestClients = clients.slice(0, 5);
+
         const todayStr = new Date().toLocaleDateString("id-ID", {
           day: "2-digit",
           month: "long",
           year: "numeric"
         });
 
-        // ==== MAIN UI (NO PRINT) ====
-        const mainUi = React.createElement(
-          "div",
-          { className: "no-print min-h-screen flex flex-col items-center py-8 px-4" },
+        // Sidebar item helper
+        function navItem(key, label, icon) {
+          const active = activePage === key;
+          return React.createElement(
+            "button",
+            {
+              type: "button",
+              onClick: () => setActivePage(key),
+              className:
+                "w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm transition " +
+                (active
+                  ? "bg-primary-50 text-primary-700 font-medium"
+                  : "text-slate-600 hover:bg-slate-100")
+            },
+            React.createElement(
+              "span",
+              {
+                className:
+                  "flex items-center justify-center h-8 w-8 rounded-lg text-xs " +
+                  (active ? "bg-primary-100" : "bg-slate-100")
+              },
+              icon
+            ),
+            React.createElement("span", null, label)
+          );
+        }
 
-          // HEADER
+        // DASHBOARD PAGE
+        const pageDashboard = React.createElement(
+          "div",
+          { className: "space-y-6" },
+          React.createElement(
+            "h1",
+            { className: "text-2xl font-bold text-slate-900" },
+            "Dashboard Overview"
+          ),
           React.createElement(
             "div",
-            { className: "w-full max-w-5xl mb-6 flex flex-col gap-2" },
+            { className: "grid grid-cols-1 md:grid-cols-3 gap-4" },
+
+            // total
             React.createElement(
-              "h1",
-              { className: "text-3xl font-bold text-primary-700" },
-              "ProFile Manager"
+              "div",
+              {
+                className:
+                  "bg-white rounded-2xl border border-slate-100 p-4 shadow-sm flex flex-col gap-2"
+              },
+              React.createElement(
+                "div",
+                { className: "flex items-center justify-between" },
+                React.createElement(
+                  "p",
+                  { className: "text-xs uppercase tracking-wide text-slate-500" },
+                  "Total Klien"
+                ),
+                React.createElement(
+                  "div",
+                  {
+                    className:
+                      "h-8 w-8 rounded-xl bg-primary-50 flex items-center justify-center text-primary-600 text-sm"
+                  },
+                  "👥"
+                )
+              ),
+              React.createElement(
+                "p",
+                { className: "text-3xl font-semibold" },
+                totalClients
+              ),
+              React.createElement(
+                "p",
+                { className: "text-xs text-emerald-600" },
+                totalClients > 0 ? "Aktif" : "Belum ada klien"
+              )
             ),
+
+            // PT
             React.createElement(
-              "p",
-              { className: "text-sm text-slate-600" },
-              "Kelola data klien (PT / CV / Perorangan) dengan integrasi langsung ke Firestore. Sekaligus cetak tanda terima dan surat jalan berkas."
+              "div",
+              {
+                className:
+                  "bg-white rounded-2xl border border-slate-100 p-4 shadow-sm flex flex-col gap-2"
+              },
+              React.createElement(
+                "div",
+                { className: "flex items-center justify-between" },
+                React.createElement(
+                  "p",
+                  { className: "text-xs uppercase tracking-wide text-slate-500" },
+                  "Badan Usaha PT"
+                ),
+                React.createElement(
+                  "div",
+                  {
+                    className:
+                      "h-8 w-8 rounded-xl bg-violet-50 flex items-center justify-center text-violet-600 text-sm"
+                  },
+                  "🏢"
+                )
+              ),
+              React.createElement(
+                "p",
+                { className: "text-3xl font-semibold" },
+                totalPT
+              ),
+              React.createElement(
+                "div",
+                { className: "h-1 rounded-full bg-slate-100 overflow-hidden" },
+                React.createElement("div", {
+                  className: "h-1 bg-violet-400",
+                  style: {
+                    width:
+                      totalClients === 0
+                        ? "0%"
+                        : Math.min(100, (totalPT / totalClients) * 100) + "%"
+                  }
+                })
+              )
+            ),
+
+            // CV
+            React.createElement(
+              "div",
+              {
+                className:
+                  "bg-white rounded-2xl border border-slate-100 p-4 shadow-sm flex flex-col gap-2"
+              },
+              React.createElement(
+                "div",
+                { className: "flex items-center justify-between" },
+                React.createElement(
+                  "p",
+                  { className: "text-xs uppercase tracking-wide text-slate-500" },
+                  "Badan Usaha CV"
+                ),
+                React.createElement(
+                  "div",
+                  {
+                    className:
+                      "h-8 w-8 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600 text-sm"
+                  },
+                  "📦"
+                )
+              ),
+              React.createElement(
+                "p",
+                { className: "text-3xl font-semibold" },
+                totalCV
+              ),
+              React.createElement(
+                "div",
+                { className: "h-1 rounded-full bg-slate-100 overflow-hidden" },
+                React.createElement("div", {
+                  className: "h-1 bg-indigo-400",
+                  style: {
+                    width:
+                      totalClients === 0
+                        ? "0%"
+                        : Math.min(100, (totalCV / totalClients) * 100) + "%"
+                  }
+                })
+              )
             )
           ),
 
-          // ALERT
-          (error || success) &&
+          // Latest clients table
+          React.createElement(
+            "div",
+            { className: "bg-white rounded-2xl border border-slate-100 shadow-sm" },
             React.createElement(
               "div",
-              { className: "w-full max-w-5xl mb-4 space-y-2" },
-              error &&
-                React.createElement(
-                  "div",
-                  {
-                    className:
-                      "rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700"
-                  },
-                  error
-                ),
-              success &&
-                React.createElement(
-                  "div",
-                  {
-                    className:
-                      "rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-700"
-                  },
-                  success
-                )
+              { className: "px-4 py-3 border-b border-slate-100 flex items-center justify-between" },
+              React.createElement(
+                "h2",
+                { className: "text-sm font-semibold" },
+                "Klien Terbaru"
+              ),
+              React.createElement(
+                "button",
+                {
+                  type: "button",
+                  onClick: () => setActivePage("clients"),
+                  className:
+                    "text-xs px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50"
+                },
+                "Lihat Semua"
+              )
             ),
+            React.createElement(
+              "div",
+              { className: "overflow-x-auto" },
+              React.createElement(
+                "table",
+                { className: "min-w-full text-sm" },
+                React.createElement(
+                  "thead",
+                  { className: "bg-slate-50 text-xs text-slate-500" },
+                  React.createElement(
+                    "tr",
+                    null,
+                    React.createElement(
+                      "th",
+                      { className: "text-left px-4 py-2 font-medium" },
+                      "Nama"
+                    ),
+                    React.createElement(
+                      "th",
+                      { className: "text-left px-4 py-2 font-medium" },
+                      "Tipe"
+                    ),
+                    React.createElement(
+                      "th",
+                      { className: "text-left px-4 py-2 font-medium" },
+                      "Tanggal Input"
+                    ),
+                    React.createElement(
+                      "th",
+                      { className: "text-right px-4 py-2 font-medium" },
+                      "Aksi"
+                    )
+                  )
+                ),
+                React.createElement(
+                  "tbody",
+                  null,
+                  loading
+                    ? React.createElement(
+                        "tr",
+                        null,
+                        React.createElement(
+                          "td",
+                          {
+                            colSpan: 4,
+                            className: "px-4 py-6 text-center text-slate-500"
+                          },
+                          "Memuat data..."
+                        )
+                      )
+                    : latestClients.length === 0
+                    ? React.createElement(
+                        "tr",
+                        null,
+                        React.createElement(
+                          "td",
+                          {
+                            colSpan: 4,
+                            className: "px-4 py-6 text-center text-slate-400"
+                          },
+                          "Belum ada data klien."
+                        )
+                      )
+                    : latestClients.map((c) =>
+                        React.createElement(
+                          "tr",
+                          { key: c.id, className: "border-t border-slate-100" },
+                          React.createElement(
+                            "td",
+                            { className: "px-4 py-2" },
+                            c.nama || "-"
+                          ),
+                          React.createElement(
+                            "td",
+                            { className: "px-4 py-2 text-slate-600 text-xs" },
+                            c.tipe || "-"
+                          ),
+                          React.createElement(
+                            "td",
+                            { className: "px-4 py-2 text-slate-600 text-xs" },
+                            c.createdAt && c.createdAt.toDate
+                              ? c.createdAt
+                                  .toDate()
+                                  .toLocaleDateString("id-ID")
+                              : "-"
+                          ),
+                          React.createElement(
+                            "td",
+                            { className: "px-4 py-2 text-right" },
+                            React.createElement(
+                              "button",
+                              {
+                                type: "button",
+                                onClick: () => handleEdit(c),
+                                className:
+                                  "text-xs px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50"
+                              },
+                              "Edit"
+                            )
+                          )
+                        )
+                      )
+                )
+              )
+            )
+          )
+        );
 
-          // MAIN GRID
+        // DATA KLIEN PAGE
+        const pageClients = React.createElement(
+          "div",
+          { className: "space-y-4" },
+          React.createElement(
+            "h1",
+            { className: "text-2xl font-bold text-slate-900" },
+            "Data Klien"
+          ),
           React.createElement(
             "div",
             {
               className:
-                "w-full max-w-5xl grid grid-cols-1 md:grid-cols-2 gap-6 items-start"
+                "grid grid-cols-1 md:grid-cols-2 gap-6 items-start"
             },
-
-            // FORM
+            // form
             React.createElement(
               "div",
               {
@@ -341,7 +598,8 @@
                       type: "button",
                       onClick: () => {
                         resetForm();
-                        setSelectedClient(null);
+                        setSuccess("");
+                        setError("");
                       },
                       className:
                         "text-xs px-3 py-1 rounded-full border border-slate-200 text-slate-500 hover:bg-slate-50"
@@ -349,12 +607,9 @@
                     "Batal Edit"
                   )
               ),
-
               React.createElement(
                 "form",
                 { className: "space-y-3", onSubmit: handleSubmit },
-
-                // NAMA
                 React.createElement(
                   "div",
                   { className: "space-y-1" },
@@ -366,13 +621,11 @@
                   React.createElement("input", {
                     className:
                       "w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500",
-                    placeholder: "Contoh: PT Maju Mundur Sejahtera",
                     value: nama,
-                    onChange: (e) => setNama(e.target.value)
+                    onChange: (e) => setNama(e.target.value),
+                    placeholder: "Contoh: PT Maju Mundur Sejahtera"
                   })
                 ),
-
-                // TIPE
                 React.createElement(
                   "div",
                   { className: "space-y-1" },
@@ -398,8 +651,6 @@
                     )
                   )
                 ),
-
-                // KONTAK
                 React.createElement(
                   "div",
                   { className: "space-y-1" },
@@ -411,13 +662,11 @@
                   React.createElement("input", {
                     className:
                       "w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500",
-                    placeholder: "No HP / email",
                     value: kontak,
-                    onChange: (e) => setKontak(e.target.value)
+                    onChange: (e) => setKontak(e.target.value),
+                    placeholder: "No HP / email"
                   })
                 ),
-
-                // CATATAN
                 React.createElement(
                   "div",
                   { className: "space-y-1" },
@@ -429,21 +678,19 @@
                   React.createElement("textarea", {
                     className:
                       "w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500",
-                    placeholder: "Catatan singkat tentang klien / jenis berkas",
                     rows: 3,
                     value: catatan,
-                    onChange: (e) => setCatatan(e.target.value)
+                    onChange: (e) => setCatatan(e.target.value),
+                    placeholder: "Jenis berkas / keterangan tambahan"
                   })
                 ),
-
-                // BUTTON
                 React.createElement(
                   "button",
                   {
                     type: "submit",
                     disabled: saving,
                     className:
-                      "w-full inline-flex items-center justify-center rounded-lg bg-primary-600 text-white text-sm font-medium px-4 py-2 mt-2 hover:bg-primary-700 disabled:opacity-60 disabled:cursor-not-allowed"
+                      "w-full rounded-lg bg-primary-600 text-white text-sm font-medium px-4 py-2 mt-1 hover:bg-primary-700 disabled:opacity-60"
                   },
                   saving
                     ? editingId
@@ -455,25 +702,22 @@
                 )
               )
             ),
-
-            // LIST + ACTION
+            // list
             React.createElement(
               "div",
               {
                 className:
                   "bg-white rounded-2xl shadow-sm border border-slate-100 p-5 flex flex-col gap-3"
               },
-
-              // FILTER + REFRESH
               React.createElement(
                 "div",
                 {
                   className:
-                    "flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"
+                    "flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2"
                 },
                 React.createElement(
                   "div",
-                  { className: "flex-1" },
+                  null,
                   React.createElement(
                     "h2",
                     { className: "text-lg font-semibold" },
@@ -482,12 +726,12 @@
                   React.createElement(
                     "p",
                     { className: "text-xs text-slate-500" },
-                    "Klik nama untuk edit, gunakan tombol di kanan untuk cetak atau hapus."
+                    "Klik nama untuk edit, tombol kanan untuk cetak / hapus."
                   )
                 ),
                 React.createElement(
                   "div",
-                  { className: "flex gap-2 mt-2 sm:mt-0" },
+                  { className: "flex gap-2" },
                   React.createElement("input", {
                     className:
                       "flex-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500",
@@ -507,8 +751,6 @@
                   )
                 )
               ),
-
-              // LIST CONTENT
               loading
                 ? React.createElement(
                     "p",
@@ -524,11 +766,11 @@
                 : React.createElement(
                     "ul",
                     { className: "space-y-2 max-h-80 overflow-auto pr-1" },
-                    filteredClients.map((client) =>
+                    filteredClients.map((c) =>
                       React.createElement(
                         "li",
                         {
-                          key: client.id,
+                          key: c.id,
                           className:
                             "border border-slate-100 rounded-lg px-3 py-2 text-sm flex flex-col gap-1"
                         },
@@ -538,46 +780,43 @@
                             className:
                               "flex items-start justify-between gap-2"
                           },
-                          // NAMA (EDIT)
                           React.createElement(
                             "button",
                             {
                               type: "button",
-                              onClick: () => handleEdit(client),
+                              onClick: () => handleEdit(c),
                               className:
-                                "text-left flex-1 hover:text-primary-700"
+                                "flex-1 text-left hover:text-primary-700"
                             },
                             React.createElement(
                               "div",
                               { className: "font-medium text-slate-800" },
-                              client.nama || "-"
+                              c.nama || "-"
                             ),
                             React.createElement(
                               "div",
                               { className: "text-[11px] text-slate-500" },
-                              client.tipe || "-"
+                              c.tipe || "-"
                             ),
-                            client.kontak &&
+                            c.kontak &&
                               React.createElement(
                                 "div",
                                 {
                                   className:
                                     "text-[11px] text-slate-500 mt-0.5"
                                 },
-                                client.kontak
+                                c.kontak
                               ),
-                            client.catatan &&
+                            c.catatan &&
                               React.createElement(
                                 "div",
                                 {
                                   className:
                                     "text-[11px] text-slate-400 mt-0.5"
                                 },
-                                client.catatan
+                                c.catatan
                               )
                           ),
-
-                          // ACTION BUTTONS
                           React.createElement(
                             "div",
                             {
@@ -588,7 +827,7 @@
                               "button",
                               {
                                 type: "button",
-                                onClick: () => handlePrint("tanda", client),
+                                onClick: () => handlePrint("tanda", c),
                                 className:
                                   "px-2 py-1 rounded-md border border-slate-200 text-slate-600 hover:bg-slate-50"
                               },
@@ -598,7 +837,7 @@
                               "button",
                               {
                                 type: "button",
-                                onClick: () => handlePrint("surat", client),
+                                onClick: () => handlePrint("surat", c),
                                 className:
                                   "px-2 py-1 rounded-md border border-slate-200 text-slate-600 hover:bg-slate-50"
                               },
@@ -608,12 +847,12 @@
                               "button",
                               {
                                 type: "button",
-                                onClick: () => handleDelete(client.id),
-                                disabled: deletingId === client.id,
+                                onClick: () => handleDelete(c.id),
+                                disabled: deletingId === c.id,
                                 className:
-                                  "px-2 py-1 rounded-md border border-red-200 text-red-600 hover:bg-red-50 disabled:opacity-60 disabled:cursor-not-allowed"
+                                  "px-2 py-1 rounded-md border border-red-200 text-red-600 hover:bg-red-50 disabled:opacity-60"
                               },
-                              deletingId === client.id ? "Hapus..." : "Hapus"
+                              deletingId === c.id ? "Hapus..." : "Hapus"
                             )
                           )
                         )
@@ -624,19 +863,187 @@
           )
         );
 
-        // ==== PRINT TEMPLATE ====
+        // TANDA TERIMA PAGE
+        const pageTanda = React.createElement(
+          "div",
+          { className: "space-y-4" },
+          React.createElement(
+            "h1",
+            { className: "text-2xl font-bold text-slate-900" },
+            "Tanda Terima Berkas"
+          ),
+          React.createElement(
+            "div",
+            { className: "bg-white rounded-2xl border border-slate-100 shadow-sm p-5 max-w-xl" },
+            React.createElement(
+              "p",
+              { className: "text-sm text-slate-600 mb-3" },
+              "Pilih klien, lalu cetak tanda terima berkas."
+            ),
+            React.createElement(
+              "div",
+              { className: "space-y-3" },
+              React.createElement(
+                "div",
+                { className: "space-y-1" },
+                React.createElement(
+                  "label",
+                  { className: "text-sm font-medium text-slate-700" },
+                  "Pilih Klien"
+                ),
+                React.createElement(
+                  "select",
+                  {
+                    className:
+                      "w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500",
+                    value: selectedClientPrint ? selectedClientPrint.id : "",
+                    onChange: (e) => {
+                      const id = e.target.value;
+                      const found = clients.find((c) => c.id === id) || null;
+                      setSelectedClientPrint(found);
+                    }
+                  },
+                  React.createElement(
+                    "option",
+                    { value: "" },
+                    "Pilih salah satu klien"
+                  ),
+                  clients.map((c) =>
+                    React.createElement(
+                      "option",
+                      { key: c.id, value: c.id },
+                      c.nama || "-"
+                    )
+                  )
+                )
+              ),
+              React.createElement(
+                "button",
+                {
+                  type: "button",
+                  disabled: !selectedClientPrint,
+                  onClick: () =>
+                    selectedClientPrint && handlePrint("tanda", selectedClientPrint),
+                  className:
+                    "w-full rounded-lg bg-primary-600 text-white text-sm font-medium px-4 py-2 mt-2 hover:bg-primary-700 disabled:opacity-60"
+                },
+                "Cetak Tanda Terima"
+              )
+            )
+          )
+        );
+
+        // SURAT JALAN PAGE
+        const pageSurat = React.createElement(
+          "div",
+          { className: "space-y-4" },
+          React.createElement(
+            "h1",
+            { className: "text-2xl font-bold text-slate-900" },
+            "Surat Jalan Berkas"
+          ),
+          React.createElement(
+            "div",
+            { className: "bg-white rounded-2xl border border-slate-100 shadow-sm p-5 max-w-xl" },
+            React.createElement(
+              "p",
+              { className: "text-sm text-slate-600 mb-3" },
+              "Pilih klien, lalu cetak surat jalan berkas."
+            ),
+            React.createElement(
+              "div",
+              { className: "space-y-3" },
+              React.createElement(
+                "div",
+                { className: "space-y-1" },
+                React.createElement(
+                  "label",
+                  { className: "text-sm font-medium text-slate-700" },
+                  "Pilih Klien"
+                ),
+                React.createElement(
+                  "select",
+                  {
+                    className:
+                      "w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500",
+                    value: selectedClientPrint ? selectedClientPrint.id : "",
+                    onChange: (e) => {
+                      const id = e.target.value;
+                      const found = clients.find((c) => c.id === id) || null;
+                      setSelectedClientPrint(found);
+                    }
+                  },
+                  React.createElement(
+                    "option",
+                    { value: "" },
+                    "Pilih salah satu klien"
+                  ),
+                  clients.map((c) =>
+                    React.createElement(
+                      "option",
+                      { key: c.id, value: c.id },
+                      c.nama || "-"
+                    )
+                  )
+                )
+              ),
+              React.createElement(
+                "button",
+                {
+                  type: "button",
+                  disabled: !selectedClientPrint,
+                  onClick: () =>
+                    selectedClientPrint && handlePrint("surat", selectedClientPrint),
+                  className:
+                    "w-full rounded-lg bg-primary-600 text-white text-sm font-medium px-4 py-2 mt-2 hover:bg-primary-700 disabled:opacity-60"
+                },
+                "Cetak Surat Jalan"
+              )
+            )
+          )
+        );
+
+        // SETTINGS PAGE (dummy dulu)
+        const pageSettings = React.createElement(
+          "div",
+          { className: "space-y-4" },
+          React.createElement(
+            "h1",
+            { className: "text-2xl font-bold text-slate-900" },
+            "Pengaturan"
+          ),
+          React.createElement(
+            "div",
+            { className: "bg-white rounded-2xl border border-slate-100 shadow-sm p-5 max-w-xl" },
+            React.createElement(
+              "p",
+              { className: "text-sm text-slate-600" },
+              "Area ini bisa dipakai untuk pengaturan nama sistem, logo, atau template tanda terima & surat jalan di versi berikutnya."
+            ),
+            React.createElement(
+              "p",
+              { className: "mt-4 text-xs text-slate-400" },
+              "Versi Sistem: v1.0.0 Enterprise"
+            )
+          )
+        );
+
+        let pageContent = pageDashboard;
+        if (activePage === "clients") pageContent = pageClients;
+        if (activePage === "tanda") pageContent = pageTanda;
+        if (activePage === "surat") pageContent = pageSurat;
+        if (activePage === "settings") pageContent = pageSettings;
+
+        // PRINT UI
         let titlePrint = "";
         if (printType === "tanda") titlePrint = "TANDA TERIMA BERKAS";
         if (printType === "surat") titlePrint = "SURAT JALAN BERKAS";
 
         const printUi =
-          printType && selectedClient
+          printType && selectedClientPrint
             ? React.createElement(
                 "div",
-                {
-                  className:
-                    "print-only min-h-screen px-4 py-6 flex justify-center"
-                },
+                { className: "print-only min-h-screen flex justify-center px-4 py-6" },
                 React.createElement(
                   "div",
                   { className: "w-full max-w-2xl text-slate-900" },
@@ -658,80 +1065,74 @@
                       todayStr
                     )
                   ),
-
                   React.createElement(
-                    "div",
-                    { className: "text-sm mb-4" },
+                    "table",
+                    { className: "w-full text-sm mb-4" },
                     React.createElement(
-                      "table",
-                      { className: "w-full text-sm" },
+                      "tbody",
+                      null,
                       React.createElement(
-                        "tbody",
+                        "tr",
                         null,
                         React.createElement(
-                          "tr",
-                          null,
-                          React.createElement(
-                            "td",
-                            { className: "align-top w-32 pb-1" },
-                            "Nama Klien"
-                          ),
-                          React.createElement(
-                            "td",
-                            { className: "align-top pb-1" },
-                            ": ",
-                            selectedClient.nama || "-"
-                          )
+                          "td",
+                          { className: "w-32 align-top pb-1" },
+                          "Nama Klien"
                         ),
                         React.createElement(
-                          "tr",
-                          null,
-                          React.createElement(
-                            "td",
-                            { className: "align-top pb-1" },
-                            "Tipe"
-                          ),
-                          React.createElement(
-                            "td",
-                            { className: "align-top pb-1" },
-                            ": ",
-                            selectedClient.tipe || "-"
-                          )
+                          "td",
+                          { className: "align-top pb-1" },
+                          ": ",
+                          selectedClientPrint.nama || "-"
+                        )
+                      ),
+                      React.createElement(
+                        "tr",
+                        null,
+                        React.createElement(
+                          "td",
+                          { className: "align-top pb-1" },
+                          "Tipe"
                         ),
                         React.createElement(
-                          "tr",
-                          null,
-                          React.createElement(
-                            "td",
-                            { className: "align-top pb-1" },
-                            "Kontak"
-                          ),
-                          React.createElement(
-                            "td",
-                            { className: "align-top pb-1" },
-                            ": ",
-                            selectedClient.kontak || "-"
-                          )
+                          "td",
+                          { className: "align-top pb-1" },
+                          ": ",
+                          selectedClientPrint.tipe || "-"
+                        )
+                      ),
+                      React.createElement(
+                        "tr",
+                        null,
+                        React.createElement(
+                          "td",
+                          { className: "align-top pb-1" },
+                          "Kontak"
                         ),
                         React.createElement(
-                          "tr",
-                          null,
-                          React.createElement(
-                            "td",
-                            { className: "align-top pb-1" },
-                            "Catatan"
-                          ),
-                          React.createElement(
-                            "td",
-                            { className: "align-top pb-1" },
-                            ": ",
-                            selectedClient.catatan || "-"
-                          )
+                          "td",
+                          { className: "align-top pb-1" },
+                          ": ",
+                          selectedClientPrint.kontak || "-"
+                        )
+                      ),
+                      React.createElement(
+                        "tr",
+                        null,
+                        React.createElement(
+                          "td",
+                          { className: "align-top pb-1" },
+                          "Catatan"
+                        ),
+                        React.createElement(
+                          "td",
+                          { className: "align-top pb-1" },
+                          ": ",
+                          selectedClientPrint.catatan || "-"
                         )
                       )
                     )
                   ),
-
                   React.createElement(
                     "p",
                     { className: "text-sm mb-6" },
@@ -739,7 +1140,6 @@
                       ? "Dengan ini kami menyatakan telah menerima berkas dari klien dengan data sebagaimana tercantum di atas untuk diproses lebih lanjut."
                       : "Dengan ini kami menyatakan telah menyerahkan / mengirimkan berkas kepada klien dengan data sebagaimana tercantum di atas."
                   ),
-
                   React.createElement(
                     "div",
                     {
@@ -750,29 +1150,27 @@
                       "div",
                       { className: "w-1/2 pr-4" },
                       React.createElement("p", null, "Pihak Klien,"),
-                      React.createElement("div", {
-                        className: "h-12"
-                      }),
+                      React.createElement("div", { className: "h-12" }),
                       React.createElement(
                         "p",
-                        { className: "border-t border-slate-400 inline-block px-4 pt-1" },
-                        selectedClient.nama || "________________"
+                        {
+                          className:
+                            "border-t border-slate-400 inline-block px-4 pt-1"
+                        },
+                        selectedClientPrint.nama || "________________"
                       )
                     ),
                     React.createElement(
                       "div",
                       { className: "w-1/2 pl-4 text-right" },
+                      React.createElement("p", null, "Petugas,"),
+                      React.createElement("div", { className: "h-12" }),
                       React.createElement(
                         "p",
-                        null,
-                        "Petugas,"
-                      ),
-                      React.createElement("div", {
-                        className: "h-12"
-                      }),
-                      React.createElement(
-                        "p",
-                        { className: "border-t border-slate-400 inline-block px-4 pt-1" },
+                        {
+                          className:
+                            "border-t border-slate-400 inline-block px-4 pt-1"
+                        },
                         "________________"
                       )
                     )
@@ -780,6 +1178,103 @@
                 )
               )
             : React.createElement("div", { className: "print-only" });
+
+        // MAIN LAYOUT (NO PRINT)
+        const mainUi = React.createElement(
+          "div",
+          { className: "no-print min-h-screen flex" },
+          // sidebar
+          React.createElement(
+            "aside",
+            {
+              className:
+                "hidden md:flex md:w-64 flex-col border-r border-slate-100 bg-white"
+            },
+            React.createElement(
+              "div",
+              { className: "px-5 py-4 border-b border-slate-100 flex items-center gap-2" },
+              React.createElement(
+                "div",
+                {
+                  className:
+                    "h-9 w-9 rounded-2xl bg-primary-600 text-white flex items-center justify-center text-lg font-bold"
+                },
+                "P"
+              ),
+              React.createElement(
+                "div",
+                null,
+                React.createElement(
+                  "p",
+                  { className: "text-sm font-semibold" },
+                  "ProFile",
+                  React.createElement(
+                    "span",
+                    { className: "text-primary-600" },
+                    "Manager"
+                  )
+                ),
+                React.createElement(
+                  "p",
+                  { className: "text-[11px] text-slate-500" },
+                  "Client & Document Control"
+                )
+              )
+            ),
+            React.createElement(
+              "nav",
+              { className: "flex-1 px-3 py-4 space-y-1" },
+              navItem("dashboard", "Dashboard", "▦"),
+              navItem("clients", "Data Klien", "👤"),
+              navItem("tanda", "Tanda Terima", "🧾"),
+              navItem("surat", "Surat Jalan", "🚚"),
+              navItem("settings", "Pengaturan", "⚙️")
+            ),
+            React.createElement(
+              "div",
+              { className: "px-4 py-4 border-t border-slate-100 text-xs text-slate-400" },
+              React.createElement("p", null, "Versi Sistem"),
+              React.createElement(
+                "p",
+                { className: "font-medium text-slate-600" },
+                "v1.0.0 Enterprise"
+              )
+            )
+          ),
+          // main content
+          React.createElement(
+            "main",
+            { className: "flex-1 min-w-0" },
+            React.createElement(
+              "div",
+              { className: "max-w-6xl mx-auto px-4 py-6 space-y-3" },
+              (error || success) &&
+                React.createElement(
+                  "div",
+                  { className: "space-y-2" },
+                  error &&
+                    React.createElement(
+                      "div",
+                      {
+                        className:
+                          "rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700"
+                      },
+                      error
+                    ),
+                  success &&
+                    React.createElement(
+                      "div",
+                      {
+                        className:
+                          "rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-700"
+                      },
+                      success
+                    )
+                ),
+              pageContent
+            )
+          )
+        );
 
         return React.createElement(
           "div",

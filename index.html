@@ -6,6 +6,7 @@
     <title>ProFile Manager</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
     <script>
       tailwind.config = {
         theme: {
@@ -26,8 +27,9 @@
             }
           },
         },
-      }
+      };
     </script>
+
     <style>
       @media print {
         .no-print { display: none !important; }
@@ -38,8 +40,9 @@
       .print-only { display: none; }
     </style>
   </head>
+
   <body class="bg-slate-50 text-slate-900 antialiased">
     <div id="root"></div>
-    <!-- Vite akan meng-inject bundle JS pada build; jangan pakai importmap di produksi -->
+    <!-- Vite akan auto inject main.js -->
   </body>
 </html>

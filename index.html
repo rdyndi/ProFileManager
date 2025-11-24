@@ -30,26 +30,16 @@
     </script>
     <style>
       @media print {
-        .no-print {
-          display: none !important;
-        }
-        .print-only {
-          display: block !important;
-        }
-        body {
-          background: white;
-        }
-        @page {
-          margin: 0;
-        }
+        .no-print { display: none !important; }
+        .print-only { display: block !important; }
+        body { background: white; }
+        @page { margin: 0; }
       }
-      .print-only {
-        display: none;
-      }
+      .print-only { display: none; }
     </style>
   </head>
   <body class="bg-slate-50 text-slate-900 antialiased">
     <div id="root"></div>
-    <!-- Vite akan meng-inject bundle JS pada saat build; jangan menambahkan importmap di sini -->
+    <!-- Vite akan meng-inject bundle JS pada build; jangan pakai importmap di produksi -->
   </body>
 </html>

@@ -1,136 +1,133 @@
-<!DOCTYPE html>
-<html lang="id">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Dompet Pintar - Profile</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <script>
-      tailwind.config = {
-        theme: {
-          extend: {
-            fontFamily: {
-              sans: ['Inter', 'sans-serif'],
-            },
-          },
-        },
-      }
-    </script>
+import { 
+  collection, 
+  doc, 
+  setDoc, 
+  deleteDoc, 
+  onSnapshot, 
+  getDoc 
+} from "firebase/firestore";
+import { db } from "./firebaseService";
+import { Client, DocumentData, CompanySettings } from '../types';
 
-    <script type="importmap">
-    {
-      "imports": {
-        "react": "https://esm.sh/react@18.2.0",
-        "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
-        "firebase/app": "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js",
-        "firebase/firestore": "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js"
-      }
+// Nama Collection di Firestore
+const COLL_CLIENTS = 'clients';
+const COLL_DOCS = 'documents';
+const COLL_SETTINGS = 'settings';
+const DOC_SETTINGS_ID = 'company_profile'; // ID statis untuk settings
+
+// --- CLIENTS ---
+
+// Subscribe (Real-time Listener)
+export const subscribeClients = (callback: (data: Client[]) => void) => {
+  const q = collection(db, COLL_CLIENTS);
+  return onSnapshot(q, (snapshot) => {
+    const clients = snapshot.docs.map(doc => doc.data() as Client);
+    // Sort by createdAt descending
+    clients.sort((a, b) => b.createdAt - a.createdAt);
+    callback(clients);
+  });
+};
+
+export const saveClient = async (client: Client): Promise<void> => {
+  try {
+    const docRef = doc(db, COLL_CLIENTS, client.id);
+    await setDoc(docRef, client);
+  } catch (error) {
+    console.error("Error saving client:", error);
+    throw error;
+  }
+};
+
+export const deleteClient = async (id: string): Promise<void> => {
+  try {
+    await deleteDoc(doc(db, COLL_CLIENTS, id));
+  } catch (error) {
+    console.error("Error deleting client:", error);
+    throw error;
+  }
+};
+
+// --- DOCUMENTS (Receipts & Delivery) ---
+
+export const subscribeDocuments = (callback: (data: DocumentData[]) => void) => {
+  const q = collection(db, COLL_DOCS);
+  return onSnapshot(q, (snapshot) => {
+    const docs = snapshot.docs.map(doc => doc.data() as DocumentData);
+    // Sort by date descending
+    docs.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    callback(docs);
+  });
+};
+
+export const saveDocument = async (docData: DocumentData): Promise<void> => {
+  try {
+    const docRef = doc(db, COLL_DOCS, docData.id);
+    await setDoc(docRef, docData);
+  } catch (error) {
+    console.error("Error saving document:", error);
+    throw error;
+  }
+};
+
+export const updateDocument = async (docData: DocumentData): Promise<void> => {
+  // Di Firestore, saveDocument dengan setDoc dan merge (atau overwrite ID sama) fungsinya sama
+  return saveDocument(docData);
+};
+
+export const deleteDocument = async (id: string): Promise<void> => {
+  try {
+    await deleteDoc(doc(db, COLL_DOCS, id));
+  } catch (error) {
+    console.error("Error deleting document:", error);
+    throw error;
+  }
+};
+
+// --- SETTINGS ---
+
+// Default settings if empty
+const defaultSettings: CompanySettings = {
+  companyName: "Notaris/PPAT Nukantini Putri Parincha,SH.M.kn",
+  companyAddress: "Komplek PPR ITB F5, Dago Giri, Mekarwangi, Lembang, Bandung Barat, 40391",
+  companyEmail: "notarisppatputri@gmail.com",
+  companyPhone: "08112007061"
+};
+
+export const subscribeSettings = (callback: (data: CompanySettings) => void) => {
+  const docRef = doc(db, COLL_SETTINGS, DOC_SETTINGS_ID);
+  return onSnapshot(docRef, (docSnap) => {
+    if (docSnap.exists()) {
+      callback(docSnap.data() as CompanySettings);
+    } else {
+      // Jika belum ada di firestore, kembalikan default
+      callback(defaultSettings);
     }
-    </script>
-</head>
-<body class="bg-slate-50 text-slate-900 antialiased">
-    <div id="root"></div>
+  });
+};
 
-    <script type="module">
-      import React, { useState, useEffect } from 'react';
-      import { createRoot } from 'react-dom/client';
-      import { initializeApp } from 'firebase/app';
-      import { getFirestore, collection, addDoc } from 'firebase/firestore';
+// Fungsi Cache untuk Print (Sync)
+// Kita akan menyimpan data terbaru ke localStorage 'cache' setiap kali ada update dari Firestore
+// agar fungsi printDocument (yang butuh data sync) bisa membacanya dengan cepat.
+export const syncSettingsToLocalCache = (settings: CompanySettings) => {
+    localStorage.setItem('cached_print_settings', JSON.stringify(settings));
+}
 
-      // --- KONFIGURASI DOMPET PINTAR ---
-      const firebaseConfig = {
-        apiKey: "AIzaSyClChxcL4T1Rc3b8l6Zobbj6ynAQLWPGwY",
-        authDomain: "dompetpintar-d50e0.firebaseapp.com",
-        projectId: "dompetpintar-d50e0",
-        storageBucket: "dompetpintar-d50e0.firebasestorage.app",
-        messagingSenderId: "804793025772",
-        appId: "1:804793025772:web:eb3ecc3f4edd030b86d1c9",
-        measurementId: "G-3BV80BW6ZN"
-      };
+export const getCachedSettings = (): CompanySettings => {
+    const cached = localStorage.getItem('cached_print_settings');
+    return cached ? JSON.parse(cached) : defaultSettings;
+}
 
-      // Inisialisasi Firebase
-      const app = initializeApp(firebaseConfig);
-      const db = getFirestore(app);
+export const saveSettings = async (settings: CompanySettings): Promise<void> => {
+  try {
+    const docRef = doc(db, COLL_SETTINGS, DOC_SETTINGS_ID);
+    await setDoc(docRef, settings);
+  } catch (error) {
+    console.error("Error saving settings:", error);
+    throw error;
+  }
+};
 
-      // --- TAMPILAN (COMPONENT) ---
-      function App() {
-        const [nama, setNama] = useState("");
-        const [status, setStatus] = useState(""); 
-        const [loading, setLoading] = useState(false);
-
-        const handleSave = async (e) => {
-          e.preventDefault();
-          if(!nama) return;
-
-          setLoading(true);
-          setStatus("");
-
-          try {
-            // Simpan ke koleksi 'pengguna'
-            await addDoc(collection(db, "pengguna"), {
-              nama_lengkap: nama,
-              waktu_daftar: new Date().toISOString(),
-              device: navigator.userAgent
-            });
-            
-            setStatus("Sukses! Data tersimpan di Firestore.");
-            setNama(""); // Kosongkan input setelah sukses
-          } catch (error) {
-            console.error("Error Firebase:", error);
-            setStatus("Gagal: " + error.message);
-          } finally {
-            setLoading(false);
-          }
-        };
-
-        // Kita menggunakan React.createElement karena browser tidak bisa baca JSX (<div>) tanpa build tools
-        return React.createElement(
-          "div", 
-          { className: "min-h-screen flex items-center justify-center p-4" },
-          React.createElement("div", { className: "bg-white p-8 rounded-2xl shadow-xl w-full max-w-md border border-slate-100" },
-            // Header
-            React.createElement("div", { className: "text-center mb-8" },
-              React.createElement("h1", { className: "text-2xl font-bold text-blue-600" }, "Dompet Pintar"),
-              React.createElement("p", { className: "text-slate-500 text-sm mt-1" }, "Simpan data profil ke Cloud")
-            ),
-            
-            // Form
-            React.createElement("form", { onSubmit: handleSave, className: "space-y-5" },
-              React.createElement("div", {},
-                React.createElement("label", { className: "block text-sm font-medium text-slate-700 mb-1" }, "Nama Pengguna"),
-                React.createElement("input", {
-                  type: "text",
-                  value: nama,
-                  onChange: (e) => setNama(e.target.value),
-                  className: "w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition",
-                  placeholder: "Ketik nama Anda...",
-                  required: true
-                })
-              ),
-              
-              React.createElement("button", {
-                type: "submit",
-                disabled: loading,
-                className: `w-full font-semibold py-3 px-4 rounded-lg transition shadow-md ${
-                  loading ? "bg-slate-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700 text-white"
-                }`
-              }, loading ? "Menyimpan..." : "Simpan ke Database")
-            ),
-
-            // Status Message
-            status && React.createElement("div", { 
-              className: `mt-6 p-4 rounded-lg text-sm text-center font-medium ${
-                status.includes("Gagal") ? "bg-red-50 text-red-600 border border-red-100" : "bg-green-50 text-green-600 border border-green-100"
-              }` 
-            }, status)
-          )
-        );
-      }
-
-      // Render ke layar
-      const root = createRoot(document.getElementById('root'));
-      root.render(React.createElement(App));
-    </script>
-</body>
-</html>
+// Fungsi deprecated untuk compatibility jika masih ada yang panggil, tapi diarahkan ke cache/default
+export const getClients = (): Client[] => []; 
+export const getDocuments = (): DocumentData[] => [];
+export const getSettings = (): CompanySettings => getCachedSettings();

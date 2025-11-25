@@ -47,7 +47,7 @@ export const printDocument = (docData: DocumentData) => {
     }
 
     // Logic Footer Text (Disclaimer)
-    const standardFooter = "Mohon diperiksa kembali kelengkapan dokumen saat diterima.";
+    const standardFooter = "Saya yang bertandatangan dibawah ini, menyatakan telah menerima dokument tersebut diatas.";
     const courierFooter = "Saya yang bertandatangan dibawah ini, menyatakan telah menerima dokument tersebut diatas, Tanda Terima ini mohon di tandatangani dan dikirim ke alamat KOMP PPR ITB Kav F-5, Mekarwangi, Lembang, Kabupaten Bandung Barat, atau dapat di scan dan dikirim melalui email ke alamat notarisppatputri@gmail.com, apabila Tanda Terima ini tidak dikirim kembali, maka Tanda Terima ini dinyatakan sah dan dianggap telah diterima apabila setatus dalam pengiriman expedisi dinyatakan telah diterima.";
 
     // Gunakan teks panjang HANYA JIKA Surat Jalan DAN menggunakan Kurir (bukan 'TANPA KURIR')

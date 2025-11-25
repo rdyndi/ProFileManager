@@ -83,7 +83,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
           </form>
           
           <div className="mt-6 text-center">
-            <p className="text-xs text-slate-400">© 2024 Notaris & PPAT Putri Parincha</p>
+            <p className="text-xs text-slate-400">© 2025 Nendi @rdyndi</p>
           </div>
         </div>
       </div>

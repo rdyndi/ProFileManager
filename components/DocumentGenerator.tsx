@@ -1,56 +1,59 @@
 import React, { useState, useEffect } from 'react';
 import { Client, DocType, DocumentData, DocumentItem } from '../types';
-import { Printer, Search, Calendar, User, FileCheck, Package, Plus, Trash2, Save, ArrowLeft, UserPlus } from 'lucide-react';
+import { Printer, Search, Calendar, User, FileCheck, Package, Plus, Trash2, Save, ArrowLeft, UserPlus, Truck } from 'lucide-react';
 import { getCachedSettings } from '../services/storage';
 
-// ... (printDocument function tetap sama) ...
+// --- Standalone Print Function (Exported) ---
 export const printDocument = (docData: DocumentData) => {
-    // ... [KODE PRINTDOCUMENT SAMA SEPERTI SEBELUMNYA] ...
-    const { type, referenceNo, date, clientName, clientPic, officerName, items, destination } = docData;
+    const { type, referenceNo, date, clientName, clientPic, officerName, items, destination, deliveryMethod, trackingNumber } = docData;
+    
     const title = type === 'RECEIPT' ? 'TANDA TERIMA BERKAS' : 'SURAT JALAN DOKUMEN';
     const docTitle = `${type === 'RECEIPT' ? 'Tanda_Terima' : 'Surat_Jalan'}_${referenceNo.replace(/\//g, '-')}`;
+    
     const settings = getCachedSettings();
     const companyName = settings.companyName;
     const companyAddress = settings.companyAddress;
     const companyContact = `Email: ${settings.companyEmail} | Telp: ${settings.companyPhone}`;
+
     const clientDisplayName = clientPic 
         ? `<span>${clientPic}</span><br/><span class="text-sm font-normal text-slate-600">(${clientName})</span>` 
         : clientName;
-    const fromData = type === 'RECEIPT' ? { name: clientDisplayName } : { name: companyName };
-    const toData = type === 'RECEIPT' ? { name: companyName } : { name: clientDisplayName };
+
+    const fromData = type === 'RECEIPT' 
+        ? { name: clientDisplayName }
+        : { name: companyName };
+
+    const toData = type === 'RECEIPT'
+        ? { name: companyName }
+        : { name: clientDisplayName };
+    
     const rightBoxLabel = type === 'DELIVERY' ? 'UNTUK' : 'PENERIMA';
     const rightSignatureName = type === 'DELIVERY' ? '&nbsp;' : officerName;
     
+    // Logic tampilan info pengiriman tambahan di PDF
+    let deliveryInfoHtml = '';
+    if (type === 'DELIVERY') {
+        if (destination) {
+            deliveryInfoHtml += `<p class="text-xs text-slate-600 mt-1 pt-1 border-t border-slate-200">Tujuan: ${destination}</p>`;
+        }
+        if (deliveryMethod && deliveryMethod !== 'TANPA KURIR') {
+             deliveryInfoHtml += `<p class="text-xs text-slate-600 mt-1">Via: <strong>${deliveryMethod}</strong></p>`;
+             if (trackingNumber) {
+                 deliveryInfoHtml += `<p class="text-xs text-slate-600">Resi: <span class="font-mono">${trackingNumber}</span></p>`;
+             }
+        } else if (deliveryMethod === 'TANPA KURIR') {
+             deliveryInfoHtml += `<p class="text-xs text-slate-600 mt-1"><em>(Diserahkan Langsung / Tanpa Kurir)</em></p>`;
+        }
+    }
+
     const printContent = `
       <!DOCTYPE html><html><head><title>${docTitle}</title><script src="https://cdn.tailwindcss.com"></script><link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"><style>
       body { font-family: 'Inter', sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; } 
-      
-      /* ATURAN HALAMAN A4 */
-      @page { 
-        size: A4; 
-        margin: 0; /* Reset margin browser */
-      }
-      
-      @media print { 
-        .no-print { display: none; } 
-        body { 
-            -webkit-print-color-adjust: exact; 
-            margin: 0;
-            padding: 15mm; /* Padding halaman manual */
-            height: 100vh; /* Paksa tinggi fit viewport cetak */
-            overflow: hidden; /* Hindari scrollbar tercetak sebagai halaman baru */
-        } 
+      @page { size: A4; margin: 10mm 15mm; } 
+      @media print { .no-print { display: none; } body { -webkit-print-color-adjust: exact; } tr { page-break-inside: avoid; } .break-inside-avoid { page-break-inside: avoid; } }
+      </style></head><body class="bg-white text-slate-900 p-4 max-w-[21cm] mx-auto relative">
         
-        /* Skala konten jika terlalu banyak item */
-        .content-wrapper {
-            transform-origin: top center;
-        }
-      }
-      </style></head><body class="bg-white text-slate-900">
-      
-      <div class="content-wrapper max-w-[21cm] mx-auto relative h-full">
-        
-        <div class="flex items-center justify-between border-b-4 border-slate-800 pb-3 mb-4">
+        <div class="flex items-center justify-between border-b-4 border-slate-800 pb-3 mb-6">
             <div class="flex items-center gap-4">
                 <div>
                     <h1 class="text-xl font-bold text-slate-800 tracking-tight">${companyName}</h1>
@@ -70,38 +73,38 @@ export const printDocument = (docData: DocumentData) => {
         </div>
 
         <div class="grid grid-cols-2 gap-6 mb-6">
-            <div class="bg-slate-50 p-3 border border-slate-200 rounded-lg">
+            <div class="bg-slate-50 p-4 border border-slate-200 rounded-lg">
                 <p class="text-[10px] font-bold uppercase text-slate-400 mb-1 tracking-wider">PENGIRIM</p>
                 <p class="font-bold text-base text-slate-800 leading-tight">${fromData.name}</p>
             </div>
-            <div class="bg-slate-50 p-3 border border-slate-200 rounded-lg">
+            <div class="bg-slate-50 p-4 border border-slate-200 rounded-lg">
                 <p class="text-[10px] font-bold uppercase text-slate-400 mb-1 tracking-wider">${rightBoxLabel}</p>
                 <p class="font-bold text-base text-slate-800 leading-tight">${toData.name}</p>
-                ${type === 'DELIVERY' && destination ? `<p class="text-xs text-slate-600 mt-1 pt-1 border-t border-slate-200">Tujuan: ${destination}</p>` : ''}
+                ${deliveryInfoHtml}
             </div>
         </div>
 
-        <div class="mb-6">
+        <div class="mb-8">
             <table class="w-full border-collapse text-sm">
                 <thead>
                     <tr class="bg-slate-800 text-white text-xs">
-                        <th class="py-1 px-2 text-center w-10 border border-slate-800 font-medium">No</th>
-                        <th class="py-1 px-2 text-left border border-slate-800 font-medium">Deskripsi Berkas / Barang</th>
-                        <th class="py-1 px-2 text-center w-24 border border-slate-800 font-medium">Keterangan</th>
+                        <th class="py-2 px-3 text-center w-12 border border-slate-800 font-medium">No</th>
+                        <th class="py-2 px-3 text-left border border-slate-800 font-medium">Deskripsi Berkas / Barang</th>
+                        <th class="py-2 px-3 text-center w-32 border border-slate-800 font-medium">Keterangan</th>
                     </tr>
                 </thead>
-                <tbody class="text-slate-700">
+                <tbody class="text-slate-700 text-sm">
                     ${items.map((item, idx) => `
                         <tr class="border-b border-slate-200">
-                            <td class="py-2 px-2 text-center border-l border-r border-slate-200">${idx + 1}</td>
-                            <td class="py-2 px-2 border-r border-slate-200 font-medium leading-tight">${item.description}</td>
-                            <td class="py-2 px-2 text-center border-r border-slate-200 text-xs font-semibold text-slate-600 bg-slate-50">${item.type}</td>
+                            <td class="py-2 px-3 text-center border-l border-r border-slate-200">${idx + 1}</td>
+                            <td class="py-2 px-3 border-r border-slate-200 font-medium leading-tight">${item.description}</td>
+                            <td class="py-2 px-3 text-center border-r border-slate-200 text-xs font-semibold text-slate-600 bg-slate-50">${item.type}</td>
                         </tr>
                     `).join('')}
                 </tbody>
                 <tfoot>
                      <tr class="bg-slate-50">
-                        <td colspan="3" class="py-1 px-2 border border-slate-200 text-[9px] text-slate-500 text-center italic">
+                        <td colspan="3" class="py-2 px-3 border border-slate-200 text-[10px] text-slate-500 text-center italic">
                             Mohon diperiksa kembali kelengkapan dokumen saat diterima.
                         </td>
                      </tr>
@@ -109,24 +112,24 @@ export const printDocument = (docData: DocumentData) => {
             </table>
         </div>
 
-        <div class="flex justify-between items-end mt-12 px-4 break-inside-avoid">
-            <div class="text-center w-48">
+        <div class="flex justify-between items-end mt-8 px-4 break-inside-avoid">
+            <div class="text-center w-56">
                 <p class="mb-16 text-xs text-slate-600">Diserahkan Oleh,</p>
                 <div class="border-b border-slate-800 mb-1"></div>
                 <p class="font-bold text-slate-900 text-sm uppercase leading-tight">
                     ${type === 'RECEIPT' ? (clientPic || clientName) : officerName}
                 </p>
-                <p class="text-[9px] text-slate-400">Tanda Tangan & Nama Terang</p>
+                <p class="text-[10px] text-slate-400">Tanda Tangan & Nama Terang</p>
             </div>
             
-            <div class="text-center w-48">
+            <div class="text-center w-56">
                 <p class="mb-1 text-xs text-slate-600">${new Date(date).toLocaleDateString('id-ID', {day: 'numeric', month: 'long', year: 'numeric'})}</p>
                 <p class="mb-16 text-xs text-slate-600">Diterima Oleh,</p>
                 <div class="border-b border-slate-800 mb-1"></div>
                 <p class="font-bold text-slate-900 text-sm uppercase leading-tight">
                      ${rightSignatureName}
                 </p>
-                <p class="text-[9px] text-slate-400">Tanda Tangan & Stempel</p>
+                <p class="text-[10px] text-slate-400">Tanda Tangan & Stempel</p>
             </div>
         </div>
         
@@ -136,10 +139,9 @@ export const printDocument = (docData: DocumentData) => {
 
       </div>
       <script>
-        // Auto-scale content if it overflows
         window.onload = () => {
             const wrapper = document.querySelector('.content-wrapper');
-            if (wrapper.scrollHeight > 1050) { // Approximate A4 height in pixels at 96dpi (1123px) minus padding
+            if (wrapper && wrapper.scrollHeight > 1050) { 
                 const scale = 1050 / wrapper.scrollHeight;
                 wrapper.style.transform = 'scale(' + scale + ')';
                 wrapper.style.width = (100 / scale) + '%';
@@ -148,6 +150,7 @@ export const printDocument = (docData: DocumentData) => {
         };
       </script>
       </body></html>`;
+
     const printWindow = window.open('', '_blank');
     if (printWindow) {
         printWindow.document.open();
@@ -177,6 +180,15 @@ export const DocumentGenerator: React.FC<DocGeneratorProps> = ({ type, clients, 
   const [officerName, setOfficerName] = useState('');
   const [refNo, setRefNo] = useState('');
   const [destination, setDestination] = useState('');
+  
+  // NEW: State untuk Metode Pengiriman & Resi
+  const [deliveryMethod, setDeliveryMethod] = useState('TANPA KURIR');
+  const [trackingNumber, setTrackingNumber] = useState('');
+
+  const deliveryOptions = [
+      "TANPA KURIR", "GOSEND", "GRAB EXPRESS", "LALAMOVE", 
+      "JNE", "TIKI", "J&T", "NINJA EXPRESS", "TRAVEL"
+  ];
 
   // Load initial data if editing
   useEffect(() => {
@@ -187,8 +199,10 @@ export const DocumentGenerator: React.FC<DocGeneratorProps> = ({ type, clients, 
       setOfficerName(initialData.officerName);
       setRefNo(initialData.referenceNo);
       if (initialData.destination) setDestination(initialData.destination);
+      // Load delivery info
+      if (initialData.deliveryMethod) setDeliveryMethod(initialData.deliveryMethod);
+      if (initialData.trackingNumber) setTrackingNumber(initialData.trackingNumber);
     } else {
-      // Set default ref no for new doc
       setRefNo(`DOC/${new Date().getFullYear()}/${Math.floor(Math.random() * 1000)}`);
     }
   }, [initialData]);
@@ -242,6 +256,12 @@ export const DocumentGenerator: React.FC<DocGeneratorProps> = ({ type, clients, 
 
     if (type === 'DELIVERY') {
         baseDocData.destination = destination;
+        baseDocData.deliveryMethod = deliveryMethod;
+        if (deliveryMethod !== 'TANPA KURIR') {
+            baseDocData.trackingNumber = trackingNumber;
+        } else {
+            baseDocData.trackingNumber = ''; // Clear if no courier
+        }
     }
 
     return baseDocData;
@@ -257,7 +277,7 @@ export const DocumentGenerator: React.FC<DocGeneratorProps> = ({ type, clients, 
   const handlePrint = () => {
     const docData = constructDocumentData();
     if (docData) {
-        onSave(docData); // Auto save when printing
+        onSave(docData); 
         printDocument(docData);
     }
   };
@@ -344,21 +364,57 @@ export const DocumentGenerator: React.FC<DocGeneratorProps> = ({ type, clients, 
                 </div>
             </div>
 
+            {/* --- BAGIAN BARU: METODE PENGIRIMAN --- */}
             {type === 'DELIVERY' && (
-                <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Tujuan Pengiriman</label>
-                    <input
-                        type="text"
-                        value={destination}
-                        onChange={(e) => setDestination(e.target.value)}
-                        placeholder={selectedClient?.address || "Masukkan alamat tujuan..."}
-                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none"
-                    />
-                    <p className="text-xs text-slate-500 mt-1">Biarkan kosong jika sama dengan alamat klien.</p>
+                <div className="space-y-6 border-t border-slate-100 pt-4 mt-2">
+                    <div className="flex items-center gap-2 text-slate-800 font-semibold">
+                        <Truck className="w-4 h-4" />
+                        <h3>Info Pengiriman</h3>
+                    </div>
+                    
+                    <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">Tujuan Pengiriman</label>
+                        <input
+                            type="text"
+                            value={destination}
+                            onChange={(e) => setDestination(e.target.value)}
+                            placeholder={selectedClient?.address || "Masukkan alamat tujuan..."}
+                            className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none"
+                        />
+                        <p className="text-xs text-slate-500 mt-1">Biarkan kosong jika sama dengan alamat klien.</p>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label className="block text-sm font-medium text-slate-700 mb-1">Dikirim Dengan <span className="text-red-500">*</span></label>
+                            <select 
+                                value={deliveryMethod}
+                                onChange={(e) => setDeliveryMethod(e.target.value)}
+                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none bg-white"
+                            >
+                                {deliveryOptions.map(opt => (
+                                    <option key={opt} value={opt}>{opt}</option>
+                                ))}
+                            </select>
+                        </div>
+                        
+                        {deliveryMethod !== 'TANPA KURIR' && (
+                            <div className="animate-in fade-in slide-in-from-left-2 duration-300">
+                                <label className="block text-sm font-medium text-slate-700 mb-1">Nomor Resi (Opsional)</label>
+                                <input
+                                    type="text"
+                                    value={trackingNumber}
+                                    onChange={(e) => setTrackingNumber(e.target.value)}
+                                    placeholder="Contoh: JD0123456789"
+                                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none"
+                                />
+                            </div>
+                        )}
+                    </div>
                 </div>
             )}
 
-            <div>
+            <div className="pt-4 border-t border-slate-100 mt-2">
                 <label className="block text-sm font-medium text-slate-700 mb-1">
                     {type === 'RECEIPT' ? 'Nama Petugas Penerima' : 'Nama Petugas Pengantar'}
                 </label>

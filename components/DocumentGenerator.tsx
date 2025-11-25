@@ -68,7 +68,7 @@ export const printDocument = (docData: DocumentData) => {
                 </div>
             </div>
             <div class="text-right">
-                <p class="text-[10px] text-slate-400 uppercase tracking-wider">Dokumen Digital</p>
+                <p class="text-[10px] text-slate-400 uppercase tracking-wider">NOMOR</p>
                 <p class="font-mono text-sm font-bold text-slate-600">${referenceNo}</p>
             </div>
         </div>

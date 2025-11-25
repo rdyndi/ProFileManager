@@ -3,7 +3,7 @@ import { Client, DocType, DocumentData, DocumentItem, Employee } from '../types'
 import { Printer, Search, Calendar, User, FileCheck, Package, Plus, Trash2, Save, ArrowLeft, UserPlus, Truck } from 'lucide-react';
 import { getCachedSettings } from '../services/storage';
 
-// ... (printDocument function remains same) ...
+// --- Standalone Print Function (Exported) ---
 export const printDocument = (docData: DocumentData) => {
     const { type, referenceNo, date, clientName, clientPic, officerName, items, destination, deliveryMethod, trackingNumber } = docData;
     
@@ -165,17 +165,20 @@ export const printDocument = (docData: DocumentData) => {
     }
 };
 
+// --- Component ---
+
 interface DocGeneratorProps {
   type: DocType;
   clients: Client[];
-  employees: Employee[]; // New Prop
+  employees: Employee[]; 
+  documents: DocumentData[]; 
   onSave: (doc: DocumentData) => void;
   onCancel: () => void;
   onAddClient: () => void; 
   initialData?: DocumentData | null;
 }
 
-export const DocumentGenerator: React.FC<DocGeneratorProps> = ({ type, clients, employees, onSave, onCancel, onAddClient, initialData }) => {
+export const DocumentGenerator: React.FC<DocGeneratorProps> = ({ type, clients, employees, documents, onSave, onCancel, onAddClient, initialData }) => {
   const [selectedClientId, setSelectedClientId] = useState('');
   const [docItems, setDocItems] = useState<DocumentItem[]>([
     { description: '', type: 'Asli' }
@@ -194,7 +197,28 @@ export const DocumentGenerator: React.FC<DocGeneratorProps> = ({ type, clients, 
       "JNE", "TIKI", "J&T", "NINJA EXPRESS", "TRAVEL"
   ];
 
-  // Load initial data if editing
+  // Helper: Generate next reference number
+  const generateNextRefNo = () => {
+      const year = new Date().getFullYear();
+      if (!documents || documents.length === 0) {
+          return `DOC/${year}/001`; 
+      }
+      
+      const lastDoc = documents[0]; // documents are sorted desc by date in App/storage
+      const lastRef = lastDoc.referenceNo;
+      
+      const match = lastRef.match(/(\d+)$/); 
+      if (match) {
+          const lastNumStr = match[1];
+          const lastNum = parseInt(lastNumStr, 10);
+          const nextNum = lastNum + 1;
+          const paddedNext = nextNum.toString().padStart(lastNumStr.length, '0');
+          return lastRef.replace(/\d+$/, paddedNext);
+      }
+      
+      return `DOC/${year}/${Math.floor(Math.random() * 1000)}`;
+  };
+
   useEffect(() => {
     if (initialData) {
       setSelectedClientId(initialData.clientId);
@@ -206,9 +230,9 @@ export const DocumentGenerator: React.FC<DocGeneratorProps> = ({ type, clients, 
       if (initialData.deliveryMethod) setDeliveryMethod(initialData.deliveryMethod);
       if (initialData.trackingNumber) setTrackingNumber(initialData.trackingNumber);
     } else {
-      setRefNo(`DOC/${new Date().getFullYear()}/${Math.floor(Math.random() * 1000)}`);
+      setRefNo(generateNextRefNo());
     }
-  }, [initialData]);
+  }, [initialData, documents]);
 
   const selectedClient = clients.find(c => c.id === selectedClientId);
 
@@ -324,7 +348,15 @@ export const DocumentGenerator: React.FC<DocGeneratorProps> = ({ type, clients, 
                         ))}
                     </select>
                 </div>
-                <button type="button" onClick={onAddClient} className="text-xs text-primary-600 hover:text-primary-800 font-medium mt-2 flex items-center gap-1 ml-1"><UserPlus className="w-3 h-3" /> Input Klien Baru</button>
+                {/* Tombol Tambah Klien Cepat */}
+                <button 
+                    type="button"
+                    onClick={onAddClient}
+                    className="text-xs text-primary-600 hover:text-primary-800 font-medium mt-2 flex items-center gap-1 ml-1"
+                >
+                    <UserPlus className="w-3 h-3" />
+                    Input Klien Baru
+                </button>
             </div>
 
             {selectedClient && (
@@ -344,6 +376,7 @@ export const DocumentGenerator: React.FC<DocGeneratorProps> = ({ type, clients, 
                         onChange={(e) => setRefNo(e.target.value)}
                         className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none"
                     />
+                    <p className="text-[10px] text-slate-400 mt-1">Otomatis: Nomor Terakhir + 1</p>
                 </div>
                 <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Tanggal</label>
@@ -416,7 +449,6 @@ export const DocumentGenerator: React.FC<DocGeneratorProps> = ({ type, clients, 
                 <div className="relative">
                      <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
                      
-                     {/* CHANGE: Use Select for Employees */}
                      <select
                         value={officerName}
                         onChange={(e) => setOfficerName(e.target.value)}
@@ -428,26 +460,13 @@ export const DocumentGenerator: React.FC<DocGeneratorProps> = ({ type, clients, 
                         ))}
                         <option value="Lainnya">Lainnya (Input Manual)</option>
                      </select>
-
-                     {/* Fallback Input Manual if 'Lainnya' is selected OR if we want to allow typing */}
-                     {/* Note: For simplicity, if user selects 'Lainnya' or if officerName is not in list, show input? 
-                         Actually, let's keep it simple: The select updates officerName state. 
-                         If officerName matches an employee, good. 
-                         If user wants manual input, we can add a condition.
-                         For now, the requirement implies choosing from menu. 
-                         Let's add a manual input if "Lainnya" is selected or offer an editable combobox feel?
-                         The simple select is robust. If they need manual, select "Lainnya" then show input.
-                      */}
                 </div>
                 {officerName === 'Lainnya' && (
                     <input 
                         type="text" 
                         placeholder="Masukkan Nama Petugas" 
                         className="mt-2 w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none"
-                        onChange={(e) => setOfficerName(e.target.value)} // This will overwrite 'Lainnya', making input disappear immediately. Needs separate state logic for truly robust combo box.
-                        // FIX: Let's keep it simple: Dropdown populates name. If they type, it overrides? No.
-                        // Better approach: Just allow free text input via datalist or keep select.
-                        // Given "menu Pegawai untuk menjadi pilihan", a SELECT is best.
+                        onChange={(e) => setOfficerName(e.target.value)} 
                     />
                 )}
             </div>

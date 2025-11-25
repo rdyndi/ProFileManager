@@ -1,4 +1,4 @@
-export type EntityType = 'PT' | 'CV' | 'Perorangan';
+export type EntityType = 'PT' | 'CV' | 'Perorangan' | 'YAYASAN' | 'PERKUMPULAN' | 'Lainnya';
 
 export interface Client {
   id: string;
@@ -17,6 +17,13 @@ export interface AttachedFile {
   id: string;
   name: string;
   uploadDate: number;
+}
+
+export interface Employee {
+  id: string;
+  name: string;
+  role: string; // Jabatan (e.g. Staff Admin, Kurir)
+  phone?: string;
 }
 
 export type DocType = 'RECEIPT' | 'DELIVERY';

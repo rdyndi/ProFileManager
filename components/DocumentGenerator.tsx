@@ -3,156 +3,151 @@ import { Client, DocType, DocumentData, DocumentItem } from '../types';
 import { Printer, Search, Calendar, User, FileCheck, Package, Plus, Trash2, Save, ArrowLeft, UserPlus } from 'lucide-react';
 import { getCachedSettings } from '../services/storage';
 
-// --- Standalone Print Function (Exported) ---
+// ... (printDocument function tetap sama) ...
 export const printDocument = (docData: DocumentData) => {
+    // ... [KODE PRINTDOCUMENT SAMA SEPERTI SEBELUMNYA] ...
     const { type, referenceNo, date, clientName, clientPic, officerName, items, destination } = docData;
-    
     const title = type === 'RECEIPT' ? 'TANDA TERIMA BERKAS' : 'SURAT JALAN DOKUMEN';
     const docTitle = `${type === 'RECEIPT' ? 'Tanda_Terima' : 'Surat_Jalan'}_${referenceNo.replace(/\//g, '-')}`;
-    
     const settings = getCachedSettings();
     const companyName = settings.companyName;
     const companyAddress = settings.companyAddress;
     const companyContact = `Email: ${settings.companyEmail} | Telp: ${settings.companyPhone}`;
-
     const clientDisplayName = clientPic 
         ? `<span>${clientPic}</span><br/><span class="text-sm font-normal text-slate-600">(${clientName})</span>` 
         : clientName;
-
-    const fromData = type === 'RECEIPT' 
-        ? { name: clientDisplayName }
-        : { name: companyName };
-
-    const toData = type === 'RECEIPT'
-        ? { name: companyName }
-        : { name: clientDisplayName };
-    
-    // 1. Ubah Label PENERIMA jadi UNTUK di Surat Jalan
+    const fromData = type === 'RECEIPT' ? { name: clientDisplayName } : { name: companyName };
+    const toData = type === 'RECEIPT' ? { name: companyName } : { name: clientDisplayName };
     const rightBoxLabel = type === 'DELIVERY' ? 'UNTUK' : 'PENERIMA';
-
-    // 2. Kosongkan Nama di bawah Diterima Oleh untuk Surat Jalan
-    // Receipt: Diterima Oleh Officer. Delivery: Diterima Oleh [Kosong]
-    const rightSignatureName = type === 'DELIVERY' 
-        ? '&nbsp;' 
-        : officerName;
-
+    const rightSignatureName = type === 'DELIVERY' ? '&nbsp;' : officerName;
+    
     const printContent = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>${docTitle}</title>
-        <script src="https://cdn.tailwindcss.com"></script>
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-        <style>
-          body { font-family: 'Inter', sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-          @page { size: A4; margin: 1.5cm; }
-          @media print {
-            .no-print { display: none; }
-            body { -webkit-print-color-adjust: exact; }
-          }
-        </style>
-      </head>
-      <body class="bg-white text-slate-900 p-8 max-w-[21cm] mx-auto min-h-screen relative">
+      <!DOCTYPE html><html><head><title>${docTitle}</title><script src="https://cdn.tailwindcss.com"></script><link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"><style>
+      body { font-family: 'Inter', sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; } 
+      
+      /* ATURAN HALAMAN A4 */
+      @page { 
+        size: A4; 
+        margin: 0; /* Reset margin browser */
+      }
+      
+      @media print { 
+        .no-print { display: none; } 
+        body { 
+            -webkit-print-color-adjust: exact; 
+            margin: 0;
+            padding: 15mm; /* Padding halaman manual */
+            height: 100vh; /* Paksa tinggi fit viewport cetak */
+            overflow: hidden; /* Hindari scrollbar tercetak sebagai halaman baru */
+        } 
         
-        <!-- Kop Surat -->
-        <div class="flex items-center justify-between border-b-4 border-slate-800 pb-4 mb-8">
+        /* Skala konten jika terlalu banyak item */
+        .content-wrapper {
+            transform-origin: top center;
+        }
+      }
+      </style></head><body class="bg-white text-slate-900">
+      
+      <div class="content-wrapper max-w-[21cm] mx-auto relative h-full">
+        
+        <div class="flex items-center justify-between border-b-4 border-slate-800 pb-3 mb-4">
             <div class="flex items-center gap-4">
                 <div>
-                    <h1 class="text-2xl font-bold text-slate-800 tracking-tight">${companyName}</h1>
-                    <p class="text-sm text-slate-600">${companyAddress}</p>
-                    <p class="text-xs text-slate-500 mt-1">${companyContact}</p>
+                    <h1 class="text-xl font-bold text-slate-800 tracking-tight">${companyName}</h1>
+                    <p class="text-xs text-slate-600 max-w-md leading-tight">${companyAddress}</p>
+                    <p class="text-[10px] text-slate-500 mt-1">${companyContact}</p>
                 </div>
             </div>
             <div class="text-right">
-                <p class="text-xs text-slate-400">Dokumen Digital</p>
+                <p class="text-[10px] text-slate-400 uppercase tracking-wider">Dokumen Digital</p>
                 <p class="font-mono text-sm font-bold text-slate-600">${referenceNo}</p>
             </div>
         </div>
 
-        <!-- Judul Dokumen -->
-        <div class="text-center mb-10">
-            <h2 class="text-3xl font-bold text-slate-900 uppercase underline underline-offset-4 decoration-2 decoration-slate-400">${title}</h2>
-            <p class="text-slate-500 mt-2 text-sm">Tanggal: ${new Date(date).toLocaleDateString('id-ID', {weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'})}</p>
+        <div class="text-center mb-6">
+            <h2 class="text-2xl font-bold text-slate-900 uppercase underline underline-offset-4 decoration-2 decoration-slate-400">${title}</h2>
+            <p class="text-slate-500 mt-1 text-xs">Tanggal: ${new Date(date).toLocaleDateString('id-ID', {weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'})}</p>
         </div>
 
-        <!-- Info Pengirim & Penerima -->
-        <div class="grid grid-cols-2 gap-12 mb-10">
-            <div class="bg-slate-50 p-6 border border-slate-200 rounded-lg">
-                <p class="text-xs font-bold uppercase text-slate-400 mb-2 tracking-wider">PENGIRIM</p>
-                <p class="font-bold text-lg text-slate-800">${fromData.name}</p>
+        <div class="grid grid-cols-2 gap-6 mb-6">
+            <div class="bg-slate-50 p-3 border border-slate-200 rounded-lg">
+                <p class="text-[10px] font-bold uppercase text-slate-400 mb-1 tracking-wider">PENGIRIM</p>
+                <p class="font-bold text-base text-slate-800 leading-tight">${fromData.name}</p>
             </div>
-            <div class="bg-slate-50 p-6 border border-slate-200 rounded-lg">
-                <p class="text-xs font-bold uppercase text-slate-400 mb-2 tracking-wider">${rightBoxLabel}</p>
-                <p class="font-bold text-lg text-slate-800">${toData.name}</p>
-                ${type === 'DELIVERY' && destination ? `<p class="text-sm text-slate-600 mt-2 pt-2 border-t border-slate-200">Tujuan: ${destination}</p>` : ''}
+            <div class="bg-slate-50 p-3 border border-slate-200 rounded-lg">
+                <p class="text-[10px] font-bold uppercase text-slate-400 mb-1 tracking-wider">${rightBoxLabel}</p>
+                <p class="font-bold text-base text-slate-800 leading-tight">${toData.name}</p>
+                ${type === 'DELIVERY' && destination ? `<p class="text-xs text-slate-600 mt-1 pt-1 border-t border-slate-200">Tujuan: ${destination}</p>` : ''}
             </div>
         </div>
 
-        <!-- Tabel Item -->
-        <div class="mb-12">
-            <table class="w-full border-collapse">
+        <div class="mb-6">
+            <table class="w-full border-collapse text-sm">
                 <thead>
-                    <tr class="bg-slate-800 text-white">
-                        <th class="py-3 px-4 text-center w-16 border border-slate-800 text-sm font-medium">No</th>
-                        <th class="py-3 px-4 text-left border border-slate-800 text-sm font-medium">Deskripsi Berkas / Barang</th>
-                        <th class="py-3 px-4 text-center w-40 border border-slate-800 text-sm font-medium">Keterangan</th>
+                    <tr class="bg-slate-800 text-white text-xs">
+                        <th class="py-1 px-2 text-center w-10 border border-slate-800 font-medium">No</th>
+                        <th class="py-1 px-2 text-left border border-slate-800 font-medium">Deskripsi Berkas / Barang</th>
+                        <th class="py-1 px-2 text-center w-24 border border-slate-800 font-medium">Keterangan</th>
                     </tr>
                 </thead>
                 <tbody class="text-slate-700">
                     ${items.map((item, idx) => `
                         <tr class="border-b border-slate-200">
-                            <td class="py-3 px-4 text-center border-l border-r border-slate-200">${idx + 1}</td>
-                            <td class="py-3 px-4 border-r border-slate-200 font-medium">${item.description}</td>
-                            <td class="py-3 px-4 text-center border-r border-slate-200 text-sm font-semibold text-slate-600 bg-slate-50">${item.type}</td>
+                            <td class="py-2 px-2 text-center border-l border-r border-slate-200">${idx + 1}</td>
+                            <td class="py-2 px-2 border-r border-slate-200 font-medium leading-tight">${item.description}</td>
+                            <td class="py-2 px-2 text-center border-r border-slate-200 text-xs font-semibold text-slate-600 bg-slate-50">${item.type}</td>
                         </tr>
                     `).join('')}
                 </tbody>
                 <tfoot>
                      <tr class="bg-slate-50">
-                        <td colspan="3" class="py-2 px-4 border border-slate-200 text-xs text-slate-500 text-center italic">
-                            Saya yang bertandatangan dibawah ini, menyatakan telah menerima dokument tersebut diatas,  Tanda Terima ini mohon di tandatangani dan dikirim ke alamat KOMP PPR ITB Kav F-5, Mekarwangi, Lembang, Kabupaten Bandung Barat, atau dapat di scan dan dikirim melalui email ke alamat notarisppatputri@gmail.com, apabila  Tanda Terima ini tidak dikirim kembali, maka Tanda Terima ini  dinyatakan sah dan dianggap telah diterima apabila setatus dalam pengiriman expedisi dinyatakan telah diterima. 
-
+                        <td colspan="3" class="py-1 px-2 border border-slate-200 text-[9px] text-slate-500 text-center italic">
+                            Mohon diperiksa kembali kelengkapan dokumen saat diterima.
                         </td>
                      </tr>
                 </tfoot>
             </table>
         </div>
 
-        <!-- Tanda Tangan -->
-        <div class="flex justify-between items-end mt-20 px-8 break-inside-avoid">
-            <div class="text-center w-64">
-                <p class="mb-24 text-slate-600">Diserahkan Oleh,</p>
-                <div class="border-b-2 border-slate-800 mb-2"></div>
-                <p class="font-bold text-slate-900 text-lg uppercase">
+        <div class="flex justify-between items-end mt-12 px-4 break-inside-avoid">
+            <div class="text-center w-48">
+                <p class="mb-16 text-xs text-slate-600">Diserahkan Oleh,</p>
+                <div class="border-b border-slate-800 mb-1"></div>
+                <p class="font-bold text-slate-900 text-sm uppercase leading-tight">
                     ${type === 'RECEIPT' ? (clientPic || clientName) : officerName}
                 </p>
-                <p class="text-xs text-slate-400 mt-1">Tanda Tangan & Nama Terang</p>
+                <p class="text-[9px] text-slate-400">Tanda Tangan & Nama Terang</p>
             </div>
             
-            <div class="text-center w-64">
-                <p class="mb-2 text-slate-600">${new Date(date).toLocaleDateString('id-ID', {day: 'numeric', month: 'long', year: 'numeric'})}</p>
-                <p class="mb-24 text-slate-600">Diterima Oleh,</p>
-                <div class="border-b-2 border-slate-800 mb-2"></div>
-                <p class="font-bold text-slate-900 text-lg uppercase">
+            <div class="text-center w-48">
+                <p class="mb-1 text-xs text-slate-600">${new Date(date).toLocaleDateString('id-ID', {day: 'numeric', month: 'long', year: 'numeric'})}</p>
+                <p class="mb-16 text-xs text-slate-600">Diterima Oleh,</p>
+                <div class="border-b border-slate-800 mb-1"></div>
+                <p class="font-bold text-slate-900 text-sm uppercase leading-tight">
                      ${rightSignatureName}
                 </p>
-                <p class="text-xs text-slate-400 mt-1">Tanda Tangan & Stempel</p>
+                <p class="text-[9px] text-slate-400">Tanda Tangan & Stempel</p>
             </div>
         </div>
         
-        <div class="fixed bottom-0 left-0 w-full text-center py-4 text-[10px] text-slate-300 border-t border-slate-100 no-print bg-white">
-            Dokumen ini dicetak secara otomatis melalui Sistem ProFile Manager pada ${new Date().toLocaleString()}
+        <div class="fixed bottom-0 left-0 w-full text-center py-2 text-[8px] text-slate-300 border-t border-slate-100 no-print">
+            Dokumen ini dicetak secara otomatis melalui Sistem Notaris Putri Office pada ${new Date().toLocaleString()}
         </div>
 
-        <script>
-            setTimeout(() => {
-                window.print();
-            }, 1000);
-        </script>
-      </body>
-      </html>
-    `;
-
+      </div>
+      <script>
+        // Auto-scale content if it overflows
+        window.onload = () => {
+            const wrapper = document.querySelector('.content-wrapper');
+            if (wrapper.scrollHeight > 1050) { // Approximate A4 height in pixels at 96dpi (1123px) minus padding
+                const scale = 1050 / wrapper.scrollHeight;
+                wrapper.style.transform = 'scale(' + scale + ')';
+                wrapper.style.width = (100 / scale) + '%';
+            }
+            setTimeout(() => { window.print(); }, 500);
+        };
+      </script>
+      </body></html>`;
     const printWindow = window.open('', '_blank');
     if (printWindow) {
         printWindow.document.open();
@@ -168,7 +163,7 @@ interface DocGeneratorProps {
   clients: Client[];
   onSave: (doc: DocumentData) => void;
   onCancel: () => void;
-  onAddClient: () => void; // Prop baru
+  onAddClient: () => void; 
   initialData?: DocumentData | null;
 }
 
@@ -231,20 +226,25 @@ export const DocumentGenerator: React.FC<DocGeneratorProps> = ({ type, clients, 
         return null;
     }
 
-    return {
+    const baseDocData: DocumentData = {
         id: initialData?.id || Math.random().toString(36).substr(2, 9),
         type,
         clientId: selectedClientId,
         clientName,
-        clientPic, // Store PIC
+        clientPic, 
         clientAddress,
         clientContact,
         items: validItems,
         date,
         officerName,
         referenceNo: refNo,
-        destination: type === 'DELIVERY' ? destination : undefined
     };
+
+    if (type === 'DELIVERY') {
+        baseDocData.destination = destination;
+    }
+
+    return baseDocData;
   };
 
   const handleSaveOnly = () => {
@@ -420,7 +420,7 @@ export const DocumentGenerator: React.FC<DocGeneratorProps> = ({ type, clients, 
                  <button
                     onClick={handleSaveOnly}
                     disabled={!selectedClientId || !officerName || docItems.every(i => !i.description)}
-                    className="bg-white border border-slate-300 text-slate-700 px-6 py-3 rounded-lg hover:bg-slate-50 transition flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="bg-white border border-slate-300 text-slate-700 px-6 py-3 rounded-lg hover:bg-slate-50 flex items-center gap-2 disabled:opacity-50"
                 >
                     <Save className="w-5 h-5" />
                     Simpan Data
@@ -429,7 +429,7 @@ export const DocumentGenerator: React.FC<DocGeneratorProps> = ({ type, clients, 
                 <button
                     onClick={handlePrint}
                     disabled={!selectedClientId || !officerName || docItems.every(i => !i.description)}
-                    className="bg-primary-600 text-white px-6 py-3 rounded-lg hover:bg-primary-700 transition shadow-lg shadow-primary-200 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="bg-primary-600 text-white px-6 py-3 rounded-lg hover:bg-primary-700 flex items-center gap-2 disabled:opacity-50"
                 >
                     <Printer className="w-5 h-5" />
                     Cetak PDF

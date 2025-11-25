@@ -1,4 +1,3 @@
-
 export type EntityType = 'PT' | 'CV' | 'Perorangan';
 
 export interface Client {
@@ -40,6 +39,8 @@ export interface DocumentData {
   officerName: string;
   referenceNo: string; // For Receipt
   destination?: string; // For Delivery Note
+  deliveryMethod?: string; // NEW: Metode Pengiriman
+  trackingNumber?: string; // NEW: Nomor Resi (Opsional)
 }
 
 export interface CompanySettings {

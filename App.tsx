@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Layout } from './components/Layout';
+import { LoginScreen } from './components/LoginScreen';
 import { ClientForm } from './components/ClientForm';
 import { EmployeeForm } from './components/EmployeeForm';
 import { DocumentGenerator, printDocument } from './components/DocumentGenerator';
@@ -155,6 +156,11 @@ const ClientDetail: React.FC<{
 };
 
 const App = () => {
+  // Authentication State
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    return localStorage.getItem('isLoggedIn') === 'true';
+  });
+
   const [activeTab, setActiveTab] = useState('dashboard');
   
   // Data State (Real-time synced)
@@ -191,8 +197,24 @@ const App = () => {
       companyPhone: ''
   });
 
+  // --- Login Handler ---
+  const handleLogin = (status: boolean) => {
+    if (status) {
+        localStorage.setItem('isLoggedIn', 'true');
+        setIsAuthenticated(true);
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('isLoggedIn');
+    setIsAuthenticated(false);
+  };
+
   // --- Real-time Subscriptions with Auth ---
   useEffect(() => {
+    // Only subscribe to data if logged in
+    if (!isAuthenticated) return;
+
     let unsubClients: (() => void) | undefined;
     let unsubDocs: (() => void) | undefined;
     let unsubDeeds: (() => void) | undefined;
@@ -230,10 +252,9 @@ const App = () => {
       if (unsubSettings) unsubSettings();
       if (unsubEmployees) unsubEmployees();
     };
-  }, []);
+  }, [isAuthenticated]);
 
   // --- Handlers ---
-  // ... (Same handlers as before) ...
   const handleSaveClient = async (client: Client) => { try { await saveClient(client); setClientViewState('list'); } catch (e: any) { alert(e.message); } };
   const handleDeleteClient = async (id: string) => { if (window.confirm('Hapus data?')) { try { await deleteClient(id); if(selectedClient?.id === id) setSelectedClient(null); setClientViewState('list'); } catch (e: any) { alert(e.message); } } };
   const handleDirectAddClient = () => { setActiveTab('clients'); setClientViewState('add'); setSelectedClient(null); };
@@ -267,8 +288,17 @@ const App = () => {
      )
   }
 
+  // --- RENDER CONDITION ---
+  if (!isAuthenticated) {
+      return <LoginScreen onLogin={handleLogin} />;
+  }
+
   return (
-    <Layout activeTab={activeTab} onTabChange={(tab) => { setActiveTab(tab); setClientViewState('list'); setSelectedClient(null); setDocViewState('list'); setSelectedDocument(null); setDeedViewState('list'); setSelectedDeed(null); setEmpViewState('list'); setSelectedEmployee(null); }}>
+    <Layout 
+        activeTab={activeTab} 
+        onTabChange={(tab) => { setActiveTab(tab); setClientViewState('list'); setSelectedClient(null); setDocViewState('list'); setSelectedDocument(null); setDeedViewState('list'); setSelectedDeed(null); setEmpViewState('list'); setSelectedEmployee(null); }}
+        onLogout={handleLogout}
+    >
       {/* ... (Dashboard & Clients Tab remains same) ... */}
       {activeTab === 'dashboard' && ( <div className="space-y-6"><h2 className="text-2xl font-bold text-slate-800">Dashboard Overview</h2><div className="grid grid-cols-1 md:grid-cols-4 gap-6"><div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200"><p className="text-sm text-slate-500">Total Klien</p><h3 className="text-3xl font-bold text-slate-800">{clients.length}</h3></div><div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200"><p className="text-sm text-slate-500">Total Akta</p><h3 className="text-3xl font-bold text-slate-800">{deeds.length}</h3></div></div></div> )}
       {activeTab === 'clients' && (<div className="space-y-6">{clientViewState === 'list' && (<><div className="flex justify-between items-center"><h2 className="text-2xl font-bold text-slate-800">Data Klien</h2><button onClick={() => { setClientViewState('add'); setSelectedClient(null); }} className="bg-primary-600 text-white px-4 py-2 rounded-lg flex gap-2"><Plus className="w-4 h-4"/> Tambah Klien</button></div><div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4"><input type="text" placeholder="Cari..." className="w-full px-4 py-2 border rounded-lg mb-4" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} /><table className="w-full text-sm text-left"><thead className="bg-slate-50"><tr><th className="p-4">Nama</th><th className="p-4">Kontak</th><th className="p-4">Tipe</th><th className="p-4 text-right">Aksi</th></tr></thead><tbody>{filteredClients.map(c => (<tr key={c.id} className="border-b"><td className="p-4 font-bold">{c.name}</td><td className="p-4">{c.contactNumber}</td><td className="p-4">{c.type}</td><td className="p-4 text-right"><button onClick={() => { setClientViewState('detail'); setSelectedClient(c); }} className="text-primary-600">Lihat</button></td></tr>))}</tbody></table></div></>)}{clientViewState === 'add' && <ClientForm onSave={handleSaveClient} onCancel={() => setClientViewState('list')} initialData={selectedClient || undefined} />}{clientViewState === 'detail' && selectedClient && <ClientDetail client={selectedClient} onBack={() => setClientViewState('list')} onEdit={() => setClientViewState('add')} onDelete={() => handleDeleteClient(selectedClient.id)} />}</div>)}

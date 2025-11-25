@@ -27,7 +27,15 @@ export const printDocument = (docData: DocumentData) => {
         ? { name: companyName }
         : { name: clientDisplayName };
     
-    // CSS diperbarui: Margin halaman diperkecil, min-h-screen dihapus, spacing dipadatkan
+    // 1. Ubah Label PENERIMA jadi UNTUK di Surat Jalan
+    const rightBoxLabel = type === 'DELIVERY' ? 'UNTUK' : 'PENERIMA';
+
+    // 2. Kosongkan Nama di bawah Diterima Oleh untuk Surat Jalan
+    // Receipt: Diterima Oleh Officer. Delivery: Diterima Oleh [Kosong]
+    const rightSignatureName = type === 'DELIVERY' 
+        ? '&nbsp;' 
+        : officerName;
+
     const printContent = `
       <!DOCTYPE html>
       <html>
@@ -37,110 +45,102 @@ export const printDocument = (docData: DocumentData) => {
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
         <style>
           body { font-family: 'Inter', sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-          
-          /* Mengatur Ukuran Kertas A4 dan Margin yang aman agar muat 1 halaman */
-          @page { 
-            size: A4; 
-            margin: 10mm 15mm; /* Atas-Bawah 10mm, Kiri-Kanan 15mm */
-          }
-          
+          @page { size: A4; margin: 1.5cm; }
           @media print {
             .no-print { display: none; }
             body { -webkit-print-color-adjust: exact; }
-            /* Mencegah page break di dalam tabel atau elemen penting */
-            tr { page-break-inside: avoid; }
-            .break-inside-avoid { page-break-inside: avoid; }
           }
         </style>
       </head>
-      <body class="bg-white text-slate-900 p-4 max-w-[21cm] mx-auto relative">
+      <body class="bg-white text-slate-900 p-8 max-w-[21cm] mx-auto min-h-screen relative">
         
-        <!-- Kop Surat (Padatkan margin bawah) -->
-        <div class="flex items-center justify-between border-b-4 border-slate-800 pb-3 mb-6">
+        <!-- Kop Surat -->
+        <div class="flex items-center justify-between border-b-4 border-slate-800 pb-4 mb-8">
             <div class="flex items-center gap-4">
                 <div>
-                    <h1 class="text-xl font-bold text-slate-800 tracking-tight">${companyName}</h1>
-                    <p class="text-xs text-slate-600 max-w-md leading-tight">${companyAddress}</p>
-                    <p class="text-[10px] text-slate-500 mt-1">${companyContact}</p>
+                    <h1 class="text-2xl font-bold text-slate-800 tracking-tight">${companyName}</h1>
+                    <p class="text-sm text-slate-600">${companyAddress}</p>
+                    <p class="text-xs text-slate-500 mt-1">${companyContact}</p>
                 </div>
             </div>
             <div class="text-right">
-                <p class="text-[10px] text-slate-400 uppercase tracking-wider">Dokumen Digital</p>
+                <p class="text-xs text-slate-400">Dokumen Digital</p>
                 <p class="font-mono text-sm font-bold text-slate-600">${referenceNo}</p>
             </div>
         </div>
 
         <!-- Judul Dokumen -->
-        <div class="text-center mb-6">
-            <h2 class="text-2xl font-bold text-slate-900 uppercase underline underline-offset-4 decoration-2 decoration-slate-400">${title}</h2>
-            <p class="text-slate-500 mt-1 text-xs">Tanggal: ${new Date(date).toLocaleDateString('id-ID', {weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'})}</p>
+        <div class="text-center mb-10">
+            <h2 class="text-3xl font-bold text-slate-900 uppercase underline underline-offset-4 decoration-2 decoration-slate-400">${title}</h2>
+            <p class="text-slate-500 mt-2 text-sm">Tanggal: ${new Date(date).toLocaleDateString('id-ID', {weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'})}</p>
         </div>
 
-        <!-- Info Pengirim & Penerima (Grid gap dikurangi, padding dikurangi) -->
-        <div class="grid grid-cols-2 gap-6 mb-6">
-            <div class="bg-slate-50 p-4 border border-slate-200 rounded-lg">
-                <p class="text-[10px] font-bold uppercase text-slate-400 mb-1 tracking-wider">PENGIRIM</p>
-                <p class="font-bold text-base text-slate-800 leading-tight">${fromData.name}</p>
+        <!-- Info Pengirim & Penerima -->
+        <div class="grid grid-cols-2 gap-12 mb-10">
+            <div class="bg-slate-50 p-6 border border-slate-200 rounded-lg">
+                <p class="text-xs font-bold uppercase text-slate-400 mb-2 tracking-wider">PENGIRIM</p>
+                <p class="font-bold text-lg text-slate-800">${fromData.name}</p>
             </div>
-            <div class="bg-slate-50 p-4 border border-slate-200 rounded-lg">
-                <p class="text-[10px] font-bold uppercase text-slate-400 mb-1 tracking-wider">PENERIMA</p>
-                <p class="font-bold text-base text-slate-800 leading-tight">${toData.name}</p>
-                ${type === 'DELIVERY' && destination ? `<p class="text-xs text-slate-600 mt-2 pt-2 border-t border-slate-200">Tujuan: ${destination}</p>` : ''}
+            <div class="bg-slate-50 p-6 border border-slate-200 rounded-lg">
+                <p class="text-xs font-bold uppercase text-slate-400 mb-2 tracking-wider">${rightBoxLabel}</p>
+                <p class="font-bold text-lg text-slate-800">${toData.name}</p>
+                ${type === 'DELIVERY' && destination ? `<p class="text-sm text-slate-600 mt-2 pt-2 border-t border-slate-200">Tujuan: ${destination}</p>` : ''}
             </div>
         </div>
 
         <!-- Tabel Item -->
-        <div class="mb-8">
+        <div class="mb-12">
             <table class="w-full border-collapse">
                 <thead>
-                    <tr class="bg-slate-800 text-white text-xs">
-                        <th class="py-2 px-3 text-center w-12 border border-slate-800 font-medium">No</th>
-                        <th class="py-2 px-3 text-left border border-slate-800 font-medium">Deskripsi Berkas / Barang</th>
-                        <th class="py-2 px-3 text-center w-32 border border-slate-800 font-medium">Keterangan</th>
+                    <tr class="bg-slate-800 text-white">
+                        <th class="py-3 px-4 text-center w-16 border border-slate-800 text-sm font-medium">No</th>
+                        <th class="py-3 px-4 text-left border border-slate-800 text-sm font-medium">Deskripsi Berkas / Barang</th>
+                        <th class="py-3 px-4 text-center w-40 border border-slate-800 text-sm font-medium">Keterangan</th>
                     </tr>
                 </thead>
-                <tbody class="text-slate-700 text-sm">
+                <tbody class="text-slate-700">
                     ${items.map((item, idx) => `
                         <tr class="border-b border-slate-200">
-                            <td class="py-2 px-3 text-center border-l border-r border-slate-200">${idx + 1}</td>
-                            <td class="py-2 px-3 border-r border-slate-200 font-medium">${item.description}</td>
-                            <td class="py-2 px-3 text-center border-r border-slate-200 text-xs font-semibold text-slate-600 bg-slate-50">${item.type}</td>
+                            <td class="py-3 px-4 text-center border-l border-r border-slate-200">${idx + 1}</td>
+                            <td class="py-3 px-4 border-r border-slate-200 font-medium">${item.description}</td>
+                            <td class="py-3 px-4 text-center border-r border-slate-200 text-sm font-semibold text-slate-600 bg-slate-50">${item.type}</td>
                         </tr>
                     `).join('')}
                 </tbody>
                 <tfoot>
                      <tr class="bg-slate-50">
-                        <td colspan="3" class="py-2 px-3 border border-slate-200 text-[10px] text-slate-500 text-center italic">
-                            Mohon diperiksa kembali kelengkapan dokumen saat diterima.
+                        <td colspan="3" class="py-2 px-4 border border-slate-200 text-xs text-slate-500 text-center italic">
+                            Saya yang bertandatangan dibawah ini, menyatakan telah menerima dokument tersebut diatas,  Tanda Terima ini mohon di tandatangani dan dikirim ke alamat KOMP PPR ITB Kav F-5, Mekarwangi, Lembang, Kabupaten Bandung Barat, atau dapat di scan dan dikirim melalui email ke alamat notarisppatputri@gmail.com, apabila  Tanda Terima ini tidak dikirim kembali, maka Tanda Terima ini  dinyatakan sah dan dianggap telah diterima apabila setatus dalam pengiriman expedisi dinyatakan telah diterima. 
+
                         </td>
                      </tr>
                 </tfoot>
             </table>
         </div>
 
-        <!-- Tanda Tangan (Margin top dikurangi, ruang tanda tangan disesuaikan) -->
-        <div class="flex justify-between items-end mt-8 px-4 break-inside-avoid">
-            <div class="text-center w-56">
-                <p class="mb-16 text-xs text-slate-600">Diserahkan Oleh,</p> <!-- Space tanda tangan -->
-                <div class="border-b border-slate-800 mb-1"></div>
-                <p class="font-bold text-slate-900 text-sm uppercase">
+        <!-- Tanda Tangan -->
+        <div class="flex justify-between items-end mt-20 px-8 break-inside-avoid">
+            <div class="text-center w-64">
+                <p class="mb-24 text-slate-600">Diserahkan Oleh,</p>
+                <div class="border-b-2 border-slate-800 mb-2"></div>
+                <p class="font-bold text-slate-900 text-lg uppercase">
                     ${type === 'RECEIPT' ? (clientPic || clientName) : officerName}
                 </p>
-                <p class="text-[10px] text-slate-400">Tanda Tangan & Nama Terang</p>
+                <p class="text-xs text-slate-400 mt-1">Tanda Tangan & Nama Terang</p>
             </div>
             
-            <div class="text-center w-56">
-                <p class="mb-1 text-xs text-slate-600">${new Date(date).toLocaleDateString('id-ID', {day: 'numeric', month: 'long', year: 'numeric'})}</p>
-                <p class="mb-16 text-xs text-slate-600">Diterima Oleh,</p> <!-- Space tanda tangan -->
-                <div class="border-b border-slate-800 mb-1"></div>
-                <p class="font-bold text-slate-900 text-sm uppercase">
-                     ${type === 'RECEIPT' ? officerName : (clientPic || clientName)}
+            <div class="text-center w-64">
+                <p class="mb-2 text-slate-600">${new Date(date).toLocaleDateString('id-ID', {day: 'numeric', month: 'long', year: 'numeric'})}</p>
+                <p class="mb-24 text-slate-600">Diterima Oleh,</p>
+                <div class="border-b-2 border-slate-800 mb-2"></div>
+                <p class="font-bold text-slate-900 text-lg uppercase">
+                     ${rightSignatureName}
                 </p>
-                <p class="text-[10px] text-slate-400">Tanda Tangan & Stempel</p>
+                <p class="text-xs text-slate-400 mt-1">Tanda Tangan & Stempel</p>
             </div>
         </div>
         
-        <div class="fixed bottom-0 left-0 w-full text-center py-2 text-[8px] text-slate-300 border-t border-slate-100 no-print bg-white">
+        <div class="fixed bottom-0 left-0 w-full text-center py-4 text-[10px] text-slate-300 border-t border-slate-100 no-print bg-white">
             Dokumen ini dicetak secara otomatis melalui Sistem ProFile Manager pada ${new Date().toLocaleString()}
         </div>
 
@@ -386,7 +386,7 @@ export const DocumentGenerator: React.FC<DocGeneratorProps> = ({ type, clients, 
                                 value={item.description}
                                 onChange={(e) => updateItem(index, 'description', e.target.value)}
                                 placeholder="Deskripsi berkas..."
-                                className="flex-1 px-3 py-2 border border-slate-300 rounded-lg outline-none text-sm"
+                                className="flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none text-sm"
                             />
                             <select
                                 value={item.type}

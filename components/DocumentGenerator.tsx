@@ -46,6 +46,15 @@ export const printDocument = (docData: DocumentData) => {
         }
     }
 
+    // Logic Footer Text (Disclaimer)
+    const standardFooter = "Mohon diperiksa kembali kelengkapan dokumen saat diterima.";
+    const courierFooter = "Saya yang bertandatangan dibawah ini, menyatakan telah menerima dokument tersebut diatas, Tanda Terima ini mohon di tandatangani dan dikirim ke alamat KOMP PPR ITB Kav F-5, Mekarwangi, Lembang, Kabupaten Bandung Barat, atau dapat di scan dan dikirim melalui email ke alamat notarisppatputri@gmail.com, apabila Tanda Terima ini tidak dikirim kembali, maka Tanda Terima ini dinyatakan sah dan dianggap telah diterima apabila setatus dalam pengiriman expedisi dinyatakan telah diterima.";
+
+    // Gunakan teks panjang HANYA JIKA Surat Jalan DAN menggunakan Kurir (bukan 'TANPA KURIR')
+    const footerText = (type === 'DELIVERY' && deliveryMethod && deliveryMethod !== 'TANPA KURIR') 
+        ? courierFooter 
+        : standardFooter;
+
     const printContent = `
       <!DOCTYPE html><html><head><title>${docTitle}</title><script src="https://cdn.tailwindcss.com"></script><link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"><style>
       body { font-family: 'Inter', sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; } 
@@ -104,8 +113,8 @@ export const printDocument = (docData: DocumentData) => {
                 </tbody>
                 <tfoot>
                      <tr class="bg-slate-50">
-                        <td colspan="3" class="py-2 px-3 border border-slate-200 text-[10px] text-slate-500 text-center italic">
-                            Mohon diperiksa kembali kelengkapan dokumen saat diterima.
+                        <td colspan="3" class="py-2 px-3 border border-slate-200 text-[9px] text-slate-500 text-center italic leading-tight text-justify">
+                            ${footerText}
                         </td>
                      </tr>
                 </tfoot>
@@ -133,7 +142,7 @@ export const printDocument = (docData: DocumentData) => {
             </div>
         </div>
         
-        <div class="fixed bottom-0 left-0 w-full text-center py-2 text-[8px] text-slate-300 border-t border-slate-100 no-print">
+        <div class="fixed bottom-0 left-0 w-full text-center py-2 text-[8px] text-slate-300 border-t border-slate-100 no-print bg-white">
             Dokumen ini dicetak secara otomatis melalui Sistem Notaris Putri Office pada ${new Date().toLocaleString()}
         </div>
 
@@ -186,7 +195,7 @@ export const DocumentGenerator: React.FC<DocGeneratorProps> = ({ type, clients, 
   const [trackingNumber, setTrackingNumber] = useState('');
 
   const deliveryOptions = [
-      "TANPA KURIR", "GOSEND", "GRAB EXPRESS", "LALAMOVE", 
+      "TANPA KURIR", "GOSEND", "GRAB EXPRESS", "SHOPEE EXPRESS", "LALAMOVE", 
       "JNE", "TIKI", "J&T", "NINJA EXPRESS", "TRAVEL"
   ];
 

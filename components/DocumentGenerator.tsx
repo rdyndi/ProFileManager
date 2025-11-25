@@ -3,152 +3,20 @@ import { Client, DocType, DocumentData, DocumentItem } from '../types';
 import { Printer, Search, Calendar, User, FileCheck, Package, Plus, Trash2, Save, ArrowLeft, UserPlus } from 'lucide-react';
 import { getCachedSettings } from '../services/storage';
 
-// --- Standalone Print Function (Exported) ---
+// ... (printDocument function tetap sama) ...
 export const printDocument = (docData: DocumentData) => {
     const { type, referenceNo, date, clientName, clientPic, officerName, items, destination } = docData;
-    
     const title = type === 'RECEIPT' ? 'TANDA TERIMA BERKAS' : 'SURAT JALAN DOKUMEN';
     const docTitle = `${type === 'RECEIPT' ? 'Tanda_Terima' : 'Surat_Jalan'}_${referenceNo.replace(/\//g, '-')}`;
-    
-    // Menggunakan Cached Settings agar sync dengan data Firestore terbaru yang sudah di-cache oleh App.tsx
     const settings = getCachedSettings();
     const companyName = settings.companyName;
     const companyAddress = settings.companyAddress;
     const companyContact = `Email: ${settings.companyEmail} | Telp: ${settings.companyPhone}`;
-
-    // Logic: 
-    // Tanda Terima: Pengirim = PIC (jika ada)
-    // Surat Jalan: Penerima = PIC (jika ada)
-    // Jika PIC ada, nama perusahaan ditampilkan di bawahnya dalam kurung/font kecil untuk konteks.
-    
-    const clientDisplayName = clientPic 
-        ? `<span>${clientPic}</span><br/><span class="text-sm font-normal text-slate-600">(${clientName})</span>` 
-        : clientName;
-
-    const fromData = type === 'RECEIPT' 
-        ? { name: clientDisplayName }
-        : { name: companyName };
-
-    const toData = type === 'RECEIPT'
-        ? { name: companyName }
-        : { name: clientDisplayName };
-    
+    const clientDisplayName = clientPic ? `<span>${clientPic}</span><br/><span class="text-sm font-normal text-slate-600">(${clientName})</span>` : clientName;
+    const fromData = type === 'RECEIPT' ? { name: clientDisplayName } : { name: companyName };
+    const toData = type === 'RECEIPT' ? { name: companyName } : { name: clientDisplayName };
     const printContent = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>${docTitle}</title>
-        <script src="https://cdn.tailwindcss.com"></script>
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-        <style>
-          body { font-family: 'Inter', sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-          @page { size: A4; margin: 2cm; }
-          @media print {
-            .no-print { display: none; }
-            body { -webkit-print-color-adjust: exact; }
-          }
-        </style>
-      </head>
-      <body class="bg-white text-slate-900 p-8 max-w-[21cm] mx-auto min-h-screen relative">
-        
-        <!-- Kop Surat -->
-        <div class="flex items-center justify-between border-b-4 border-slate-800 pb-4 mb-8">
-            <div class="flex items-center gap-4">
-                <div>
-                    <h1 class="text-2xl font-bold text-slate-800 tracking-tight">${companyName}</h1>
-                    <p class="text-sm text-slate-600">${companyAddress}</p>
-                    <p class="text-xs text-slate-500 mt-1">${companyContact}</p>
-                </div>
-            </div>
-            <div class="text-right">
-                <p class="text-xs text-slate-400">Dokumen Digital</p>
-                <p class="font-mono text-sm font-bold text-slate-600">${referenceNo}</p>
-            </div>
-        </div>
-
-        <!-- Judul Dokumen -->
-        <div class="text-center mb-10">
-            <h2 class="text-3xl font-bold text-slate-900 uppercase underline underline-offset-4 decoration-2 decoration-slate-400">${title}</h2>
-            <p class="text-slate-500 mt-2 text-sm">Tanggal: ${new Date(date).toLocaleDateString('id-ID', {weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'})}</p>
-        </div>
-
-        <!-- Info Pengirim & Penerima -->
-        <div class="grid grid-cols-2 gap-12 mb-10">
-            <div class="bg-slate-50 p-6 border border-slate-200 rounded-lg">
-                <p class="text-xs font-bold uppercase text-slate-400 mb-2 tracking-wider">PENGIRIM</p>
-                <p class="font-bold text-lg text-slate-800">${fromData.name}</p>
-            </div>
-            <div class="bg-slate-50 p-6 border border-slate-200 rounded-lg">
-                <p class="text-xs font-bold uppercase text-slate-400 mb-2 tracking-wider">PENERIMA</p>
-                <p class="font-bold text-lg text-slate-800">${toData.name}</p>
-                ${type === 'DELIVERY' && destination ? `<p class="text-sm text-slate-600 mt-2 pt-2 border-t border-slate-200">Tujuan: ${destination}</p>` : ''}
-            </div>
-        </div>
-
-        <!-- Tabel Item -->
-        <div class="mb-12">
-            <table class="w-full border-collapse">
-                <thead>
-                    <tr class="bg-slate-800 text-white">
-                        <th class="py-3 px-4 text-center w-16 border border-slate-800 text-sm font-medium">No</th>
-                        <th class="py-3 px-4 text-left border border-slate-800 text-sm font-medium">Deskripsi Berkas / Barang</th>
-                        <th class="py-3 px-4 text-center w-40 border border-slate-800 text-sm font-medium">Keterangan</th>
-                    </tr>
-                </thead>
-                <tbody class="text-slate-700">
-                    ${items.map((item, idx) => `
-                        <tr class="border-b border-slate-200">
-                            <td class="py-3 px-4 text-center border-l border-r border-slate-200">${idx + 1}</td>
-                            <td class="py-3 px-4 border-r border-slate-200 font-medium">${item.description}</td>
-                            <td class="py-3 px-4 text-center border-r border-slate-200 text-sm font-semibold text-slate-600 bg-slate-50">${item.type}</td>
-                        </tr>
-                    `).join('')}
-                </tbody>
-                <tfoot>
-                     <tr class="bg-slate-50">
-                        <td colspan="3" class="py-2 px-4 border border-slate-200 text-xs text-slate-500 text-center italic">
-                            Mohon diperiksa kembali kelengkapan dokumen saat diterima.
-                        </td>
-                     </tr>
-                </tfoot>
-            </table>
-        </div>
-
-        <!-- Tanda Tangan -->
-        <div class="flex justify-between items-end mt-20 px-8 break-inside-avoid">
-            <div class="text-center w-64">
-                <p class="mb-24 text-slate-600">Diserahkan Oleh,</p>
-                <div class="border-b-2 border-slate-800 mb-2"></div>
-                <p class="font-bold text-slate-900 text-lg uppercase">
-                    ${type === 'RECEIPT' ? (clientPic || clientName) : officerName}
-                </p>
-                <p class="text-xs text-slate-400 mt-1">Tanda Tangan & Nama Terang</p>
-            </div>
-            
-            <div class="text-center w-64">
-                <p class="mb-2 text-slate-600">${new Date(date).toLocaleDateString('id-ID', {day: 'numeric', month: 'long', year: 'numeric'})}</p>
-                <p class="mb-24 text-slate-600">Diterima Oleh,</p>
-                <div class="border-b-2 border-slate-800 mb-2"></div>
-                <p class="font-bold text-slate-900 text-lg uppercase">
-                     ${type === 'RECEIPT' ? officerName : (clientPic || clientName)}
-                </p>
-                <p class="text-xs text-slate-400 mt-1">Tanda Tangan & Stempel</p>
-            </div>
-        </div>
-        
-        <div class="fixed bottom-0 left-0 w-full text-center py-4 text-[10px] text-slate-300 border-t border-slate-100 no-print bg-white">
-            Dokumen ini dicetak secara otomatis melalui Sistem ProFile Manager pada ${new Date().toLocaleString()}
-        </div>
-
-        <script>
-            setTimeout(() => {
-                window.print();
-            }, 1000);
-        </script>
-      </body>
-      </html>
-    `;
-
+      <!DOCTYPE html><html><head><title>${docTitle}</title><script src="https://cdn.tailwindcss.com"></script><link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"><style>body { font-family: 'Inter', sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; } @page { size: A4; margin: 2cm; } @media print { .no-print { display: none; } body { -webkit-print-color-adjust: exact; } }</style></head><body class="bg-white text-slate-900 p-8 max-w-[21cm] mx-auto min-h-screen relative"><div class="flex items-center justify-between border-b-4 border-slate-800 pb-4 mb-8"><div class="flex items-center gap-4"><div><h1 class="text-2xl font-bold text-slate-800 tracking-tight">${companyName}</h1><p class="text-sm text-slate-600">${companyAddress}</p><p class="text-xs text-slate-500 mt-1">${companyContact}</p></div></div><div class="text-right"><p class="text-xs text-slate-400">Dokumen Digital</p><p class="font-mono text-sm font-bold text-slate-600">${referenceNo}</p></div></div><div class="text-center mb-10"><h2 class="text-3xl font-bold text-slate-900 uppercase underline underline-offset-4 decoration-2 decoration-slate-400">${title}</h2><p class="text-slate-500 mt-2 text-sm">Tanggal: ${new Date(date).toLocaleDateString('id-ID', {weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'})}</p></div><div class="grid grid-cols-2 gap-12 mb-10"><div class="bg-slate-50 p-6 border border-slate-200 rounded-lg"><p class="text-xs font-bold uppercase text-slate-400 mb-2 tracking-wider">PENGIRIM</p><p class="font-bold text-lg text-slate-800">${fromData.name}</p></div><div class="bg-slate-50 p-6 border border-slate-200 rounded-lg"><p class="text-xs font-bold uppercase text-slate-400 mb-2 tracking-wider">PENERIMA</p><p class="font-bold text-lg text-slate-800">${toData.name}</p>${type === 'DELIVERY' && destination ? `<p class="text-sm text-slate-600 mt-2 pt-2 border-t border-slate-200">Tujuan: ${destination}</p>` : ''}</div></div><div class="mb-12"><table class="w-full border-collapse"><thead><tr class="bg-slate-800 text-white"><th class="py-3 px-4 text-center w-16 border border-slate-800 text-sm font-medium">No</th><th class="py-3 px-4 text-left border border-slate-800 text-sm font-medium">Deskripsi Berkas / Barang</th><th class="py-3 px-4 text-center w-40 border border-slate-800 text-sm font-medium">Keterangan</th></tr></thead><tbody class="text-slate-700">${items.map((item, idx) => `<tr class="border-b border-slate-200"><td class="py-3 px-4 text-center border-l border-r border-slate-200">${idx + 1}</td><td class="py-3 px-4 border-r border-slate-200 font-medium">${item.description}</td><td class="py-3 px-4 text-center border-r border-slate-200 text-sm font-semibold text-slate-600 bg-slate-50">${item.type}</td></tr>`).join('')}</tbody><tfoot><tr class="bg-slate-50"><td colspan="3" class="py-2 px-4 border border-slate-200 text-xs text-slate-500 text-center italic">Mohon diperiksa kembali kelengkapan dokumen saat diterima.</td></tr></tfoot></table></div><div class="flex justify-between items-end mt-20 px-8 break-inside-avoid"><div class="text-center w-64"><p class="mb-24 text-slate-600">Diserahkan Oleh,</p><div class="border-b-2 border-slate-800 mb-2"></div><p class="font-bold text-slate-900 text-lg uppercase">${type === 'RECEIPT' ? (clientPic || clientName) : officerName}</p><p class="text-xs text-slate-400 mt-1">Tanda Tangan & Nama Terang</p></div><div class="text-center w-64"><p class="mb-2 text-slate-600">${new Date(date).toLocaleDateString('id-ID', {day: 'numeric', month: 'long', year: 'numeric'})}</p><p class="mb-24 text-slate-600">Diterima Oleh,</p><div class="border-b-2 border-slate-800 mb-2"></div><p class="font-bold text-slate-900 text-lg uppercase">${type === 'RECEIPT' ? officerName : (clientPic || clientName)}</p><p class="text-xs text-slate-400 mt-1">Tanda Tangan & Stempel</p></div></div><div class="fixed bottom-0 left-0 w-full text-center py-4 text-[10px] text-slate-300 border-t border-slate-100 no-print bg-white">Dokumen ini dicetak secara otomatis melalui Sistem ProFile Manager pada ${new Date().toLocaleString()}</div><script>setTimeout(() => { window.print(); }, 1000);</script></body></html>`;
     const printWindow = window.open('', '_blank');
     if (printWindow) {
         printWindow.document.open();
@@ -156,8 +24,6 @@ export const printDocument = (docData: DocumentData) => {
         printWindow.document.close();
     }
 };
-
-// --- Component ---
 
 interface DocGeneratorProps {
   type: DocType;

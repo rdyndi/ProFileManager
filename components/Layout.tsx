@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { LayoutDashboard, Users, FileText, Truck, Settings, Menu, X, Briefcase, ScrollText } from 'lucide-react';
 
@@ -31,7 +30,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange
       <div className="md:hidden bg-white border-b border-slate-200 p-4 flex items-center justify-between sticky top-0 z-20">
         <div className="flex items-center gap-2 font-bold text-primary-700 text-lg">
           <Briefcase className="w-6 h-6" />
-          <span>ProFile</span>
+          <span>Notaris Putri</span>
         </div>
         <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="p-2 text-slate-600">
           {isMobileMenuOpen ? <X /> : <Menu />}
@@ -49,7 +48,10 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange
             <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center text-white">
               <Briefcase className="w-5 h-5" />
             </div>
-            <h1 className="font-bold text-xl text-slate-800">ProFile<span className="text-primary-600">Manager</span></h1>
+            <div>
+                <h1 className="font-bold text-lg text-slate-800 leading-tight">Notaris Putri</h1>
+                <span className="text-primary-600 text-sm font-bold">Office</span>
+            </div>
           </div>
 
           <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
@@ -73,7 +75,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange
           <div className="p-4 border-t border-slate-100">
             <div className="bg-slate-50 p-4 rounded-xl">
               <p className="text-xs text-slate-500 mb-1">Versi Sistem</p>
-              <p className="text-sm font-semibold text-slate-700">v1.0.0 Enterprise</p>
+              <p className="text-xs font-semibold text-slate-700">v1.0.0 by Nendi @rdyndi</p>
             </div>
           </div>
         </div>

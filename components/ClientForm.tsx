@@ -52,9 +52,29 @@ export const ClientForm: React.FC<ClientFormProps> = ({ onSave, onCancel, initia
       return;
     }
 
+    // Logika Prefix Nama Badan Usaha
+    let finalName = formData.name || '';
+    const type = formData.type as string; // Cast to string for flexible comparison
+
+    // Daftar tipe yang perlu prefix
+    const prefixMap: Record<string, string> = {
+        'PT': 'PT ',
+        'CV': 'CV ',
+        'YAYASAN': 'YAYASAN ',
+        'PERKUMPULAN': 'PERKUMPULAN '
+    };
+
+    // Cek apakah tipe ada di map dan nama belum diawali dengan prefix tersebut (case insensitive check)
+    if (prefixMap[type]) {
+        const prefix = prefixMap[type];
+        if (!finalName.toUpperCase().startsWith(prefix.trim())) {
+            finalName = `${prefix}${finalName}`;
+        }
+    }
+
     const clientToSave: Client = {
       id: formData.id || Math.random().toString(36).substr(2, 9),
-      name: formData.name!,
+      name: finalName,
       picName: formData.picName || '', // Simpan Nama PIC
       type: formData.type as EntityType,
       address: formData.address!,
@@ -91,7 +111,10 @@ export const ClientForm: React.FC<ClientFormProps> = ({ onSave, onCancel, initia
             >
               <option value="PT">Perseroan Terbatas (PT)</option>
               <option value="CV">Persekutuan Komanditer (CV)</option>
+              <option value="YAYASAN">Yayasan</option>
+              <option value="PERKUMPULAN">Perkumpulan</option>
               <option value="Perorangan">Perorangan / Pribadi</option>
+              <option value="Lainnya">Badan Usaha Lainnya</option>
             </select>
           </div>
 
@@ -102,10 +125,15 @@ export const ClientForm: React.FC<ClientFormProps> = ({ onSave, onCancel, initia
               name="name"
               value={formData.name || ''}
               onChange={handleChange}
-              placeholder={formData.type === 'Perorangan' ? "Nama Pemilik" : "Nama Perusahaan"}
+              placeholder={formData.type === 'Perorangan' ? "Nama Pemilik" : "Nama Perusahaan (Tanpa PT/CV)"}
               className={`w-full px-3 py-2 border rounded-lg outline-none transition-all ${errors.name ? 'border-red-500 focus:ring-red-200' : 'border-slate-300 focus:ring-2 focus:ring-primary-500'}`}
             />
             {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
+            {['PT', 'CV', 'YAYASAN', 'PERKUMPULAN'].includes(formData.type as string) && (
+                <p className="text-[10px] text-slate-400 mt-1 italic">
+                    *Prefix {formData.type} akan otomatis ditambahkan jika belum ada.
+                </p>
+            )}
           </div>
 
           {/* Kolom Input PIC */}

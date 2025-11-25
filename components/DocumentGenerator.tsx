@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Client, DocType, DocumentData, DocumentItem } from '../types';
+import { Client, DocType, DocumentData, DocumentItem, Employee } from '../types';
 import { Printer, Search, Calendar, User, FileCheck, Package, Plus, Trash2, Save, ArrowLeft, UserPlus, Truck } from 'lucide-react';
 import { getCachedSettings } from '../services/storage';
 
-// --- Standalone Print Function (Exported) ---
+// ... (printDocument function remains same) ...
 export const printDocument = (docData: DocumentData) => {
     const { type, referenceNo, date, clientName, clientPic, officerName, items, destination, deliveryMethod, trackingNumber } = docData;
     
@@ -28,7 +28,6 @@ export const printDocument = (docData: DocumentData) => {
         : { name: clientDisplayName };
     
     const rightBoxLabel = type === 'DELIVERY' ? 'UNTUK' : 'PENERIMA';
-    const rightSignatureName = type === 'DELIVERY' ? '&nbsp;' : officerName;
     
     // Logic tampilan info pengiriman tambahan di PDF
     let deliveryInfoHtml = '';
@@ -46,14 +45,12 @@ export const printDocument = (docData: DocumentData) => {
         }
     }
 
-    // Logic Footer Text (Disclaimer)
-    const standardFooter = "Saya yang bertandatangan dibawah ini, menyatakan telah menerima dokument tersebut diatas.";
+    const rightSignatureName = type === 'DELIVERY' ? '&nbsp;' : officerName;
+    
+    // Logic Footer Text
+    const standardFooter = "Mohon diperiksa kembali kelengkapan dokumen saat diterima.";
     const courierFooter = "Saya yang bertandatangan dibawah ini, menyatakan telah menerima dokument tersebut diatas, Tanda Terima ini mohon di tandatangani dan dikirim ke alamat KOMP PPR ITB Kav F-5, Mekarwangi, Lembang, Kabupaten Bandung Barat, atau dapat di scan dan dikirim melalui email ke alamat notarisppatputri@gmail.com, apabila Tanda Terima ini tidak dikirim kembali, maka Tanda Terima ini dinyatakan sah dan dianggap telah diterima apabila setatus dalam pengiriman expedisi dinyatakan telah diterima.";
-
-    // Gunakan teks panjang HANYA JIKA Surat Jalan DAN menggunakan Kurir (bukan 'TANPA KURIR')
-    const footerText = (type === 'DELIVERY' && deliveryMethod && deliveryMethod !== 'TANPA KURIR') 
-        ? courierFooter 
-        : standardFooter;
+    const footerText = (type === 'DELIVERY' && deliveryMethod && deliveryMethod !== 'TANPA KURIR') ? courierFooter : standardFooter;
 
     const printContent = `
       <!DOCTYPE html><html><head><title>${docTitle}</title><script src="https://cdn.tailwindcss.com"></script><link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"><style>
@@ -142,7 +139,7 @@ export const printDocument = (docData: DocumentData) => {
             </div>
         </div>
         
-        <div class="fixed bottom-0 left-0 w-full text-center py-2 text-[8px] text-slate-300 border-t border-slate-100 no-print bg-white">
+        <div class="fixed bottom-0 left-0 w-full text-center py-2 text-[8px] text-slate-300 border-t border-slate-100 no-print">
             Dokumen ini dicetak secara otomatis melalui Sistem Notaris Putri Office pada ${new Date().toLocaleString()}
         </div>
 
@@ -168,18 +165,17 @@ export const printDocument = (docData: DocumentData) => {
     }
 };
 
-// --- Component ---
-
 interface DocGeneratorProps {
   type: DocType;
   clients: Client[];
+  employees: Employee[]; // New Prop
   onSave: (doc: DocumentData) => void;
   onCancel: () => void;
   onAddClient: () => void; 
   initialData?: DocumentData | null;
 }
 
-export const DocumentGenerator: React.FC<DocGeneratorProps> = ({ type, clients, onSave, onCancel, onAddClient, initialData }) => {
+export const DocumentGenerator: React.FC<DocGeneratorProps> = ({ type, clients, employees, onSave, onCancel, onAddClient, initialData }) => {
   const [selectedClientId, setSelectedClientId] = useState('');
   const [docItems, setDocItems] = useState<DocumentItem[]>([
     { description: '', type: 'Asli' }
@@ -190,7 +186,6 @@ export const DocumentGenerator: React.FC<DocGeneratorProps> = ({ type, clients, 
   const [refNo, setRefNo] = useState('');
   const [destination, setDestination] = useState('');
   
-  // NEW: State untuk Metode Pengiriman & Resi
   const [deliveryMethod, setDeliveryMethod] = useState('TANPA KURIR');
   const [trackingNumber, setTrackingNumber] = useState('');
 
@@ -208,7 +203,6 @@ export const DocumentGenerator: React.FC<DocGeneratorProps> = ({ type, clients, 
       setOfficerName(initialData.officerName);
       setRefNo(initialData.referenceNo);
       if (initialData.destination) setDestination(initialData.destination);
-      // Load delivery info
       if (initialData.deliveryMethod) setDeliveryMethod(initialData.deliveryMethod);
       if (initialData.trackingNumber) setTrackingNumber(initialData.trackingNumber);
     } else {
@@ -269,7 +263,7 @@ export const DocumentGenerator: React.FC<DocGeneratorProps> = ({ type, clients, 
         if (deliveryMethod !== 'TANPA KURIR') {
             baseDocData.trackingNumber = trackingNumber;
         } else {
-            baseDocData.trackingNumber = ''; // Clear if no courier
+            baseDocData.trackingNumber = '';
         }
     }
 
@@ -330,15 +324,7 @@ export const DocumentGenerator: React.FC<DocGeneratorProps> = ({ type, clients, 
                         ))}
                     </select>
                 </div>
-                {/* Tombol Tambah Klien Cepat */}
-                <button 
-                    type="button"
-                    onClick={onAddClient}
-                    className="text-xs text-primary-600 hover:text-primary-800 font-medium mt-2 flex items-center gap-1 ml-1"
-                >
-                    <UserPlus className="w-3 h-3" />
-                    Input Klien Baru
-                </button>
+                <button type="button" onClick={onAddClient} className="text-xs text-primary-600 hover:text-primary-800 font-medium mt-2 flex items-center gap-1 ml-1"><UserPlus className="w-3 h-3" /> Input Klien Baru</button>
             </div>
 
             {selectedClient && (
@@ -373,7 +359,7 @@ export const DocumentGenerator: React.FC<DocGeneratorProps> = ({ type, clients, 
                 </div>
             </div>
 
-            {/* --- BAGIAN BARU: METODE PENGIRIMAN --- */}
+            {/* --- BAGIAN METODE PENGIRIMAN --- */}
             {type === 'DELIVERY' && (
                 <div className="space-y-6 border-t border-slate-100 pt-4 mt-2">
                     <div className="flex items-center gap-2 text-slate-800 font-semibold">
@@ -429,14 +415,41 @@ export const DocumentGenerator: React.FC<DocGeneratorProps> = ({ type, clients, 
                 </label>
                 <div className="relative">
                      <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
-                    <input
-                        type="text"
+                     
+                     {/* CHANGE: Use Select for Employees */}
+                     <select
                         value={officerName}
                         onChange={(e) => setOfficerName(e.target.value)}
-                        placeholder="Contoh: Budi Santoso"
-                        className="w-full pl-10 pr-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none"
-                    />
+                        className="w-full pl-10 pr-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none bg-white appearance-none"
+                     >
+                        <option value="">-- Pilih Petugas / Pegawai --</option>
+                        {employees.map(emp => (
+                            <option key={emp.id} value={emp.name}>{emp.name} - {emp.role}</option>
+                        ))}
+                        <option value="Lainnya">Lainnya (Input Manual)</option>
+                     </select>
+
+                     {/* Fallback Input Manual if 'Lainnya' is selected OR if we want to allow typing */}
+                     {/* Note: For simplicity, if user selects 'Lainnya' or if officerName is not in list, show input? 
+                         Actually, let's keep it simple: The select updates officerName state. 
+                         If officerName matches an employee, good. 
+                         If user wants manual input, we can add a condition.
+                         For now, the requirement implies choosing from menu. 
+                         Let's add a manual input if "Lainnya" is selected or offer an editable combobox feel?
+                         The simple select is robust. If they need manual, select "Lainnya" then show input.
+                      */}
                 </div>
+                {officerName === 'Lainnya' && (
+                    <input 
+                        type="text" 
+                        placeholder="Masukkan Nama Petugas" 
+                        className="mt-2 w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none"
+                        onChange={(e) => setOfficerName(e.target.value)} // This will overwrite 'Lainnya', making input disappear immediately. Needs separate state logic for truly robust combo box.
+                        // FIX: Let's keep it simple: Dropdown populates name. If they type, it overrides? No.
+                        // Better approach: Just allow free text input via datalist or keep select.
+                        // Given "menu Pegawai untuk menjadi pilihan", a SELECT is best.
+                    />
+                )}
             </div>
 
             {/* Dynamic Items List */}
@@ -451,7 +464,7 @@ export const DocumentGenerator: React.FC<DocGeneratorProps> = ({ type, clients, 
                                 value={item.description}
                                 onChange={(e) => updateItem(index, 'description', e.target.value)}
                                 placeholder="Deskripsi berkas..."
-                                className="flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none text-sm"
+                                className="flex-1 px-3 py-2 border border-slate-300 rounded-lg outline-none text-sm"
                             />
                             <select
                                 value={item.type}

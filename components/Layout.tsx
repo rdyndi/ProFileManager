@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
-import { LayoutDashboard, Users, FileText, Truck, Settings, Menu, X, Briefcase, ScrollText, UserCog } from 'lucide-react';
+import { LayoutDashboard, Users, FileText, Truck, Settings, Menu, X, Briefcase, ScrollText, UserCog, LogOut } from 'lucide-react';
 
 interface LayoutProps {
   children: React.ReactNode;
   activeTab: string;
   onTabChange: (tab: string) => void;
+  onLogout: () => void;
 }
 
-export const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange }) => {
+export const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange, onLogout }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const navItems = [
@@ -24,6 +25,12 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange
     onTabChange(id);
     setIsMobileMenuOpen(false);
   };
+
+  const handleLogout = () => {
+    if (window.confirm('Apakah anda yakin ingin keluar dari sistem?')) {
+        onLogout();
+    }
+  }
 
   return (
     <div className="min-h-screen flex flex-col md:flex-row bg-slate-50 no-print">
@@ -73,10 +80,18 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange
             ))}
           </nav>
 
-          <div className="p-4 border-t border-slate-100">
+          <div className="p-4 border-t border-slate-100 space-y-4">
+            <button 
+                onClick={handleLogout}
+                className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 transition-colors"
+            >
+                <LogOut className="w-5 h-5" />
+                Keluar Sistem
+            </button>
+            
             <div className="bg-slate-50 p-4 rounded-xl">
               <p className="text-xs text-slate-500 mb-1">Versi Sistem</p>
-              <p className="text-xs font-semibold text-slate-700">v1.0.0 by Nendi @rdyndi</p>
+              <p className="text-xs font-semibold text-slate-700">v1.1.0 Login Enabled</p>
             </div>
           </div>
         </div>

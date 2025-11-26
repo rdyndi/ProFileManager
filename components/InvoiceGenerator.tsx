@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Client, Invoice, InvoiceItem } from '../types';
 import { Printer, Search, Calendar, Plus, Trash2, Save, ArrowLeft, CreditCard, Clock } from 'lucide-react';

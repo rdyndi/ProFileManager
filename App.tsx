@@ -9,6 +9,7 @@ import { DeedReport } from './components/DeedReport';
 import { DeedAlphabeticalReport } from './components/DeedAlphabeticalReport';
 import { InvoiceGenerator, printInvoice, calculateItemValues, printReceipt } from './components/InvoiceGenerator';
 import { ExpenseTracker } from './components/ExpenseTracker';
+import { ProfitLossReport } from './components/ProfitLossReport';
 import { 
   subscribeClients, saveClient, deleteClient, 
   subscribeDocuments, saveDocument, updateDocument, deleteDocument,
@@ -1208,6 +1209,14 @@ const App = () => {
             expenses={expenses}
             onSave={handleSaveExpense}
             onDelete={handleDeleteExpense}
+        />
+      )}
+
+      {/* REPORTS TAB */}
+      {activeTab === 'reports' && (
+        <ProfitLossReport 
+            invoices={invoices}
+            expenses={expenses}
         />
       )}
 

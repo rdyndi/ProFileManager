@@ -1,6 +1,7 @@
+
 import React, { useState, useEffect } from 'react';
 import { Client, Invoice, InvoiceItem } from '../types';
-import { Printer, Search, Calendar, Plus, Trash2, Save, ArrowLeft, CreditCard, Banknote, Clock } from 'lucide-react';
+import { Printer, Search, Calendar, Plus, Trash2, Save, ArrowLeft, CreditCard, Clock } from 'lucide-react';
 import { getCachedSettings } from '../services/storage';
 
 // --- Helper Rupiah Formatter for Input Display ---
@@ -196,7 +197,7 @@ export const InvoiceGenerator: React.FC<InvoiceGeneratorProps> = ({ clients, onS
   const [status, setStatus] = useState<'UNPAID' | 'PAID'>('UNPAID');
   const [notes, setNotes] = useState('');
   
-  // Payment Menu State
+  // Payment Info (Read Only or preserved if existing)
   const [paymentDate, setPaymentDate] = useState('');
   const [paymentAmount, setPaymentAmount] = useState(0);
 
@@ -247,18 +248,8 @@ export const InvoiceGenerator: React.FC<InvoiceGeneratorProps> = ({ clients, onS
   
   const grandTotal = subTotal - totalTax;
 
-  // Logic Otomatis Lunas
-  useEffect(() => {
-    // Jalankan logika hanya jika user sedang menginput pembayaran (amount > 0)
-    // dan total tagihan valid.
-    if (paymentAmount > 0 && grandTotal > 0) {
-        if (paymentAmount >= grandTotal) {
-            setStatus('PAID');
-        } else {
-            setStatus('UNPAID');
-        }
-    }
-  }, [paymentAmount, grandTotal]);
+  // Logic Otomatis Lunas -> Dipindahkan ke Payment Entry di Detail View
+  // Di sini hanya mempertahankan status jika diedit manual, atau biarkan user set manual jika perlu.
 
   const addItem = () => {
     setItems([...items, { description: '', amount: 0, isTaxed: false }]);
@@ -303,8 +294,9 @@ export const InvoiceGenerator: React.FC<InvoiceGeneratorProps> = ({ clients, onS
         status,
         notes,
         createdAt: initialData?.createdAt || Date.now(),
-        paymentDate,
-        paymentAmount
+        paymentDate, // Preserve existing
+        paymentAmount, // Preserve existing
+        paymentHistory: initialData?.paymentHistory || [] // Preserve existing history
     };
   };
 
@@ -511,41 +503,6 @@ export const InvoiceGenerator: React.FC<InvoiceGeneratorProps> = ({ clients, onS
                                 <span className="font-bold text-slate-800 text-lg">Total Tagihan</span>
                                 <span className="font-bold text-xl text-slate-900 font-mono">{new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(grandTotal)}</span>
                             </div>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Menu Pembayaran */}
-                <div className="bg-slate-50 p-5 rounded-xl border border-slate-200">
-                    <h3 className="text-sm font-bold text-slate-800 mb-4 flex items-center gap-2">
-                        <Banknote className="w-4 h-4 text-slate-600"/> Informasi Pembayaran
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-1">Tanggal Pembayaran</label>
-                            <input
-                                type="date"
-                                value={paymentDate}
-                                onChange={(e) => setPaymentDate(e.target.value)}
-                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none"
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-1">Jumlah Pembayaran</label>
-                            <div className="relative">
-                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-medium">Rp</span>
-                                <input 
-                                    type="text" 
-                                    value={formatInputNumber(paymentAmount)}
-                                    onChange={(e) => {
-                                        const raw = e.target.value.replace(/\D/g, '');
-                                        setPaymentAmount(Number(raw));
-                                    }}
-                                    placeholder="0"
-                                    className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none font-mono"
-                                />
-                            </div>
-                            <p className="text-[10px] text-slate-500 mt-1">Status otomatis "LUNAS" jika pembayaran sesuai tagihan.</p>
                         </div>
                     </div>
                 </div>

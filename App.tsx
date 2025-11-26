@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { Layout } from './components/Layout';
 import { LoginScreen } from './components/LoginScreen';
@@ -20,9 +19,9 @@ import {
 import { auth } from './services/firebaseService';
 import { signInAnonymously } from "firebase/auth";
 import { Client, CompanySettings, DocumentData, DocType, Deed, Employee, Invoice, PaymentRecord } from './types';
-import { Users, Search, Plus, Trash2, Eye, FileText, Briefcase, ArrowUpRight, Save, Pencil, Printer, ScrollText, BookOpen, ArrowDownAZ, ArrowLeft, UserCog, Link as LinkIcon, ExternalLink, MessageCircle, Mail, Truck, TrendingUp, BarChart3, Package, FileCheck, CreditCard, Calendar, User, Banknote, X } from 'lucide-react';
+import { Users, Search, Plus, Trash2, Eye, FileText, Briefcase, ArrowUpRight, Save, Pencil, Printer, ScrollText, BookOpen, ArrowDownAZ, ArrowLeft, UserCog, Link as LinkIcon, ExternalLink, MessageCircle, Mail, Truck, TrendingUp, BarChart3, Package, FileCheck, CreditCard, Calendar, User, Banknote, X, Wallet } from 'lucide-react';
 
-// --- Simple Custom SVG Line Chart Component ---
+// ... (SimpleLineChart Component remains the same) ...
 const SimpleLineChart = ({ data }: { data: any[] }) => {
   if (!data || data.length === 0) return <div className="h-64 flex items-center justify-center text-slate-400">Belum ada data</div>;
 
@@ -84,7 +83,7 @@ const SimpleLineChart = ({ data }: { data: any[] }) => {
   );
 };
 
-// ... (ClientDetail component updated) ...
+// ... (ClientDetail component remains the same) ...
 const ClientDetail: React.FC<{
   client: Client;
   onBack: () => void;
@@ -263,14 +262,14 @@ const ClientDetail: React.FC<{
   );
 };
 
-// --- New Invoice Detail Component (Read Only with Payment Update) ---
+// ... (InvoiceDetail component remains the same) ...
 const InvoiceDetail: React.FC<{
     invoice: Invoice;
     onBack: () => void;
     onEdit: () => void;
     onDelete: () => void;
     onPrint: () => void;
-    onUpdateInvoice: (invoice: Invoice) => void; // Prop baru untuk update
+    onUpdateInvoice: (invoice: Invoice) => void; 
 }> = ({ invoice, onBack, onEdit, onDelete, onPrint, onUpdateInvoice }) => {
     
     // Hitung ulang total untuk display detail
@@ -306,10 +305,9 @@ const InvoiceDetail: React.FC<{
         };
 
         // Update Payment Logic
-        // 1. Ambil history lama (atau buat baru jika kosong, handle legacy juga)
         let updatedHistory = invoice.paymentHistory ? [...invoice.paymentHistory] : [];
         
-        // Handle Legacy: Jika ada paymentAmount lama tapi history kosong, buat record dummy agar matematikanya benar
+        // Handle Legacy
         if (updatedHistory.length === 0 && invoice.paymentAmount && invoice.paymentAmount > 0) {
             updatedHistory.push({
                 id: 'legacy-payment',
@@ -323,21 +321,19 @@ const InvoiceDetail: React.FC<{
 
         const newTotalPaid = updatedHistory.reduce((acc, curr) => acc + curr.amount, 0);
         
-        // 2. Tentukan Status Baru (Auto Lunas)
-        // Gunakan toleransi kecil untuk floating point comparison jika perlu, tapi integer IDR aman
         const newStatus = newTotalPaid >= grandTotal ? 'PAID' : 'UNPAID';
 
         const updatedInvoice: Invoice = {
             ...invoice,
             paymentHistory: updatedHistory,
-            paymentAmount: newTotalPaid, // Update total cache
-            paymentDate: newPaymentDate, // Update last payment date
+            paymentAmount: newTotalPaid, 
+            paymentDate: newPaymentDate,
             status: newStatus
         };
 
         onUpdateInvoice(updatedInvoice);
         setIsPaymentModalOpen(false);
-        setNewPaymentAmount(0); // Reset form
+        setNewPaymentAmount(0);
     };
 
     return (
@@ -720,6 +716,30 @@ const App = () => {
     return { totalReceipts, totalDeliveries, chartData };
   }, [clients, deeds, documents]);
 
+  // --- Derived Invoice Statistics (Cashflow) ---
+  const invoiceStats = useMemo(() => {
+    // Filter invoices based on search query first
+    const filteredList = invoices.filter(i => 
+        i.invoiceNumber.toLowerCase().includes(invoiceSearchQuery.toLowerCase()) || 
+        i.clientName.toLowerCase().includes(invoiceSearchQuery.toLowerCase())
+    );
+
+    let totalBilled = 0;
+    let totalPaid = 0;
+    
+    filteredList.forEach(inv => {
+        totalBilled += inv.totalAmount;
+        // Use paymentHistory sum if available, else legacy paymentAmount
+        const historySum = inv.paymentHistory?.reduce((sum, p) => sum + p.amount, 0) || 0;
+        const paid = historySum > 0 ? historySum : (inv.paymentAmount || 0);
+        totalPaid += paid;
+    });
+
+    const totalUnpaid = totalBilled - totalPaid;
+
+    return { filteredList, totalBilled, totalPaid, totalUnpaid };
+  }, [invoices, invoiceSearchQuery]);
+
   // --- Login Handler ---
   const handleLogin = (status: boolean) => {
     if (status) {
@@ -931,6 +951,41 @@ const App = () => {
                         <h2 className="text-2xl font-bold text-slate-800">Daftar Invoice</h2>
                         <button onClick={() => { setInvoiceViewState('create'); setSelectedInvoice(null); }} className="bg-primary-600 text-white px-4 py-2 rounded-lg flex gap-2"><Plus className="w-4 h-4"/> Buat Invoice</button>
                     </div>
+
+                    {/* SUMMARY CARD (CASHFLOW) */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 border-l-4 border-l-blue-500">
+                             <div className="flex justify-between items-start mb-2">
+                                <div>
+                                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Tagihan</p>
+                                    <p className="text-2xl font-bold text-slate-800 mt-1">{new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(invoiceStats.totalBilled)}</p>
+                                </div>
+                                <div className="p-2 bg-blue-50 rounded-lg"><Wallet className="w-5 h-5 text-blue-600" /></div>
+                             </div>
+                             <p className="text-xs text-slate-500">Akumulasi semua invoice yang tampil</p>
+                        </div>
+                         <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 border-l-4 border-l-green-500">
+                             <div className="flex justify-between items-start mb-2">
+                                <div>
+                                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Sudah Dibayar</p>
+                                    <p className="text-2xl font-bold text-green-600 mt-1">{new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(invoiceStats.totalPaid)}</p>
+                                </div>
+                                <div className="p-2 bg-green-50 rounded-lg"><Banknote className="w-5 h-5 text-green-600" /></div>
+                             </div>
+                             <p className="text-xs text-slate-500">Pemasukan yang telah diterima</p>
+                        </div>
+                         <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 border-l-4 border-l-red-500">
+                             <div className="flex justify-between items-start mb-2">
+                                <div>
+                                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Sisa Piutang</p>
+                                    <p className="text-2xl font-bold text-red-600 mt-1">{new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(invoiceStats.totalUnpaid)}</p>
+                                </div>
+                                <div className="p-2 bg-red-50 rounded-lg"><CreditCard className="w-5 h-5 text-red-600" /></div>
+                             </div>
+                             <p className="text-xs text-slate-500">Tagihan yang belum dilunasi</p>
+                        </div>
+                    </div>
+
                     <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
                         <input type="text" placeholder="Cari No Invoice atau Nama Klien..." className="w-full px-4 py-2 border rounded-lg mb-4" value={invoiceSearchQuery} onChange={e => setInvoiceSearchQuery(e.target.value)} />
                         <div className="overflow-x-auto">
@@ -940,13 +995,20 @@ const App = () => {
                                         <th className="p-4">Tanggal</th>
                                         <th className="p-4">No. Invoice</th>
                                         <th className="p-4">Klien</th>
-                                        <th className="p-4">Total</th>
                                         <th className="p-4">Status</th>
+                                        <th className="p-4 text-right">Total</th>
+                                        <th className="p-4 text-right">Sisa Tagihan</th>
                                         <th className="p-4 text-right">Aksi</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {invoices.filter(i => i.invoiceNumber.toLowerCase().includes(invoiceSearchQuery.toLowerCase()) || i.clientName.toLowerCase().includes(invoiceSearchQuery.toLowerCase())).map(inv => (
+                                    {invoiceStats.filteredList.map(inv => {
+                                        // Calculate per row
+                                        const historySum = inv.paymentHistory?.reduce((sum, p) => sum + p.amount, 0) || 0;
+                                        const paid = historySum > 0 ? historySum : (inv.paymentAmount || 0);
+                                        const remaining = Math.max(0, inv.totalAmount - paid);
+
+                                        return (
                                         <tr key={inv.id} className="border-b hover:bg-slate-50">
                                             <td className="p-4">{new Date(inv.date).toLocaleDateString()}</td>
                                             <td className="p-4">
@@ -958,13 +1020,16 @@ const App = () => {
                                                 </button>
                                             </td>
                                             <td className="p-4">{inv.clientName}</td>
-                                            <td className="p-4 font-bold text-slate-700">
-                                                {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(inv.totalAmount)}
-                                            </td>
                                             <td className="p-4">
                                                 <span className={`px-2 py-1 rounded-full text-xs font-bold ${inv.status === 'PAID' ? 'bg-green-100 text-green-700' : 'bg-red-50 text-red-600'}`}>
-                                                    {inv.status === 'PAID' ? 'LUNAS' : 'BELUM BAYAR'}
+                                                    {inv.status === 'PAID' ? 'LUNAS' : 'BELUM LUNAS'}
                                                 </span>
+                                            </td>
+                                            <td className="p-4 text-right font-bold text-slate-700">
+                                                {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(inv.totalAmount)}
+                                            </td>
+                                            <td className="p-4 text-right font-mono text-red-600">
+                                                {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(remaining)}
                                             </td>
                                             <td className="p-4 text-right flex justify-end gap-2">
                                                 <button onClick={() => printInvoice(inv)} className="p-2 text-slate-400 hover:text-green-600"><Printer className="w-4 h-4" /></button>
@@ -972,8 +1037,21 @@ const App = () => {
                                                 <button onClick={() => handleDeleteInvoice(inv.id)} className="p-2 text-slate-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></button>
                                             </td>
                                         </tr>
-                                    ))}
+                                    )})}
                                 </tbody>
+                                {/* TABLE FOOTER SUMMARY */}
+                                <tfoot className="bg-slate-100 font-bold border-t-2 border-slate-300">
+                                    <tr>
+                                        <td colSpan={4} className="p-4 text-right uppercase text-xs text-slate-500 tracking-wider">Grand Total (Halaman Ini)</td>
+                                        <td className="p-4 text-right text-slate-800">
+                                            {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(invoiceStats.totalBilled)}
+                                        </td>
+                                        <td className="p-4 text-right text-red-600">
+                                             {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(invoiceStats.totalUnpaid)}
+                                        </td>
+                                        <td></td>
+                                    </tr>
+                                </tfoot>
                             </table>
                         </div>
                     </div>

@@ -1,6 +1,7 @@
+
 import React, { useState } from 'react';
-import { Client, EntityType } from '../types';
-import { Save, X, Upload } from 'lucide-react';
+import { Client, EntityType, AttachedFile } from '../types';
+import { Save, X, Upload, Link as LinkIcon, Plus } from 'lucide-react';
 
 interface ClientFormProps {
   onSave: (client: Client) => void;
@@ -14,6 +15,11 @@ export const ClientForm: React.FC<ClientFormProps> = ({ onSave, onCancel, initia
     files: []
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
+  
+  // State untuk Input Link Manual
+  const [showLinkInput, setShowLinkInput] = useState(false);
+  const [newLinkName, setNewLinkName] = useState('');
+  const [newLinkUrl, setNewLinkUrl] = useState('');
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -25,7 +31,6 @@ export const ClientForm: React.FC<ClientFormProps> = ({ onSave, onCancel, initia
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files.length > 0) {
-      // Fix: Explicitly type 'f' as File to resolve 'unknown' type error
       const newFiles = Array.from(files).map((f: File) => ({
         id: Math.random().toString(36).substr(2, 9),
         name: f.name,
@@ -36,6 +41,29 @@ export const ClientForm: React.FC<ClientFormProps> = ({ onSave, onCancel, initia
         files: [...(prev.files || []), ...newFiles]
       }));
     }
+  };
+
+  const handleAddLink = () => {
+    if (!newLinkName || !newLinkUrl) {
+        alert("Nama berkas dan URL wajib diisi!");
+        return;
+    }
+
+    const newFile: AttachedFile = {
+        id: Math.random().toString(36).substr(2, 9),
+        name: newLinkName,
+        uploadDate: Date.now(),
+        url: newLinkUrl
+    };
+
+    setFormData(prev => ({
+        ...prev,
+        files: [...(prev.files || []), newFile]
+    }));
+
+    setNewLinkName('');
+    setNewLinkUrl('');
+    setShowLinkInput(false);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -54,9 +82,8 @@ export const ClientForm: React.FC<ClientFormProps> = ({ onSave, onCancel, initia
 
     // Logika Prefix Nama Badan Usaha
     let finalName = formData.name || '';
-    const type = formData.type as string; // Cast to string for flexible comparison
+    const type = formData.type as string; 
 
-    // Daftar tipe yang perlu prefix
     const prefixMap: Record<string, string> = {
         'PT': 'PT ',
         'CV': 'CV ',
@@ -64,7 +91,6 @@ export const ClientForm: React.FC<ClientFormProps> = ({ onSave, onCancel, initia
         'PERKUMPULAN': 'PERKUMPULAN '
     };
 
-    // Cek apakah tipe ada di map dan nama belum diawali dengan prefix tersebut (case insensitive check)
     if (prefixMap[type]) {
         const prefix = prefixMap[type];
         if (!finalName.toUpperCase().startsWith(prefix.trim())) {
@@ -75,7 +101,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({ onSave, onCancel, initia
     const clientToSave: Client = {
       id: formData.id || Math.random().toString(36).substr(2, 9),
       name: finalName,
-      picName: formData.picName || '', // Simpan Nama PIC
+      picName: formData.picName || '', 
       type: formData.type as EntityType,
       address: formData.address!,
       contactNumber: formData.contactNumber!,
@@ -129,14 +155,8 @@ export const ClientForm: React.FC<ClientFormProps> = ({ onSave, onCancel, initia
               className={`w-full px-3 py-2 border rounded-lg outline-none transition-all ${errors.name ? 'border-red-500 focus:ring-red-200' : 'border-slate-300 focus:ring-2 focus:ring-primary-500'}`}
             />
             {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
-            {['PT', 'CV', 'YAYASAN', 'PERKUMPULAN'].includes(formData.type as string) && (
-                <p className="text-[10px] text-slate-400 mt-1 italic">
-                    *Prefix {formData.type} akan otomatis ditambahkan jika belum ada.
-                </p>
-            )}
           </div>
 
-          {/* Kolom Input PIC */}
           <div className="col-span-2 md:col-span-2">
             <label className="block text-sm font-medium text-slate-700 mb-1">Nama PIC / Penanggung Jawab</label>
             <input
@@ -197,32 +217,94 @@ export const ClientForm: React.FC<ClientFormProps> = ({ onSave, onCancel, initia
           </div>
 
            <div className="col-span-2">
-            <label className="block text-sm font-medium text-slate-700 mb-2">Upload Dokumen Pendukung</label>
-            <div className="border-2 border-dashed border-slate-300 rounded-lg p-6 flex flex-col items-center justify-center text-slate-500 bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer relative">
-              <input 
-                type="file" 
-                multiple 
-                onChange={handleFileUpload}
-                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-              />
-              <Upload className="w-8 h-8 mb-2 text-slate-400" />
-              <p className="text-sm">Klik atau drag file ke sini</p>
-              <p className="text-xs text-slate-400 mt-1">PDF, JPG, PNG (Max 5MB)</p>
+            <label className="block text-sm font-medium text-slate-700 mb-2">Dokumen Pendukung</label>
+            
+            {/* Opsi Upload atau Link */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                <div className="border-2 border-dashed border-slate-300 rounded-lg p-6 flex flex-col items-center justify-center text-slate-500 bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer relative">
+                    <input 
+                        type="file" 
+                        multiple 
+                        onChange={handleFileUpload}
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                    />
+                    <Upload className="w-6 h-6 mb-2 text-slate-400" />
+                    <p className="text-xs font-medium text-center">Upload File Lokal<br/><span className="text-[10px] text-slate-400">(Drag & Drop)</span></p>
+                </div>
+
+                <div 
+                    onClick={() => setShowLinkInput(true)}
+                    className="border-2 border-dashed border-blue-200 rounded-lg p-6 flex flex-col items-center justify-center text-blue-500 bg-blue-50 hover:bg-blue-100 transition-colors cursor-pointer"
+                >
+                    <LinkIcon className="w-6 h-6 mb-2 text-blue-400" />
+                    <p className="text-xs font-medium text-center">Tambah Link G-Drive<br/><span className="text-[10px] text-blue-400">(URL Eksternal)</span></p>
+                </div>
             </div>
+
+            {/* Input Link Form */}
+            {showLinkInput && (
+                <div className="mb-4 bg-blue-50 p-4 rounded-lg border border-blue-100 animate-in fade-in slide-in-from-top-2">
+                    <h4 className="text-sm font-bold text-blue-800 mb-2 flex items-center gap-2">
+                        <LinkIcon className="w-4 h-4" /> Input Link Dokumen
+                    </h4>
+                    <div className="space-y-3">
+                        <input
+                            type="text"
+                            placeholder="Nama Dokumen (Contoh: Akta Pendirian.pdf)"
+                            value={newLinkName}
+                            onChange={(e) => setNewLinkName(e.target.value)}
+                            className="w-full px-3 py-2 border border-blue-200 rounded text-sm focus:ring-2 focus:ring-blue-400 outline-none"
+                        />
+                        <input
+                            type="text"
+                            placeholder="URL Link (Contoh: https://drive.google.com/...)"
+                            value={newLinkUrl}
+                            onChange={(e) => setNewLinkUrl(e.target.value)}
+                            className="w-full px-3 py-2 border border-blue-200 rounded text-sm focus:ring-2 focus:ring-blue-400 outline-none"
+                        />
+                        <div className="flex justify-end gap-2">
+                            <button 
+                                type="button" 
+                                onClick={() => setShowLinkInput(false)}
+                                className="px-3 py-1.5 text-xs text-slate-500 hover:text-slate-700"
+                            >
+                                Batal
+                            </button>
+                            <button 
+                                type="button" 
+                                onClick={handleAddLink}
+                                className="px-3 py-1.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center gap-1"
+                            >
+                                <Plus className="w-3 h-3" /> Tambah Link
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* List File */}
             {formData.files && formData.files.length > 0 && (
-              <div className="mt-3 space-y-2">
+              <div className="space-y-2">
                 {formData.files.map((file, idx) => (
-                   <div key={idx} className="flex items-center justify-between p-2 bg-blue-50 rounded text-sm text-blue-700">
-                     <span>{file.name}</span>
+                   <div key={idx} className="flex items-center justify-between p-2 bg-slate-50 border border-slate-200 rounded text-sm">
+                     <div className="flex items-center gap-2 overflow-hidden">
+                        {file.url ? (
+                            <LinkIcon className="w-4 h-4 text-blue-500 flex-shrink-0" />
+                        ) : (
+                            <Upload className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                        )}
+                        <span className="truncate text-slate-700">{file.name}</span>
+                        {file.url && <span className="text-[10px] bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded">Link</span>}
+                     </div>
                      <button 
                         type="button"
                         onClick={() => {
                             const newFiles = formData.files?.filter((_, i) => i !== idx);
                             setFormData({...formData, files: newFiles});
                         }}
-                        className="text-blue-400 hover:text-blue-600 font-bold px-2"
+                        className="text-slate-400 hover:text-red-500 px-2"
                       >
-                        ×
+                        <X className="w-4 h-4" />
                       </button>
                    </div>
                 ))}

@@ -49,7 +49,20 @@ export const DeedAlphabeticalReport: React.FC<DeedAlphabeticalReportProps> = ({ 
 
   const handlePrint = () => {
     const monthName = months[selectedMonth];
-    const reportDateString = `01 ${monthName} ${selectedYear}`;
+
+    // Logic Tanggal Tanda Tangan: Bulan Laporan + 1 Bulan
+    let signMonthIndex = selectedMonth + 1;
+    let signYear = selectedYear;
+    
+    // Jika bulan laporan Desember (11), maka tanda tangan Januari (0) tahun depan
+    if (signMonthIndex > 11) {
+        signMonthIndex = 0;
+        signYear = signYear + 1;
+    }
+    
+    const signMonthName = months[signMonthIndex];
+    const reportDateString = `01 ${signMonthName} ${signYear}`;
+
     const notarisName = "Notaris Nukantini Putri Parincha,SH.,M.kn";
     
     // Generate HTML per Huruf

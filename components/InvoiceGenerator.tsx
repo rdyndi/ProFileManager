@@ -1,7 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { Client, Invoice, InvoiceItem } from '../types';
-import { Printer, Search, Calendar, Plus, Trash2, Save, ArrowLeft, CreditCard, Clock } from 'lucide-react';
+import { Printer, Search, Calendar, Plus, Trash2, Save, ArrowLeft, CreditCard, Clock, RotateCcw } from 'lucide-react';
 import { getCachedSettings } from '../services/storage';
+
+// --- Default Notes Configuration ---
+const DEFAULT_INVOICE_NOTES = `Transfer :  
+BCA Cabang Dago - Bandung.
+Acc. 7770673016
+A.n Nukantini Putri Parincha
+NPWP : 340267939421000
+NPWP 16 digit : 3217015610760002
+SWIFT BCA : CENAIDJA
+Mohon bukti potong PPH disampaikan minimal 10 Hari Kerja`;
 
 // --- Helper Rupiah Formatter for Input Display ---
 const formatInputNumber = (num: number | undefined) => {
@@ -209,7 +219,8 @@ export const InvoiceGenerator: React.FC<InvoiceGeneratorProps> = ({ clients, onS
         setInvoiceNumber(initialData.invoiceNumber);
         setItems(initialData.items);
         setStatus(initialData.status);
-        setNotes(initialData.notes || '');
+        // Use default notes if existing note is effectively empty, otherwise preserve existing
+        setNotes(initialData.notes || DEFAULT_INVOICE_NOTES);
         setPaymentDate(initialData.paymentDate || '');
         setPaymentAmount(initialData.paymentAmount || 0);
     } else {
@@ -221,6 +232,9 @@ export const InvoiceGenerator: React.FC<InvoiceGeneratorProps> = ({ clients, onS
         // Default Due Date: Today + 3 Days
         const today = new Date().toISOString().split('T')[0];
         setDueDate(addDays(today, 3));
+        
+        // Default Notes
+        setNotes(DEFAULT_INVOICE_NOTES);
     }
   }, [initialData, existingInvoices]);
 
@@ -508,13 +522,22 @@ export const InvoiceGenerator: React.FC<InvoiceGeneratorProps> = ({ clients, onS
 
                 {/* Notes */}
                 <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Catatan / Info Rekening</label>
+                    <div className="flex justify-between items-center mb-1">
+                        <label className="block text-sm font-medium text-slate-700">Catatan / Info Rekening</label>
+                        <button
+                            onClick={() => setNotes(DEFAULT_INVOICE_NOTES)}
+                            className="text-xs text-primary-600 hover:text-primary-800 flex items-center gap-1"
+                            title="Isi ulang dengan info rekening default"
+                        >
+                            <RotateCcw className="w-3 h-3" /> Isi Default
+                        </button>
+                    </div>
                     <textarea
-                        rows={3}
+                        rows={8}
                         value={notes}
                         onChange={(e) => setNotes(e.target.value)}
                         placeholder="Masukkan informasi rekening bank atau catatan kaki untuk invoice..."
-                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none text-sm"
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none text-sm font-mono leading-relaxed"
                     />
                 </div>
 

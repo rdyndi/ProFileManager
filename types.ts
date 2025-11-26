@@ -1,3 +1,4 @@
+
 export type EntityType = 'PT' | 'CV' | 'YAYASAN' | 'PERKUMPULAN' | 'Perorangan' | 'Lainnya';
 
 export interface AttachedFile {
@@ -81,6 +82,13 @@ export interface InvoiceItem {
   isTaxed?: boolean;
 }
 
+export interface PaymentRecord {
+  id: string;
+  date: string;
+  amount: number;
+  note?: string;
+}
+
 export interface Invoice {
   id: string;
   invoiceNumber: string;
@@ -94,8 +102,9 @@ export interface Invoice {
   status: 'UNPAID' | 'PAID';
   notes?: string;
   createdAt: number;
-  paymentDate?: string;
-  paymentAmount?: number;
+  paymentDate?: string; // Last payment date
+  paymentAmount?: number; // Total amount paid
+  paymentHistory?: PaymentRecord[]; // List of payments
 }
 
 export interface CompanySettings {

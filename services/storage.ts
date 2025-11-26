@@ -8,13 +8,14 @@ import {
   getDoc 
 } from "firebase/firestore";
 import { db } from "./firebaseService";
-import { Client, DocumentData, CompanySettings, Deed, Employee } from '../types';
+import { Client, DocumentData, CompanySettings, Deed, Employee, Invoice } from '../types';
 
 // Nama Collection di Firestore
 const COLL_CLIENTS = 'clients';
 const COLL_DOCS = 'documents';
 const COLL_DEEDS = 'deeds';
 const COLL_EMPLOYEES = 'employees';
+const COLL_INVOICES = 'invoices';
 const COLL_SETTINGS = 'settings';
 const DOC_SETTINGS_ID = 'company_profile'; // ID statis untuk settings
 
@@ -23,16 +24,26 @@ const LS_CLIENTS = 'app_clients_data';
 const LS_DOCS = 'app_docs_data';
 const LS_DEEDS = 'app_deeds_data';
 const LS_EMPLOYEES = 'app_employees_data';
+const LS_INVOICES = 'app_invoices_data';
 const LS_SETTINGS = 'app_settings_data';
 
 // --- HELPERS LOCAL STORAGE ---
 
-// Safe JSON stringify that doesn't crash on circular refs
+// Safe JSON stringify that handles circular refs
 const safeStringify = (data: any): string | null => {
+  const seen = new WeakSet();
   try {
-    return JSON.stringify(data);
+    return JSON.stringify(data, (key, value) => {
+      if (typeof value === "object" && value !== null) {
+        if (seen.has(value)) {
+          return; // Remove circular reference
+        }
+        seen.add(value);
+      }
+      return value;
+    });
   } catch (error) {
-    console.warn("JSON.stringify failed (circular structure?):", error);
+    console.warn("JSON.stringify failed:", error);
     return null;
   }
 };
@@ -57,7 +68,7 @@ const setLocalData = <T>(key: string, data: T) => {
   }
 };
 
-// Helper to sanitize object (remove undefined, functions, etc) via JSON cycle
+// Helper to sanitize object (remove undefined, functions, circular refs etc) via JSON cycle
 const sanitizeData = <T>(data: T): T => {
     const json = safeStringify(data);
     return json ? JSON.parse(json) : data;
@@ -281,6 +292,58 @@ export const deleteDeed = async (id: string): Promise<void> => {
   }
 };
 
+// --- INVOICES (Tagihan) ---
+
+export const subscribeInvoices = (callback: (data: Invoice[]) => void) => {
+  const localInvoices = getLocalData<Invoice>(LS_INVOICES);
+  if (localInvoices.length > 0) {
+    localInvoices.sort((a, b) => b.createdAt - a.createdAt);
+    callback(localInvoices);
+  }
+
+  const q = collection(db, COLL_INVOICES);
+  return onSnapshot(q, (snapshot) => {
+    const invoices = snapshot.docs.map(doc => ({...doc.data(), id: doc.id} as Invoice));
+    invoices.sort((a, b) => b.createdAt - a.createdAt);
+    const sanitizedInvoices = sanitizeData(invoices);
+    setLocalData(LS_INVOICES, sanitizedInvoices);
+    callback(sanitizedInvoices);
+  }, (error) => {
+    console.warn("Firestore invoice sync error:", error);
+  });
+};
+
+export const saveInvoice = async (invoice: Invoice): Promise<void> => {
+  const dataToSave = sanitizeData(invoice);
+  const invoices = getLocalData<Invoice>(LS_INVOICES);
+  const index = invoices.findIndex(inv => inv.id === dataToSave.id);
+  if (index >= 0) {
+    invoices[index] = dataToSave;
+  } else {
+    invoices.push(dataToSave);
+  }
+  setLocalData(LS_INVOICES, invoices);
+
+  try {
+    const docRef = doc(db, COLL_INVOICES, dataToSave.id);
+    await setDoc(docRef, dataToSave);
+  } catch (error) {
+    console.error("Error saving invoice to Firebase:", error);
+    throw error;
+  }
+};
+
+export const deleteInvoice = async (id: string): Promise<void> => {
+  const invoices = getLocalData<Invoice>(LS_INVOICES).filter(inv => inv.id !== id);
+  setLocalData(LS_INVOICES, invoices);
+
+  try {
+    await deleteDoc(doc(db, COLL_INVOICES, id));
+  } catch (error) {
+    console.error("Error deleting invoice from Firebase:", error);
+    throw error;
+  }
+};
 
 // --- SETTINGS ---
 

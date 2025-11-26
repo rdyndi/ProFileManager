@@ -29,11 +29,12 @@ const LS_SETTINGS = 'app_settings_data';
 
 // --- HELPERS LOCAL STORAGE ---
 
-// Safe JSON stringify that handles circular refs
+// Safe JSON stringify that handles circular refs and removes non-serializable data
 const safeStringify = (data: any): string | null => {
   const seen = new WeakSet();
   try {
     return JSON.stringify(data, (key, value) => {
+      // Handle circular references
       if (typeof value === "object" && value !== null) {
         if (seen.has(value)) {
           return; // Remove circular reference
@@ -43,7 +44,7 @@ const safeStringify = (data: any): string | null => {
       return value;
     });
   } catch (error) {
-    console.warn("JSON.stringify failed:", error);
+    console.warn("JSON.stringify failed in safeStringify:", error);
     return null;
   }
 };
@@ -70,7 +71,12 @@ const setLocalData = <T>(key: string, data: T) => {
 
 // Helper to sanitize object (remove undefined, functions, circular refs etc) via JSON cycle
 const sanitizeData = <T>(data: T): T => {
+    // Attempt to stringify and parse to remove non-JSON compatible data (like Functions, DOM nodes)
+    // and break circular references.
     const json = safeStringify(data);
+    // If stringify fails (returns null), return the original data to avoid data loss, 
+    // though this might still cause issues downstream if not handled.
+    // Ideally, we return a parsed version of the clean JSON.
     return json ? JSON.parse(json) : data;
 }
 

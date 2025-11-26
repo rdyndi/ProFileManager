@@ -8,17 +8,19 @@ import { DeedForm } from './components/DeedForm';
 import { DeedReport } from './components/DeedReport';
 import { DeedAlphabeticalReport } from './components/DeedAlphabeticalReport';
 import { InvoiceGenerator, printInvoice, calculateItemValues, printReceipt } from './components/InvoiceGenerator';
+import { ExpenseTracker } from './components/ExpenseTracker';
 import { 
   subscribeClients, saveClient, deleteClient, 
   subscribeDocuments, saveDocument, updateDocument, deleteDocument,
   subscribeSettings, saveSettings, syncSettingsToLocalCache,
   subscribeDeeds, saveDeed, deleteDeed,
   subscribeEmployees, saveEmployee, deleteEmployee,
-  subscribeInvoices, saveInvoice, deleteInvoice
+  subscribeInvoices, saveInvoice, deleteInvoice,
+  subscribeExpenses, saveExpense, deleteExpense
 } from './services/storage';
 import { auth } from './services/firebaseService';
 import { signInAnonymously } from "firebase/auth";
-import { Client, CompanySettings, DocumentData, DocType, Deed, Employee, Invoice, PaymentRecord } from './types';
+import { Client, CompanySettings, DocumentData, DocType, Deed, Employee, Invoice, PaymentRecord, Expense } from './types';
 import { Users, Search, Plus, Trash2, Eye, FileText, Briefcase, ArrowUpRight, Save, Pencil, Printer, ScrollText, BookOpen, ArrowDownAZ, ArrowLeft, UserCog, Link as LinkIcon, ExternalLink, MessageCircle, Mail, Truck, TrendingUp, BarChart3, Package, FileCheck, CreditCard, Calendar, User, Banknote, X, Wallet } from 'lucide-react';
 
 // --- Simple Custom SVG Line Chart Component ---
@@ -751,6 +753,7 @@ const App = () => {
   const [deeds, setDeeds] = useState<Deed[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [expenses, setExpenses] = useState<Expense[]>([]);
   
   // UI State
   const [clientViewState, setClientViewState] = useState<'list' | 'add' | 'detail'>('list');
@@ -880,6 +883,7 @@ const App = () => {
     let unsubSettings: (() => void) | undefined;
     let unsubEmployees: (() => void) | undefined;
     let unsubInvoices: (() => void) | undefined;
+    let unsubExpenses: (() => void) | undefined;
 
     const initData = async () => {
       try {
@@ -895,6 +899,7 @@ const App = () => {
         unsubDeeds = subscribeDeeds((data) => setDeeds(data));
         unsubEmployees = subscribeEmployees((data) => setEmployees(data));
         unsubInvoices = subscribeInvoices((data) => setInvoices(data));
+        unsubExpenses = subscribeExpenses((data) => setExpenses(data));
         unsubSettings = subscribeSettings((data) => {
           setSettings(data);
           syncSettingsToLocalCache(data);
@@ -913,6 +918,7 @@ const App = () => {
       if (unsubSettings) unsubSettings();
       if (unsubEmployees) unsubEmployees();
       if (unsubInvoices) unsubInvoices();
+      if (unsubExpenses) unsubExpenses();
     };
   }, [isAuthenticated]);
 
@@ -928,6 +934,8 @@ const App = () => {
   const handleDeleteEmployee = async (id: string) => { if (window.confirm('Hapus pegawai?')) { try { await deleteEmployee(id); } catch (e: any) { alert(e.message); } } }
   const handleSaveInvoice = async (inv: Invoice) => { try { await saveInvoice(inv); alert('Invoice tersimpan!'); setInvoiceViewState('list'); } catch (e: any) { alert(e.message); } }
   const handleDeleteInvoice = async (id: string) => { if (window.confirm('Hapus invoice?')) { try { await deleteInvoice(id); if (selectedInvoice?.id === id) { setSelectedInvoice(null); setInvoiceViewState('list'); } } catch (e: any) { alert(e.message); } } }
+  const handleSaveExpense = async (exp: Expense) => { try { await saveExpense(exp); alert('Pengeluaran tersimpan!'); } catch (e: any) { alert(e.message); } }
+  const handleDeleteExpense = async (id: string) => { try { await deleteExpense(id); } catch (e: any) { alert(e.message); } }
   const handleSaveSettings = async (e: React.FormEvent) => { e.preventDefault(); try { await saveSettings(settings); alert('Tersimpan!'); } catch (e: any) { alert(e.message); } };
   
   // Handler khusus untuk update payment dari Detail View
@@ -1192,6 +1200,15 @@ const App = () => {
                 />
               )}
           </div>
+      )}
+
+      {/* EXPENSES TAB */}
+      {activeTab === 'expenses' && (
+        <ExpenseTracker 
+            expenses={expenses}
+            onSave={handleSaveExpense}
+            onDelete={handleDeleteExpense}
+        />
       )}
 
       {/* UPDATE: Pass 'documents' prop to Generator to enable Auto-Increment Logic */}

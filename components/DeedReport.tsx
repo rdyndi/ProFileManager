@@ -42,6 +42,7 @@ export const DeedReport: React.FC<DeedReportProps> = ({ deeds, onBack }) => {
     const monthName = months[selectedMonth];
     
     // Logic Tanggal Tanda Tangan: Bulan Laporan + 1 Bulan
+    // Jika November (10) -> Desember (11)
     let signMonthIndex = selectedMonth + 1;
     let signYear = selectedYear;
 
@@ -52,8 +53,7 @@ export const DeedReport: React.FC<DeedReportProps> = ({ deeds, onBack }) => {
     }
 
     const signMonthName = months[signMonthIndex];
-    // Format tanggal tanda tangan: [Tanggal Hari Ini] [Bulan Depan] [Tahun]
-    // Menggunakan tanggal '01' agar selalu tanggal satu.
+    // Format tanggal tanda tangan: Selalu tanggal 01 [Bulan Depan] [Tahun]
     const signatureDateStr = `01 ${signMonthName} ${signYear}`;
 
     // Helper to clean notary name from settings for the signature block

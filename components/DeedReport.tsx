@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Deed, DeedAppearer } from '../types';
 import { Printer, ArrowLeft, Calendar } from 'lucide-react';
@@ -70,20 +71,20 @@ export const DeedReport: React.FC<DeedReportProps> = ({ deeds, onBack }) => {
     const rowsHtml = filteredDeeds.map((deed, index) => {
         // Gabungkan semua penghadap dalam satu sel, dipisah baris baru
         const appearersHtml = deed.appearers.map(app => 
-            `<div class="mb-3 last:mb-0 leading-tight">${formatAppearer(app)}</div>`
+            `<div class="mb-2 last:mb-0 leading-tight">${formatAppearer(app)}</div>`
         ).join('');
 
         return `
             <tr class="border-b border-black align-top">
-                <td class="py-2 px-2 text-center border-r border-black font-medium">${deed.orderNumber}</td>
-                <td class="py-2 px-2 text-center border-r border-black">${index + 1}</td>
-                <td class="py-2 px-2 text-center border-r border-black whitespace-nowrap">
+                <td class="py-1 px-1 text-center border-r border-black font-medium">${deed.orderNumber}</td>
+                <td class="py-1 px-1 text-center border-r border-black">${index + 1}</td>
+                <td class="py-1 px-1 text-center border-r border-black whitespace-nowrap">
                     ${new Date(deed.deedDate).toLocaleDateString('id-ID', {day: '2-digit', month: 'long', year: 'numeric'})}
                 </td>
-                <td class="py-2 px-2 text-left border-r border-black font-medium w-1/3">
+                <td class="py-1 px-1 text-left border-r border-black font-medium leading-tight">
                     ${deed.deedTitle}
                 </td>
-                <td class="py-2 px-2 text-left">
+                <td class="py-1 px-1 text-left leading-tight">
                     ${appearersHtml}
                 </td>
             </tr>
@@ -104,8 +105,8 @@ export const DeedReport: React.FC<DeedReportProps> = ({ deeds, onBack }) => {
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
         <style>
           body { font-family: 'Inter', sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-          @page { size: A4 portrait; margin: 1.5cm; }
-          table { width: 100%; border-collapse: collapse; font-size: 11px; }
+          @page { size: A4 portrait; margin: 10mm; }
+          table { width: 100%; border-collapse: collapse; font-size: 10px; }
           /* Border tabel tebal solid hitam */
           table, th, td { border-color: black; }
           @media print {
@@ -114,24 +115,24 @@ export const DeedReport: React.FC<DeedReportProps> = ({ deeds, onBack }) => {
           }
         </style>
       </head>
-      <body class="bg-white text-black p-8">
+      <body class="bg-white text-black p-4">
         
-        <div class="mb-6">
-            <h1 class="text-lg font-bold uppercase mb-1">Salinan Daftar Akta-Akta Notaris ${signatureName}</h1>
-            <h2 class="text-md font-semibold uppercase">Bulan ${monthName} ${selectedYear}</h2>
+        <div class="mb-4">
+            <h1 class="text-md font-bold uppercase mb-1">Salinan Daftar Akta-Akta Notaris ${signatureName}</h1>
+            <h2 class="text-sm font-semibold uppercase">Bulan ${monthName} ${selectedYear}</h2>
         </div>
 
-        <table class="w-full border border-black">
+        <table class="w-full border border-black table-fixed">
             <thead>
-                <tr class="border-b border-black bg-gray-100 uppercase text-xs font-bold tracking-wider text-center">
-                    <th class="py-2 px-2 border-r border-black w-24">NOMOR URUT</th>
-                    <th class="py-2 px-2 border-r border-black w-24">NOMOR BULANAN</th>
-                    <th class="py-2 px-2 border-r border-black w-32">TANGGAL</th>
-                    <th class="py-2 px-2 border-r border-black">SIFAT AKTA</th>
-                    <th class="py-2 px-2">NAMA PENGHADAP</th>
+                <tr class="border-b border-black bg-gray-100 uppercase text-[10px] font-bold tracking-wider text-center">
+                    <th class="py-1 px-1 border-r border-black w-[8%]">NOMOR URUT</th>
+                    <th class="py-1 px-1 border-r border-black w-[10%]">NOMOR BULANAN</th>
+                    <th class="py-1 px-1 border-r border-black w-[12%]">TANGGAL</th>
+                    <th class="py-1 px-1 border-r border-black w-[35%]">SIFAT AKTA</th>
+                    <th class="py-1 px-1 w-[35%]">NAMA PENGHADAP</th>
                 </tr>
             </thead>
-            <tbody class="text-xs">
+            <tbody class="text-[10px]">
                 ${rowsHtml}
                 ${emptyRows}
             </tbody>
@@ -140,8 +141,8 @@ export const DeedReport: React.FC<DeedReportProps> = ({ deeds, onBack }) => {
         <div class="mt-8 flex justify-end break-inside-avoid">
              <div class="text-center w-1/2">
                 <p class="text-xs mb-4 leading-relaxed font-medium">Salinan Daftar Akta-Akta yang telah dibuat oleh saya, Notaris, selama Bulan ${monthName} ${selectedYear}.</p>
-                <p class="mb-24 text-md font-medium">Bandung Barat, ${signatureDateStr}</p>
-                <p class="font-bold text-lg uppercase underline underline-offset-4">${signatureName}</p>
+                <p class="mb-24 text-sm font-medium">Bandung Barat, ${signatureDateStr}</p>
+                <p class="font-bold text-md uppercase underline underline-offset-4">${signatureName}</p>
              </div>
         </div>
 

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { Layout } from './components/Layout';
 import { LoginScreen } from './components/LoginScreen';
@@ -18,8 +19,8 @@ import {
 } from './services/storage';
 import { auth } from './services/firebaseService';
 import { signInAnonymously } from "firebase/auth";
-import { Client, CompanySettings, DocumentData, DocType, Deed, Employee, Invoice } from './types';
-import { Users, Search, Plus, Trash2, Eye, FileText, Briefcase, ArrowUpRight, Save, Pencil, Printer, ScrollText, BookOpen, ArrowDownAZ, ArrowLeft, UserCog, Link as LinkIcon, ExternalLink, MessageCircle, Mail, Truck, TrendingUp, BarChart3, Package, FileCheck, CreditCard, Calendar, User, Banknote } from 'lucide-react';
+import { Client, CompanySettings, DocumentData, DocType, Deed, Employee, Invoice, PaymentRecord } from './types';
+import { Users, Search, Plus, Trash2, Eye, FileText, Briefcase, ArrowUpRight, Save, Pencil, Printer, ScrollText, BookOpen, ArrowDownAZ, ArrowLeft, UserCog, Link as LinkIcon, ExternalLink, MessageCircle, Mail, Truck, TrendingUp, BarChart3, Package, FileCheck, CreditCard, Calendar, User, Banknote, X } from 'lucide-react';
 
 // --- Simple Custom SVG Line Chart Component ---
 const SimpleLineChart = ({ data }: { data: any[] }) => {
@@ -262,14 +263,15 @@ const ClientDetail: React.FC<{
   );
 };
 
-// --- New Invoice Detail Component (Read Only) ---
+// --- New Invoice Detail Component (Read Only with Payment Update) ---
 const InvoiceDetail: React.FC<{
     invoice: Invoice;
     onBack: () => void;
     onEdit: () => void;
     onDelete: () => void;
     onPrint: () => void;
-}> = ({ invoice, onBack, onEdit, onDelete, onPrint }) => {
+    onUpdateInvoice: (invoice: Invoice) => void; // Prop baru untuk update
+}> = ({ invoice, onBack, onEdit, onDelete, onPrint, onUpdateInvoice }) => {
     
     // Hitung ulang total untuk display detail
     let subTotal = 0;
@@ -280,11 +282,66 @@ const InvoiceDetail: React.FC<{
         totalTax += taxAmount;
     });
     const grandTotal = subTotal - totalTax;
-    const paymentAmount = invoice.paymentAmount || 0;
+    
+    // Kalkulasi Total Terbayar dari History (atau fallback ke legacy paymentAmount)
+    const historyTotal = invoice.paymentHistory?.reduce((acc, curr) => acc + curr.amount, 0) || 0;
+    const paymentAmount = historyTotal > 0 ? historyTotal : (invoice.paymentAmount || 0);
     const remainingAmount = Math.max(0, grandTotal - paymentAmount);
 
+    // --- State for Add Payment Modal ---
+    const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+    const [newPaymentDate, setNewPaymentDate] = useState(new Date().toISOString().split('T')[0]);
+    const [newPaymentAmount, setNewPaymentAmount] = useState<number>(0);
+    
+    const handleAddPayment = () => {
+        if (newPaymentAmount <= 0) {
+            alert("Jumlah pembayaran harus lebih dari 0");
+            return;
+        }
+
+        const newPayment: PaymentRecord = {
+            id: Math.random().toString(36).substr(2, 9),
+            date: newPaymentDate,
+            amount: newPaymentAmount,
+        };
+
+        // Update Payment Logic
+        // 1. Ambil history lama (atau buat baru jika kosong, handle legacy juga)
+        let updatedHistory = invoice.paymentHistory ? [...invoice.paymentHistory] : [];
+        
+        // Handle Legacy: Jika ada paymentAmount lama tapi history kosong, buat record dummy agar matematikanya benar
+        if (updatedHistory.length === 0 && invoice.paymentAmount && invoice.paymentAmount > 0) {
+            updatedHistory.push({
+                id: 'legacy-payment',
+                date: invoice.paymentDate || invoice.date,
+                amount: invoice.paymentAmount,
+                note: 'Pembayaran Sebelumnya'
+            });
+        }
+        
+        updatedHistory.push(newPayment);
+
+        const newTotalPaid = updatedHistory.reduce((acc, curr) => acc + curr.amount, 0);
+        
+        // 2. Tentukan Status Baru (Auto Lunas)
+        // Gunakan toleransi kecil untuk floating point comparison jika perlu, tapi integer IDR aman
+        const newStatus = newTotalPaid >= grandTotal ? 'PAID' : 'UNPAID';
+
+        const updatedInvoice: Invoice = {
+            ...invoice,
+            paymentHistory: updatedHistory,
+            paymentAmount: newTotalPaid, // Update total cache
+            paymentDate: newPaymentDate, // Update last payment date
+            status: newStatus
+        };
+
+        onUpdateInvoice(updatedInvoice);
+        setIsPaymentModalOpen(false);
+        setNewPaymentAmount(0); // Reset form
+    };
+
     return (
-        <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300 max-w-5xl mx-auto">
+        <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300 max-w-5xl mx-auto relative">
              {/* Header */}
              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
@@ -397,9 +454,20 @@ const InvoiceDetail: React.FC<{
 
                     {/* TABLE INFORMASI PEMBAYARAN */}
                     <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                        <div className="px-6 py-4 border-b border-slate-100 bg-slate-50 flex items-center gap-2">
-                            <Banknote className="w-4 h-4 text-slate-600"/>
-                            <h3 className="font-bold text-slate-800 text-sm">Riwayat Pembayaran</h3>
+                        <div className="px-6 py-4 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <Banknote className="w-4 h-4 text-slate-600"/>
+                                <h3 className="font-bold text-slate-800 text-sm">Riwayat Pembayaran</h3>
+                            </div>
+                            {/* Tombol Tambah Pembayaran */}
+                            {invoice.status === 'UNPAID' && (
+                                <button 
+                                    onClick={() => setIsPaymentModalOpen(true)}
+                                    className="text-xs bg-green-50 text-green-700 px-3 py-1.5 rounded-lg font-bold border border-green-200 hover:bg-green-100 flex items-center gap-1 transition"
+                                >
+                                    <Plus className="w-3 h-3" /> Tambah Pembayaran
+                                </button>
+                            )}
                         </div>
                         <div className="p-0">
                             <table className="w-full text-sm">
@@ -407,36 +475,62 @@ const InvoiceDetail: React.FC<{
                                     <tr>
                                         <th className="px-6 py-3 text-left font-medium">Tanggal Pembayaran</th>
                                         <th className="px-6 py-3 text-right font-medium">Jumlah Dibayar</th>
-                                        <th className="px-6 py-3 text-right font-medium">Sisa Tagihan</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100">
-                                    {paymentAmount > 0 ? (
+                                    {invoice.paymentHistory && invoice.paymentHistory.length > 0 ? (
+                                        invoice.paymentHistory.map((pay) => (
+                                            <tr key={pay.id}>
+                                                <td className="px-6 py-4 text-slate-700">
+                                                    {new Date(pay.date).toLocaleDateString('id-ID', {day: 'numeric', month: 'long', year: 'numeric'})}
+                                                    {pay.note && <div className="text-[10px] text-slate-400 italic">{pay.note}</div>}
+                                                </td>
+                                                <td className="px-6 py-4 text-right font-mono font-medium text-slate-700">
+                                                    {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(pay.amount)}
+                                                </td>
+                                            </tr>
+                                        ))
+                                    ) : paymentAmount > 0 ? (
+                                        // Fallback Legacy Single Payment Data
                                         <tr>
                                             <td className="px-6 py-4 text-slate-700">
                                                 {invoice.paymentDate ? new Date(invoice.paymentDate).toLocaleDateString('id-ID', {day: 'numeric', month: 'long', year: 'numeric'}) : '-'}
+                                                <div className="text-[10px] text-slate-400 italic">Data lama</div>
                                             </td>
-                                            <td className="px-6 py-4 text-right font-mono font-bold text-green-600">
+                                            <td className="px-6 py-4 text-right font-mono font-medium text-slate-700">
                                                 {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(paymentAmount)}
-                                            </td>
-                                            <td className="px-6 py-4 text-right font-mono font-bold text-red-600">
-                                                 {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(remainingAmount)}
                                             </td>
                                         </tr>
                                     ) : (
                                         <tr>
-                                            <td colSpan={3} className="px-6 py-8 text-center text-slate-400 italic">
-                                                Belum ada pembayaran yang tercatat untuk invoice ini.
+                                            <td colSpan={2} className="px-6 py-8 text-center text-slate-400 italic">
+                                                Belum ada pembayaran yang tercatat.
                                             </td>
                                         </tr>
                                     )}
+                                    
+                                    {/* Footer Total */}
+                                    {paymentAmount > 0 && (
+                                        <tr className="bg-slate-50 font-bold">
+                                            <td className="px-6 py-3 text-slate-800 text-right">Total Terbayar</td>
+                                            <td className="px-6 py-3 text-right font-mono text-green-700">
+                                                {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(paymentAmount)}
+                                            </td>
+                                        </tr>
+                                    )}
+                                    <tr className="bg-white font-bold border-t-2 border-slate-100">
+                                        <td className="px-6 py-3 text-slate-800 text-right">Sisa Tagihan</td>
+                                        <td className="px-6 py-3 text-right font-mono text-red-600">
+                                            {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(remainingAmount)}
+                                        </td>
+                                    </tr>
                                 </tbody>
                             </table>
                         </div>
                     </div>
                 </div>
 
-                {/* Sidebar Info if needed, or just leave empty for layout balance */}
+                {/* Sidebar Info */}
                 <div className="space-y-6">
                     <div className="bg-slate-800 text-white p-6 rounded-xl shadow-lg">
                         <div className="flex items-center gap-3 mb-4">
@@ -462,6 +556,70 @@ const InvoiceDetail: React.FC<{
                     </div>
                 </div>
              </div>
+
+             {/* MODAL TAMBAH PEMBAYARAN */}
+             {isPaymentModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+                    <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                        <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                            <h3 className="font-bold text-slate-800">Tambah Pembayaran</h3>
+                            <button onClick={() => setIsPaymentModalOpen(false)} className="text-slate-400 hover:text-slate-600">
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+                        <div className="p-6 space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">Tanggal Pembayaran</label>
+                                <input
+                                    type="date"
+                                    value={newPaymentDate}
+                                    onChange={(e) => setNewPaymentDate(e.target.value)}
+                                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">Jumlah (Rp)</label>
+                                <div className="relative">
+                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-medium">Rp</span>
+                                    <input 
+                                        type="text" 
+                                        value={new Intl.NumberFormat('id-ID').format(newPaymentAmount)}
+                                        onChange={(e) => {
+                                            const raw = e.target.value.replace(/\D/g, '');
+                                            setNewPaymentAmount(Number(raw));
+                                        }}
+                                        placeholder="0"
+                                        className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none font-mono text-lg font-semibold"
+                                    />
+                                </div>
+                                <div className="mt-2 text-xs text-slate-500 flex justify-between">
+                                    <span>Sisa Tagihan: {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(remainingAmount)}</span>
+                                    <button 
+                                        onClick={() => setNewPaymentAmount(remainingAmount)}
+                                        className="text-primary-600 font-bold hover:underline"
+                                    >
+                                        Bayar Lunas
+                                    </button>
+                                </div>
+                            </div>
+                            <div className="pt-4 flex gap-3">
+                                <button 
+                                    onClick={() => setIsPaymentModalOpen(false)}
+                                    className="flex-1 py-2.5 bg-white border border-slate-300 text-slate-700 rounded-lg font-medium hover:bg-slate-50"
+                                >
+                                    Batal
+                                </button>
+                                <button 
+                                    onClick={handleAddPayment}
+                                    className="flex-1 py-2.5 bg-primary-600 text-white rounded-lg font-medium hover:bg-primary-700"
+                                >
+                                    Simpan
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+             )}
         </div>
     )
 };
@@ -635,6 +793,19 @@ const App = () => {
   const handleSaveInvoice = async (inv: Invoice) => { try { await saveInvoice(inv); alert('Invoice tersimpan!'); setInvoiceViewState('list'); } catch (e: any) { alert(e.message); } }
   const handleDeleteInvoice = async (id: string) => { if (window.confirm('Hapus invoice?')) { try { await deleteInvoice(id); if (selectedInvoice?.id === id) { setSelectedInvoice(null); setInvoiceViewState('list'); } } catch (e: any) { alert(e.message); } } }
   const handleSaveSettings = async (e: React.FormEvent) => { e.preventDefault(); try { await saveSettings(settings); alert('Tersimpan!'); } catch (e: any) { alert(e.message); } };
+  
+  // Handler khusus untuk update payment dari Detail View
+  const handleUpdateInvoicePayment = async (updatedInvoice: Invoice) => {
+      try {
+          await saveInvoice(updatedInvoice);
+          // Karena pakai subscription real-time, state akan update otomatis via useEffect.
+          // Tapi untuk responsivitas UI modal, kita update selectedInvoice juga
+          setSelectedInvoice(updatedInvoice);
+          alert("Pembayaran berhasil dicatat.");
+      } catch (e: any) {
+          alert("Gagal update pembayaran: " + e.message);
+      }
+  };
 
   const filteredClients = clients.filter(c => c.name.toLowerCase().includes(searchQuery.toLowerCase()) || c.type.toLowerCase().includes(searchQuery.toLowerCase()));
   const filteredEmployees = employees.filter(e => e.name.toLowerCase().includes(empSearchQuery.toLowerCase()) || e.role.toLowerCase().includes(empSearchQuery.toLowerCase()));
@@ -814,6 +985,7 @@ const App = () => {
                     onEdit={() => setInvoiceViewState('edit')}
                     onDelete={() => handleDeleteInvoice(selectedInvoice.id)}
                     onPrint={() => printInvoice(selectedInvoice)}
+                    onUpdateInvoice={handleUpdateInvoicePayment}
                  />
               ) : (
                 <InvoiceGenerator 

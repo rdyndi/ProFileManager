@@ -1,4 +1,5 @@
 
+
 export type EntityType = 'PT' | 'CV' | 'Perorangan' | 'YAYASAN' | 'PERKUMPULAN' | 'Lainnya';
 
 export interface Client {
@@ -92,6 +93,7 @@ export interface Deed {
 export interface InvoiceItem {
   description: string;
   amount: number;
+  isTaxed?: boolean; // NEW: Checkbox PPH 21
 }
 
 export interface Invoice {
@@ -106,4 +108,6 @@ export interface Invoice {
   status: 'UNPAID' | 'PAID';
   notes?: string; // Catatan tambahan / Info Pembayaran
   createdAt: number;
+  paymentDate?: string; // Tanggal Pembayaran
+  paymentAmount?: number; // Jumlah Pembayaran
 }

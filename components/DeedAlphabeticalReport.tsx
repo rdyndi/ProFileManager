@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Deed, DeedAppearer } from '../types';
 import { Printer, ArrowLeft, Calendar } from 'lucide-react';
@@ -48,6 +49,7 @@ export const DeedAlphabeticalReport: React.FC<DeedAlphabeticalReportProps> = ({ 
   };
 
   const handlePrint = () => {
+    const settings = getCachedSettings();
     const monthName = months[selectedMonth];
 
     // Logic Tanggal Tanda Tangan: Bulan Laporan + 1 Bulan
@@ -61,9 +63,39 @@ export const DeedAlphabeticalReport: React.FC<DeedAlphabeticalReportProps> = ({ 
     }
     
     const signMonthName = months[signMonthIndex];
-    const reportDateString = `01 ${signMonthName} ${signYear}`;
+    // Selalu tanggal 01
+    const signatureDateStr = `01 ${signMonthName} ${signYear}`;
 
-    const notarisName = "Notaris Nukantini Putri Parincha,SH.,M.kn";
+    // Helper: Clean notary name
+    let signatureName = settings.companyName;
+    const prefix1 = "Notaris/PPAT ";
+    const prefix2 = "Notaris ";
+    if (signatureName.toLowerCase().startsWith(prefix1.toLowerCase())) {
+        signatureName = signatureName.substring(prefix1.length);
+    } else if (signatureName.toLowerCase().startsWith(prefix2.toLowerCase())) {
+        signatureName = signatureName.substring(prefix2.length);
+    }
+
+    // Column Widths (Optimized for A4 Portrait to prevent overlap)
+    // Adjusted widths to ensure headers like "NOMOR BULANAN" can wrap if needed without overflowing
+    const w1 = "7%";  // Nomor Urut
+    const w2 = "8%";  // Nomor Bulanan
+    const w3 = "15%"; // Tanggal
+    const w4 = "35%"; // Sifat Akta
+    const w5 = "35%"; // Nama Penghadap
+
+    // Shared Header Template
+    const tableHeader = `
+        <thead>
+            <tr class="border-b border-black bg-white font-bold text-center uppercase text-[10px]">
+                <th style="width: ${w1}" class="py-1 px-1 border-r border-black break-words">NOMOR URUT</th>
+                <th style="width: ${w2}" class="py-1 px-1 border-r border-black break-words">NOMOR BULANAN</th>
+                <th style="width: ${w3}" class="py-1 px-1 border-r border-black break-words">TANGGAL</th>
+                <th style="width: ${w4}" class="py-1 px-1 border-r border-black break-words">SIFAT AKTA</th>
+                <th style="width: ${w5}" class="py-1 px-1 break-words">NAMA PENGHADAP</th>
+            </tr>
+        </thead>
+    `;
     
     // Generate HTML per Huruf
     const contentHtml = alphabet.map(letter => {
@@ -76,16 +108,8 @@ export const DeedAlphabeticalReport: React.FC<DeedAlphabeticalReportProps> = ({ 
         if (deedsForLetter.length === 0) {
             // Tampilan NIHIL
             sectionContent = `
-                <table class="w-full border border-black mb-4 text-xs">
-                    <thead>
-                        <tr class="border-b border-black bg-gray-100 font-bold text-center uppercase">
-                            <th class="py-1 px-1 border-r border-black w-10">No. Urut</th>
-                            <th class="py-1 px-1 border-r border-black w-10">No. Bln</th>
-                            <th class="py-1 px-1 border-r border-black w-24">Tanggal</th>
-                            <th class="py-1 px-1 border-r border-black">Sifat Akta</th>
-                            <th class="py-1 px-1">Nama Penghadap</th>
-                        </tr>
-                    </thead>
+                <table class="w-full border border-black text-[10px] mb-4">
+                    ${tableHeader}
                     <tbody>
                         <tr>
                             <td class="py-1 px-1 border-r border-black text-center font-bold">N</td>
@@ -109,15 +133,15 @@ export const DeedAlphabeticalReport: React.FC<DeedAlphabeticalReportProps> = ({ 
 
                 return `
                     <tr class="border-b border-black align-top">
-                        <td class="py-1 px-1 text-center border-r border-black font-medium">${deed.orderNumber}</td>
-                        <td class="py-1 px-1 text-center border-r border-black">${monthlyIndex}</td>
-                        <td class="py-1 px-1 text-center border-r border-black whitespace-nowrap">
-                            ${new Date(deed.deedDate).toLocaleDateString('id-ID', {day: '2-digit', month: 'short', year: 'numeric'})}
+                        <td class="py-1 px-1 text-center border-r border-black font-medium break-words">${deed.orderNumber}</td>
+                        <td class="py-1 px-1 text-center border-r border-black break-words">${monthlyIndex}</td>
+                        <td class="py-1 px-1 text-center border-r border-black break-words">
+                            ${new Date(deed.deedDate).toLocaleDateString('id-ID', {day: '2-digit', month: 'long', year: 'numeric'})}
                         </td>
-                        <td class="py-1 px-1 text-left border-r border-black font-medium w-1/3">
+                        <td class="py-1 px-1 text-left border-r border-black font-medium leading-tight break-words">
                             ${deed.deedTitle}
                         </td>
-                        <td class="py-1 px-1 text-left">
+                        <td class="py-1 px-1 text-left leading-tight break-words">
                             ${appearersHtml}
                         </td>
                     </tr>
@@ -125,16 +149,8 @@ export const DeedAlphabeticalReport: React.FC<DeedAlphabeticalReportProps> = ({ 
             }).join('');
 
             sectionContent = `
-                <table class="w-full border border-black mb-4 text-xs">
-                    <thead>
-                        <tr class="border-b border-black bg-gray-100 font-bold text-center uppercase">
-                            <th class="py-1 px-1 border-r border-black w-16">No. Urut</th>
-                            <th class="py-1 px-1 border-r border-black w-16">No. Bln</th>
-                            <th class="py-1 px-1 border-r border-black w-24">Tanggal</th>
-                            <th class="py-1 px-1 border-r border-black">Sifat Akta</th>
-                            <th class="py-1 px-1">Nama Penghadap</th>
-                        </tr>
-                    </thead>
+                <table class="w-full border border-black text-[10px] mb-4">
+                    ${tableHeader}
                     <tbody>
                         ${rows}
                     </tbody>
@@ -143,8 +159,8 @@ export const DeedAlphabeticalReport: React.FC<DeedAlphabeticalReportProps> = ({ 
         }
 
         return `
-            <div class="break-inside-avoid mb-6">
-                <h3 class="font-bold text-lg mb-1 ml-1 border-b-2 border-black inline-block px-2">${letter}</h3>
+            <div class="break-inside-avoid">
+                <div class="text-left font-bold text-sm mb-1 uppercase">${letter}</div>
                 ${sectionContent}
             </div>
         `;
@@ -159,31 +175,35 @@ export const DeedAlphabeticalReport: React.FC<DeedAlphabeticalReportProps> = ({ 
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
         <style>
           body { font-family: 'Inter', sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-          @page { size: A4; margin: 1.5cm; }
-          table { width: 100%; border-collapse: collapse; font-size: 10px; }
+          @page { size: A4 portrait; margin: 10mm; }
+          /* table-layout: fixed Ensures columns respect width percentages and don't expand to overflow */
+          table { width: 100%; border-collapse: collapse; font-size: 10px; table-layout: fixed; }
           table, th, td { border-color: black; }
+          /* Ensure words break if they are too long for the column */
+          td, th { word-wrap: break-word; overflow-wrap: break-word; word-break: break-word; vertical-align: top; }
           @media print {
             body { background: white; }
             .no-print { display: none; }
           }
         </style>
       </head>
-      <body class="bg-white text-black p-8">
-        <div class="mb-8 text-center">
-            <h1 class="text-lg font-bold uppercase mb-1">Salinan Daftar Klapper Akta ${notarisName}</h1>
-            <h2 class="text-md font-semibold uppercase">Bulan ${monthName} ${selectedYear}</h2>
+      <body class="bg-white text-black">
+        <div class="mb-4">
+            <h1 class="text-sm font-bold uppercase text-left">Salinan Daftar Akta-Akta Notaris ${signatureName} Bulan ${monthName} ${selectedYear}</h1>
         </div>
-        <div class="space-y-4">${contentHtml}</div>
-        <div class="mt-8 pt-4 break-inside-avoid">
-             <p class="text-xs mb-8">Salinan Daftar Akta-Akta (Klapper) yang telah dibuat oleh saya, Notaris, selama Bulan ${monthName} ${selectedYear}.</p>
-             <div class="flex justify-end mt-12 px-4">
-                <div class="text-center w-64">
-                    <p class="mb-24 text-xs font-medium">Bandung Barat, ${reportDateString}</p>
-                    <p class="font-bold text-sm uppercase underline underline-offset-2">${notarisName}</p>
-                    <p class="font-bold text-xs mt-1">Notaris di Kabupaten Bandung Barat</p>
-                </div>
+        
+        <div>
+            ${contentHtml}
+        </div>
+
+        <div class="mt-8 flex justify-end break-inside-avoid">
+             <div class="text-center w-1/2">
+                <p class="text-xs mb-4 leading-relaxed font-medium">Salinan Daftar Klapper dari Akta-Akta yang telah dibuat dihadapan saya, Notaris, selama bulan ${monthName} ${selectedYear}.</p>
+                <p class="mb-24 text-sm font-medium">Bandung Barat, ${signatureDateStr}</p>
+                <p class="font-bold text-md uppercase underline underline-offset-4">${signatureName}</p>
              </div>
         </div>
+
         <script>setTimeout(() => { window.print(); }, 1000);</script>
       </body>
       </html>
@@ -229,9 +249,6 @@ export const DeedAlphabeticalReport: React.FC<DeedAlphabeticalReportProps> = ({ 
        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
                 {alphabet.map(letter => {
-                    // Logic Perhitungan Count diperbarui:
-                    // Hitung jumlah ENTRY, bukan jumlah akta unik. Jika 1 akta ada 2 orang berawalan A, dihitung 1 (karena 1 baris akta).
-                    // Tapi jika 1 akta ada orang A dan orang B, akta itu dihitung di A dan di B.
                     const count = filteredDeeds.filter(d => d.appearers.some(app => isNameStartWith(app.name, letter))).length;
                     return (
                         <div key={letter} className={`p-3 rounded-lg border text-center ${count > 0 ? 'bg-blue-50 border-blue-200' : 'bg-slate-50 border-slate-100'}`}>

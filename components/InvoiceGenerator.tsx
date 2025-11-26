@@ -154,6 +154,9 @@ export const printReceipt = (invoice: Invoice, payment: PaymentRecord) => {
             Dicetak otomatis melalui Sistem Notaris Putri Office pada ${new Date().toLocaleString()}
         </div>
 
+        <script>
+            setTimeout(() => { window.print(); }, 500);
+        </script>
       </body></html>`;
 
     const printWindow = window.open('', '_blank');
@@ -164,15 +167,15 @@ export const printReceipt = (invoice: Invoice, payment: PaymentRecord) => {
     }
 };
 
-// --- Standalone Print Function ---
+// --- Standalone Print Function (Invoice) ---
 export const printInvoice = (invoice: Invoice) => {
     const { invoiceNumber, date, dueDate, clientName, clientAddress, items, status, paymentDate, paymentAmount, notes, paymentHistory } = invoice;
     const settings = getCachedSettings();
     const companyName = settings.companyName;
     const companyAddress = settings.companyAddress;
-    const companyContact = `Telp: ${settings.companyPhone} | Email: ${settings.companyEmail}`;
+    const companyContact = `${settings.companyPhone} | ${settings.companyEmail}`;
 
-    // Recalculate totals for display
+    // Recalculate totals for display to ensure consistency
     let subTotal = 0;
     let totalTax = 0;
 
@@ -183,12 +186,8 @@ export const printInvoice = (invoice: Invoice) => {
 
         return `
             <tr class="border-b border-slate-200">
-                <td class="py-2 px-4 text-left align-top font-bold text-slate-700">${item.description}</td>
-                <td class="py-2 px-4 text-center align-top">1</td>
-                <td class="py-2 px-4 text-right align-top font-mono">${new Intl.NumberFormat('id-ID').format(grossAmount)}</td>
-                <td class="py-2 px-4 text-center align-top">0%</td>
-                <td class="py-2 px-4 text-right align-top font-mono">${taxAmount > 0 ? new Intl.NumberFormat('id-ID').format(taxAmount) : '-'}</td>
-                <td class="py-2 px-4 text-right align-top font-mono font-semibold">${new Intl.NumberFormat('id-ID').format(grossAmount)}</td>
+                <td class="py-2 px-2 text-left align-top font-bold text-slate-700 text-sm">${item.description}</td>
+                <td class="py-2 px-2 text-right align-top font-mono font-bold text-slate-800 text-sm">${new Intl.NumberFormat('id-ID').format(grossAmount)}</td>
             </tr>
         `;
     }).join('');
@@ -203,9 +202,8 @@ export const printInvoice = (invoice: Invoice) => {
     if (paymentHistory && paymentHistory.length > 0) {
         paymentHistoryRows = paymentHistory.map(pay => `
             <tr class="text-xs">
-                <td class="py-1 text-right font-bold text-slate-600">
-                    Bayar tgl ${new Date(pay.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
-                    ${pay.note ? `<br/><span class="text-[9px] font-normal text-slate-400">(${pay.note})</span>` : ''}
+                <td class="py-1 text-right font-bold text-slate-600 pr-4">
+                    DP / Pembayaran (${new Date(pay.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })})
                 </td>
                 <td class="py-1 text-right font-bold font-mono text-slate-800">${new Intl.NumberFormat('id-ID').format(pay.amount)}</td>
             </tr>
@@ -214,39 +212,39 @@ export const printInvoice = (invoice: Invoice) => {
         // Legacy single payment
         paymentHistoryRows = `
             <tr class="text-xs">
-                <td class="py-1 text-right font-bold text-slate-600">Dibayar</td>
+                <td class="py-1 text-right font-bold text-slate-600 pr-4">Dibayar</td>
                 <td class="py-1 text-right font-bold font-mono text-slate-800">${new Intl.NumberFormat('id-ID').format(totalPaid)}</td>
             </tr>
         `;
     }
 
     const printContent = `
-      <!DOCTYPE html><html><head><title>Invoice - ${invoiceNumber}</title><script src="https://cdn.tailwindcss.com"></script><link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"><style>
+      <!DOCTYPE html><html><head><title>Invoice - ${invoiceNumber}</title><script src="https://cdn.tailwindcss.com"></script><link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet"><style>
       body { font-family: 'Inter', sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; } 
       @page { size: A4; margin: 10mm 15mm; } 
       @media print { .no-print { display: none; } body { -webkit-print-color-adjust: exact; } }
-      </style></head><body class="bg-white text-slate-900 p-4 max-w-[21cm] mx-auto relative">
+      </style></head><body class="bg-white text-slate-900 p-2 max-w-[21cm] mx-auto relative">
         
         <!-- HEADER -->
-        <div class="flex justify-between items-start mb-10">
+        <div class="flex justify-between items-start mb-8">
             <div>
                 <h1 class="text-2xl font-bold text-blue-700 tracking-tight uppercase">${companyName}</h1>
             </div>
             <div class="text-right">
-                <h2 class="text-3xl font-bold text-blue-700 tracking-tight mb-2">Invoice</h2>
-                <div class="text-xs space-y-1 text-slate-600">
-                    <div class="flex justify-end gap-4">
-                        <span class="font-semibold">Nomor</span>
-                        <span class="font-mono w-24">${invoiceNumber}</span>
+                <h2 class="text-3xl font-bold text-blue-700 tracking-tight mb-1">Invoice</h2>
+                <div class="text-xs space-y-0.5 text-slate-800 font-medium">
+                    <div class="flex justify-end gap-6">
+                        <span>Nomor</span>
+                        <span class="font-mono text-right w-24">${invoiceNumber}</span>
                     </div>
-                    <div class="flex justify-end gap-4">
-                        <span class="font-semibold">Tanggal</span>
-                        <span class="font-mono w-24">${new Date(date).toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' })}</span>
+                    <div class="flex justify-end gap-6">
+                        <span>Tanggal</span>
+                        <span class="font-mono text-right w-24">${new Date(date).toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' })}</span>
                     </div>
                     ${dueDate ? `
-                    <div class="flex justify-end gap-4">
-                        <span class="font-semibold">Tgl. Jatuh Tempo</span>
-                        <span class="font-mono w-24">${new Date(dueDate).toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' })}</span>
+                    <div class="flex justify-end gap-6">
+                        <span>Tgl. Jatuh Tempo</span>
+                        <span class="font-mono text-right w-24">${new Date(dueDate).toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' })}</span>
                     </div>
                     ` : ''}
                 </div>
@@ -254,35 +252,31 @@ export const printInvoice = (invoice: Invoice) => {
         </div>
 
         <!-- INFO SECTION -->
-        <div class="grid grid-cols-2 gap-16 mb-8">
+        <div class="grid grid-cols-2 gap-16 mb-6">
             <div>
-                <h3 class="text-xs font-bold text-slate-800 border-b-2 border-slate-800 pb-1 mb-3 uppercase">Informasi Perusahaan</h3>
-                <div class="text-xs text-slate-600 space-y-1 leading-relaxed">
-                    <p class="font-bold text-blue-700 text-sm">${companyName}</p>
+                <h3 class="text-xs font-bold text-slate-800 border-b-2 border-slate-800 pb-1 mb-2">Informasi Perusahaan</h3>
+                <div class="text-xs text-slate-700 space-y-0.5 leading-tight">
+                    <p class="font-bold text-blue-700">${companyName}</p>
                     <p class="whitespace-pre-line">${companyAddress}</p>
                     <p>${companyContact}</p>
                 </div>
             </div>
             <div>
-                <h3 class="text-xs font-bold text-slate-800 border-b-2 border-slate-800 pb-1 mb-3 uppercase">Tagihan Kepada</h3>
-                <div class="text-xs text-slate-600 space-y-1 leading-relaxed">
-                    <p class="font-bold text-blue-700 text-sm uppercase">${clientName}</p>
+                <h3 class="text-xs font-bold text-slate-800 border-b-2 border-slate-800 pb-1 mb-2">Tagihan Kepada</h3>
+                <div class="text-xs text-slate-700 space-y-0.5 leading-tight">
+                    <p class="font-bold text-blue-700 uppercase">${clientName}</p>
                     <p class="whitespace-pre-line">${clientAddress}</p>
                 </div>
             </div>
         </div>
 
         <!-- TABLE -->
-        <div class="mb-8">
+        <div class="mb-6">
             <table class="w-full border-collapse text-xs">
                 <thead>
                     <tr class="bg-slate-800 text-white">
-                        <th class="py-2 px-4 text-left w-1/3">Produk</th>
-                        <th class="py-2 px-4 text-center">Kuantitas</th>
-                        <th class="py-2 px-4 text-right">Harga</th>
-                        <th class="py-2 px-4 text-center">Diskon</th>
-                        <th class="py-2 px-4 text-right">Pajak</th>
-                        <th class="py-2 px-4 text-right">Jumlah</th>
+                        <th class="py-2 px-2 text-left">Deskripsi</th>
+                        <th class="py-2 px-2 text-right w-32">Jumlah</th>
                     </tr>
                 </thead>
                 <tbody class="text-slate-700">
@@ -292,63 +286,70 @@ export const printInvoice = (invoice: Invoice) => {
         </div>
 
         <!-- SUMMARY & FOOTER -->
-        <div class="flex justify-between items-start">
-            <!-- LEFT: Terbilang & Notes -->
+        <div class="flex justify-between items-start mt-4">
+            <!-- LEFT: Terbilang -->
             <div class="w-1/2 pr-8">
                 <div class="mb-6">
-                    <p class="text-[10px] font-bold text-slate-500 uppercase mb-1">Terbilang</p>
-                    <p class="text-xs font-medium italic text-slate-800 capitalize px-3 py-2 bg-slate-50 rounded border border-slate-200">
+                    <p class="text-[10px] font-bold text-slate-800 mb-1">Terbilang</p>
+                    <p class="text-xs font-medium text-slate-800 capitalize">
                         ${terbilangText}
                     </p>
                 </div>
                 ${notes ? `
-                <div class="text-[10px] text-slate-500 space-y-1">
-                    <p class="font-bold uppercase">Catatan:</p>
+                <div class="text-[10px] text-slate-600 space-y-1 mt-8">
                     <p class="whitespace-pre-line leading-relaxed">${notes}</p>
                 </div>
                 ` : ''}
             </div>
 
             <!-- RIGHT: Totals -->
-            <div class="w-1/2 pl-8">
-                <table class="w-full text-sm">
+            <div class="w-1/2 pl-4">
+                <table class="w-full text-xs">
                     <tbody>
                         <tr>
-                            <td class="py-1 text-right font-bold text-slate-600">Subtotal</td>
-                            <td class="py-1 text-right font-mono text-slate-800 w-32">${new Intl.NumberFormat('id-ID').format(subTotal)}</td>
+                            <td class="py-1 text-right font-bold text-slate-800 pr-4">Subtotal</td>
+                            <td class="py-1 text-right font-mono text-slate-800 font-bold w-32">${new Intl.NumberFormat('id-ID').format(subTotal)}</td>
                         </tr>
                         ${totalTax > 0 ? `
                         <tr>
-                            <td class="py-1 text-right font-bold text-slate-600">Pajak (PPh 21)</td>
+                            <td class="py-1 text-right font-bold text-slate-800 pr-4">Pajak (PPh 21)</td>
                             <td class="py-1 text-right font-mono text-red-600">(${new Intl.NumberFormat('id-ID').format(totalTax)})</td>
                         </tr>
                         ` : ''}
-                        <tr class="border-t border-slate-300">
-                            <td class="py-2 text-right font-bold text-slate-900 text-base">Total</td>
-                            <td class="py-2 text-right font-bold font-mono text-slate-900 text-base">${new Intl.NumberFormat('id-ID').format(grandTotal)}</td>
+                        <tr>
+                            <td class="py-1 text-right font-bold text-slate-900 text-sm pr-4">Total</td>
+                            <td class="py-1 text-right font-bold font-mono text-slate-900 text-sm">Rp ${new Intl.NumberFormat('id-ID').format(grandTotal)}</td>
                         </tr>
                         
                         <!-- Payment History Section -->
+                        <tr><td colspan="2" class="py-2"></td></tr>
                         ${paymentHistoryRows}
 
-                        <tr class="border-t-2 border-slate-800">
-                            <td class="py-2 text-right font-bold text-slate-900">Sisa Tagihan</td>
-                            <td class="py-2 text-right font-bold font-mono text-slate-900">${new Intl.NumberFormat('id-ID').format(remainingBalance)}</td>
+                        <tr>
+                            <td class="py-2 text-right font-bold text-slate-900 pr-4">Sisa Tagihan</td>
+                            <td class="py-2 text-right font-bold font-mono text-slate-900">Rp ${new Intl.NumberFormat('id-ID').format(remainingBalance)}</td>
                         </tr>
                     </tbody>
                 </table>
 
                 <!-- Signature -->
-                <div class="mt-16 text-right">
-                    <p class="text-xs text-slate-600 mb-16">Dengan Hormat,</p>
+                <div class="mt-12 text-right">
                     <div class="inline-block text-center min-w-[150px]">
-                        <p class="font-bold text-xs text-slate-900 border-b border-slate-800 pb-1 mb-1 uppercase">${companyName}</p>
-                        <p class="text-[10px] text-slate-500">Jabatan</p>
+                        <p class="text-xs text-slate-800 mb-1">Dengan Hormat,</p>
+                        <img 
+                            src="https://kledo-live-user.s3.ap-southeast-1.amazonaws.com/notarisppatranukantiniputriparincha.api.kledo.com/invoice-signature.png?random_number=1764178820442" 
+                            class="h-20 mx-auto object-contain my-2"
+                            alt="Tanda Tangan"
+                        />
+                        <p class="font-bold text-xs text-slate-900 mb-1 uppercase">Nukantini Putri Parincha,SH.M.kn</p>
                     </div>
                 </div>
             </div>
         </div>
         
+        <script>
+            setTimeout(() => { window.print(); }, 500);
+        </script>
       </body></html>`;
 
     const printWindow = window.open('', '_blank');

@@ -287,27 +287,39 @@ const InvoiceDetail: React.FC<{
     const paymentAmount = historyTotal > 0 ? historyTotal : (invoice.paymentAmount || 0);
     const remainingAmount = Math.max(0, grandTotal - paymentAmount);
 
-    // --- State for Add Payment Modal ---
+    // --- State for Add/Edit Payment Modal ---
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+    const [editingPaymentId, setEditingPaymentId] = useState<string | null>(null);
     const [newPaymentDate, setNewPaymentDate] = useState(new Date().toISOString().split('T')[0]);
     const [newPaymentAmount, setNewPaymentAmount] = useState<number>(0);
+    const [paymentNote, setPaymentNote] = useState('');
     
-    const handleAddPayment = () => {
+    const openAddPayment = () => {
+        setEditingPaymentId(null);
+        setNewPaymentDate(new Date().toISOString().split('T')[0]);
+        setNewPaymentAmount(0);
+        setPaymentNote('');
+        setIsPaymentModalOpen(true);
+    };
+
+    const openEditPayment = (payment: PaymentRecord) => {
+        setEditingPaymentId(payment.id);
+        setNewPaymentDate(payment.date);
+        setNewPaymentAmount(payment.amount);
+        setPaymentNote(payment.note || '');
+        setIsPaymentModalOpen(true);
+    };
+
+    const handleSavePayment = () => {
         if (newPaymentAmount <= 0) {
             alert("Jumlah pembayaran harus lebih dari 0");
             return;
         }
 
-        const newPayment: PaymentRecord = {
-            id: Math.random().toString(36).substr(2, 9),
-            date: newPaymentDate,
-            amount: newPaymentAmount,
-        };
-
-        // Update Payment Logic
+        // Get current history or initialize
         let updatedHistory = invoice.paymentHistory ? [...invoice.paymentHistory] : [];
         
-        // Handle Legacy
+        // Handle Legacy Migration if needed (only if not already migrated)
         if (updatedHistory.length === 0 && invoice.paymentAmount && invoice.paymentAmount > 0) {
             updatedHistory.push({
                 id: 'legacy-payment',
@@ -316,24 +328,86 @@ const InvoiceDetail: React.FC<{
                 note: 'Pembayaran Sebelumnya'
             });
         }
-        
-        updatedHistory.push(newPayment);
 
+        if (editingPaymentId) {
+            // Mode Edit
+            const idx = updatedHistory.findIndex(p => p.id === editingPaymentId);
+            if (idx >= 0) {
+                updatedHistory[idx] = {
+                    ...updatedHistory[idx],
+                    date: newPaymentDate,
+                    amount: newPaymentAmount,
+                    note: paymentNote
+                };
+            } else if (editingPaymentId === 'legacy-payment') {
+                // Handle editing the virtual legacy payment
+                 updatedHistory = updatedHistory.map(p => p.id === 'legacy-payment' ? {
+                    id: 'legacy-payment', // Keep ID or gen new one
+                    date: newPaymentDate,
+                    amount: newPaymentAmount,
+                    note: paymentNote
+                 } : p);
+            }
+        } else {
+            // Mode Tambah
+            const newPayment: PaymentRecord = {
+                id: Math.random().toString(36).substr(2, 9),
+                date: newPaymentDate,
+                amount: newPaymentAmount,
+                note: paymentNote
+            };
+            updatedHistory.push(newPayment);
+        }
+
+        // Recalculate totals
         const newTotalPaid = updatedHistory.reduce((acc, curr) => acc + curr.amount, 0);
-        
         const newStatus = newTotalPaid >= grandTotal ? 'PAID' : 'UNPAID';
 
         const updatedInvoice: Invoice = {
             ...invoice,
             paymentHistory: updatedHistory,
             paymentAmount: newTotalPaid, 
-            paymentDate: newPaymentDate,
+            paymentDate: newPaymentDate, // Last edited date implies last activity
             status: newStatus
         };
 
         onUpdateInvoice(updatedInvoice);
         setIsPaymentModalOpen(false);
         setNewPaymentAmount(0);
+        setPaymentNote('');
+        setEditingPaymentId(null);
+    };
+
+    const handleDeletePayment = (paymentId: string) => {
+        if (!confirm("Apakah Anda yakin ingin menghapus pembayaran ini?")) return;
+
+        let updatedHistory = invoice.paymentHistory ? [...invoice.paymentHistory] : [];
+        
+        // Handle legacy case display
+        if (updatedHistory.length === 0 && invoice.paymentAmount && invoice.paymentAmount > 0) {
+             // If trying to delete the "Manual" legacy payment
+             updatedHistory = []; // Clear it implies deleting the legacy amount
+        } else {
+             updatedHistory = updatedHistory.filter(p => p.id !== paymentId);
+        }
+
+        const newTotalPaid = updatedHistory.reduce((acc, curr) => acc + curr.amount, 0);
+        const newStatus = newTotalPaid >= grandTotal ? 'PAID' : 'UNPAID';
+
+        // Find the latest date from remaining history, or revert to invoice date
+        const latestPayment = updatedHistory.length > 0 
+            ? updatedHistory.reduce((prev, current) => (prev.date > current.date) ? prev : current) 
+            : null;
+
+        const updatedInvoice: Invoice = {
+            ...invoice,
+            paymentHistory: updatedHistory,
+            paymentAmount: newTotalPaid,
+            paymentDate: latestPayment ? latestPayment.date : '',
+            status: newStatus
+        };
+
+        onUpdateInvoice(updatedInvoice);
     };
 
     return (
@@ -470,9 +544,10 @@ const InvoiceDetail: React.FC<{
                             <h3 className="font-bold text-slate-800 text-sm flex items-center gap-2">
                                 <Banknote className="w-4 h-4"/> Menu Pembayaran
                             </h3>
-                            {invoice.status === 'UNPAID' && (
+                            {/* Allow adding payment only if not fully paid */}
+                            {remainingAmount > 0 && (
                                 <button 
-                                    onClick={() => setIsPaymentModalOpen(true)}
+                                    onClick={openAddPayment}
                                     className="text-[10px] bg-green-600 text-white px-2.5 py-1.5 rounded-lg font-bold hover:bg-green-700 flex items-center gap-1 transition"
                                 >
                                     <Plus className="w-3 h-3" /> Tambah
@@ -503,6 +578,7 @@ const InvoiceDetail: React.FC<{
                                     <tr>
                                         <th className="px-4 py-2 text-left font-medium">Tanggal</th>
                                         <th className="px-4 py-2 text-right font-medium">Jumlah</th>
+                                        <th className="px-2 py-2 text-right w-16 font-medium">Aksi</th>
                                         <th className="px-2 py-2 w-8"></th>
                                     </tr>
                                 </thead>
@@ -516,6 +592,22 @@ const InvoiceDetail: React.FC<{
                                                 </td>
                                                 <td className="px-4 py-3 text-right font-mono font-medium text-slate-700">
                                                     {new Intl.NumberFormat('id-ID').format(pay.amount)}
+                                                </td>
+                                                <td className="px-2 py-3 text-right whitespace-nowrap">
+                                                    <button 
+                                                        onClick={() => openEditPayment(pay)}
+                                                        className="text-slate-400 hover:text-blue-600 transition mr-2"
+                                                        title="Edit"
+                                                    >
+                                                        <Pencil className="w-3 h-3" />
+                                                    </button>
+                                                    <button 
+                                                        onClick={() => handleDeletePayment(pay.id)}
+                                                        className="text-slate-400 hover:text-red-600 transition"
+                                                        title="Hapus"
+                                                    >
+                                                        <Trash2 className="w-3 h-3" />
+                                                    </button>
                                                 </td>
                                                 <td className="px-2 py-3 text-right">
                                                     <button 
@@ -537,11 +629,21 @@ const InvoiceDetail: React.FC<{
                                             <td className="px-4 py-3 text-right font-mono font-medium text-slate-700">
                                                 {new Intl.NumberFormat('id-ID').format(paymentAmount)}
                                             </td>
+                                            {/* Allow deleting legacy payment by passing a specific flag or just handle it as part of edit/add flow via migration */}
+                                            <td className="px-2 py-3 text-right">
+                                                 <button 
+                                                    onClick={() => handleDeletePayment('legacy-payment')}
+                                                    className="text-slate-400 hover:text-red-600 transition"
+                                                    title="Hapus Data Lama"
+                                                >
+                                                    <Trash2 className="w-3 h-3" />
+                                                </button>
+                                            </td>
                                             <td></td>
                                         </tr>
                                     ) : (
                                         <tr>
-                                            <td colSpan={3} className="px-4 py-6 text-center text-slate-400 italic">
+                                            <td colSpan={4} className="px-4 py-6 text-center text-slate-400 italic">
                                                 Belum ada data.
                                             </td>
                                         </tr>
@@ -553,12 +655,14 @@ const InvoiceDetail: React.FC<{
                 </div>
              </div>
 
-             {/* MODAL TAMBAH PEMBAYARAN */}
+             {/* MODAL TAMBAH / EDIT PEMBAYARAN */}
              {isPaymentModalOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
                     <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
                         <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-                            <h3 className="font-bold text-slate-800">Tambah Pembayaran</h3>
+                            <h3 className="font-bold text-slate-800">
+                                {editingPaymentId ? 'Edit Pembayaran' : 'Tambah Pembayaran'}
+                            </h3>
                             <button onClick={() => setIsPaymentModalOpen(false)} className="text-slate-400 hover:text-slate-600">
                                 <X className="w-5 h-5" />
                             </button>
@@ -588,15 +692,27 @@ const InvoiceDetail: React.FC<{
                                         className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none font-mono text-lg font-semibold"
                                     />
                                 </div>
-                                <div className="mt-2 text-xs text-slate-500 flex justify-between">
-                                    <span>Sisa Tagihan: {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(remainingAmount)}</span>
-                                    <button 
-                                        onClick={() => setNewPaymentAmount(remainingAmount)}
-                                        className="text-primary-600 font-bold hover:underline"
-                                    >
-                                        Bayar Lunas
-                                    </button>
-                                </div>
+                                {!editingPaymentId && (
+                                    <div className="mt-2 text-xs text-slate-500 flex justify-between">
+                                        <span>Sisa Tagihan: {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(remainingAmount)}</span>
+                                        <button 
+                                            onClick={() => setNewPaymentAmount(remainingAmount)}
+                                            className="text-primary-600 font-bold hover:underline"
+                                        >
+                                            Bayar Lunas
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">Catatan (Opsional)</label>
+                                <input
+                                    type="text"
+                                    value={paymentNote}
+                                    onChange={(e) => setPaymentNote(e.target.value)}
+                                    placeholder="Contoh: DP Termin 1, Transfer BCA, dll."
+                                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none text-sm"
+                                />
                             </div>
                             <div className="pt-4 flex gap-3">
                                 <button 
@@ -606,7 +722,7 @@ const InvoiceDetail: React.FC<{
                                     Batal
                                 </button>
                                 <button 
-                                    onClick={handleAddPayment}
+                                    onClick={handleSavePayment}
                                     className="flex-1 py-2.5 bg-primary-600 text-white rounded-lg font-medium hover:bg-primary-700"
                                 >
                                     Simpan

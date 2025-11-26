@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { Layout } from './components/Layout';
 import { LoginScreen } from './components/LoginScreen';
@@ -8,7 +7,7 @@ import { DocumentGenerator, printDocument } from './components/DocumentGenerator
 import { DeedForm } from './components/DeedForm';
 import { DeedReport } from './components/DeedReport';
 import { DeedAlphabeticalReport } from './components/DeedAlphabeticalReport';
-import { InvoiceGenerator, printInvoice } from './components/InvoiceGenerator';
+import { InvoiceGenerator, printInvoice, calculateItemValues } from './components/InvoiceGenerator';
 import { 
   subscribeClients, saveClient, deleteClient, 
   subscribeDocuments, saveDocument, updateDocument, deleteDocument,
@@ -20,7 +19,7 @@ import {
 import { auth } from './services/firebaseService';
 import { signInAnonymously } from "firebase/auth";
 import { Client, CompanySettings, DocumentData, DocType, Deed, Employee, Invoice } from './types';
-import { Users, Search, Plus, Trash2, Eye, FileText, Briefcase, ArrowUpRight, Save, Pencil, Printer, ScrollText, BookOpen, ArrowDownAZ, ArrowLeft, UserCog, Link as LinkIcon, ExternalLink, MessageCircle, Mail, Truck, TrendingUp, BarChart3, Package, FileCheck, CreditCard } from 'lucide-react';
+import { Users, Search, Plus, Trash2, Eye, FileText, Briefcase, ArrowUpRight, Save, Pencil, Printer, ScrollText, BookOpen, ArrowDownAZ, ArrowLeft, UserCog, Link as LinkIcon, ExternalLink, MessageCircle, Mail, Truck, TrendingUp, BarChart3, Package, FileCheck, CreditCard, Calendar, User, Banknote } from 'lucide-react';
 
 // --- Simple Custom SVG Line Chart Component ---
 const SimpleLineChart = ({ data }: { data: any[] }) => {
@@ -263,6 +262,211 @@ const ClientDetail: React.FC<{
   );
 };
 
+// --- New Invoice Detail Component (Read Only) ---
+const InvoiceDetail: React.FC<{
+    invoice: Invoice;
+    onBack: () => void;
+    onEdit: () => void;
+    onDelete: () => void;
+    onPrint: () => void;
+}> = ({ invoice, onBack, onEdit, onDelete, onPrint }) => {
+    
+    // Hitung ulang total untuk display detail
+    let subTotal = 0;
+    let totalTax = 0;
+    invoice.items.forEach(item => {
+        const { grossAmount, taxAmount } = calculateItemValues(item);
+        subTotal += grossAmount;
+        totalTax += taxAmount;
+    });
+    const grandTotal = subTotal - totalTax;
+    const paymentAmount = invoice.paymentAmount || 0;
+    const remainingAmount = Math.max(0, grandTotal - paymentAmount);
+
+    return (
+        <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300 max-w-5xl mx-auto">
+             {/* Header */}
+             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                    <button onClick={onBack} className="p-2 hover:bg-slate-100 rounded-full text-slate-500 transition">
+                        <ArrowLeft className="w-5 h-5" />
+                    </button>
+                    <div>
+                         <div className="flex items-center gap-3">
+                            <h2 className="text-2xl font-bold text-slate-800">Detail Invoice</h2>
+                            <span className={`px-3 py-1 rounded-full text-xs font-bold ${invoice.status === 'PAID' ? 'bg-green-100 text-green-700' : 'bg-red-50 text-red-600'}`}>
+                                {invoice.status === 'PAID' ? 'LUNAS' : 'BELUM LUNAS'}
+                            </span>
+                         </div>
+                        <p className="text-slate-500 text-sm font-mono mt-1">{invoice.invoiceNumber}</p>
+                    </div>
+                </div>
+                <div className="flex gap-2">
+                    <button onClick={onPrint} className="px-4 py-2 flex items-center gap-2 border border-slate-300 rounded-lg hover:bg-slate-50 text-slate-700 transition">
+                        <Printer className="w-4 h-4" /> <span className="hidden sm:inline">Cetak PDF</span>
+                    </button>
+                    <button onClick={onEdit} className="px-4 py-2 flex items-center gap-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition">
+                        <Pencil className="w-4 h-4" /> <span className="hidden sm:inline">Edit Invoice</span>
+                    </button>
+                    <button onClick={onDelete} className="px-4 py-2 flex items-center gap-2 bg-red-50 text-red-600 border border-red-100 rounded-lg hover:bg-red-100 transition">
+                        <Trash2 className="w-4 h-4" /> <span className="hidden sm:inline">Hapus</span>
+                    </button>
+                </div>
+             </div>
+
+             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-2 space-y-6">
+                    {/* Invoice Content */}
+                    <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                        <div className="p-6 border-b border-slate-100 bg-slate-50 flex justify-between items-start">
+                            <div>
+                                <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-1">Ditagihkan Kepada</h3>
+                                <p className="text-lg font-bold text-slate-800">{invoice.clientName}</p>
+                                <p className="text-slate-600 text-sm mt-1 max-w-sm">{invoice.clientAddress}</p>
+                            </div>
+                            <div className="text-right">
+                                <div className="mb-2">
+                                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Tanggal Invoice</h3>
+                                    <p className="font-semibold text-slate-700">{new Date(invoice.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric'})}</p>
+                                </div>
+                                {invoice.dueDate && (
+                                    <div>
+                                        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Jatuh Tempo</h3>
+                                        <p className="font-bold text-red-600">{new Date(invoice.dueDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric'})}</p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="p-6">
+                            <h3 className="text-sm font-bold text-slate-800 mb-4">Rincian Biaya</h3>
+                            <table className="w-full text-sm mb-6">
+                                <thead className="bg-slate-50 text-slate-500">
+                                    <tr>
+                                        <th className="px-4 py-2 text-left w-12">No</th>
+                                        <th className="px-4 py-2 text-left">Deskripsi</th>
+                                        <th className="px-4 py-2 text-right">Jumlah (IDR)</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100">
+                                    {invoice.items.map((item, idx) => {
+                                        const { grossAmount } = calculateItemValues(item);
+                                        return (
+                                            <tr key={idx}>
+                                                <td className="px-4 py-3 text-slate-400 text-center align-top">{idx+1}</td>
+                                                <td className="px-4 py-3 align-top">
+                                                    <span className="font-medium text-slate-700">{item.description}</span>
+                                                    {item.isTaxed && <div className="text-[10px] text-slate-400 italic mt-0.5">Termasuk Gross Up PPH 21</div>}
+                                                </td>
+                                                <td className="px-4 py-3 text-right font-mono text-slate-700 font-semibold align-top">
+                                                    {new Intl.NumberFormat('id-ID').format(grossAmount)}
+                                                </td>
+                                            </tr>
+                                        )
+                                    })}
+                                </tbody>
+                            </table>
+
+                            <div className="flex justify-end border-t border-slate-100 pt-4">
+                                <div className="w-full md:w-1/2 space-y-2">
+                                     <div className="flex justify-between items-center text-sm">
+                                        <span className="text-slate-600">Sub Total</span>
+                                        <span className="font-bold text-slate-800 font-mono">{new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(subTotal)}</span>
+                                    </div>
+                                    {totalTax > 0 && (
+                                        <div className="flex justify-between items-center text-sm">
+                                            <span className="text-red-600">Pajak PPH 21 (2.5%)</span>
+                                            <span className="font-bold text-red-600 font-mono">({new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(totalTax)})</span>
+                                        </div>
+                                    )}
+                                    <div className="flex justify-between items-center pt-3 border-t-2 border-slate-800 mt-2">
+                                        <span className="text-base font-bold text-slate-800">TOTAL TAGIHAN</span>
+                                        <span className="text-xl font-bold text-slate-900 font-mono">{new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(grandTotal)}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                         {invoice.notes && (
+                            <div className="px-6 py-4 bg-slate-50 border-t border-slate-100">
+                                <p className="text-xs font-bold text-slate-500 uppercase mb-1">Catatan / Info:</p>
+                                <p className="text-sm text-slate-600 whitespace-pre-line">{invoice.notes}</p>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* TABLE INFORMASI PEMBAYARAN */}
+                    <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                        <div className="px-6 py-4 border-b border-slate-100 bg-slate-50 flex items-center gap-2">
+                            <Banknote className="w-4 h-4 text-slate-600"/>
+                            <h3 className="font-bold text-slate-800 text-sm">Riwayat Pembayaran</h3>
+                        </div>
+                        <div className="p-0">
+                            <table className="w-full text-sm">
+                                <thead className="bg-slate-50 text-slate-500 border-b border-slate-100">
+                                    <tr>
+                                        <th className="px-6 py-3 text-left font-medium">Tanggal Pembayaran</th>
+                                        <th className="px-6 py-3 text-right font-medium">Jumlah Dibayar</th>
+                                        <th className="px-6 py-3 text-right font-medium">Sisa Tagihan</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100">
+                                    {paymentAmount > 0 ? (
+                                        <tr>
+                                            <td className="px-6 py-4 text-slate-700">
+                                                {invoice.paymentDate ? new Date(invoice.paymentDate).toLocaleDateString('id-ID', {day: 'numeric', month: 'long', year: 'numeric'}) : '-'}
+                                            </td>
+                                            <td className="px-6 py-4 text-right font-mono font-bold text-green-600">
+                                                {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(paymentAmount)}
+                                            </td>
+                                            <td className="px-6 py-4 text-right font-mono font-bold text-red-600">
+                                                 {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(remainingAmount)}
+                                            </td>
+                                        </tr>
+                                    ) : (
+                                        <tr>
+                                            <td colSpan={3} className="px-6 py-8 text-center text-slate-400 italic">
+                                                Belum ada pembayaran yang tercatat untuk invoice ini.
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Sidebar Info if needed, or just leave empty for layout balance */}
+                <div className="space-y-6">
+                    <div className="bg-slate-800 text-white p-6 rounded-xl shadow-lg">
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="p-2 bg-white/10 rounded-lg">
+                                <Briefcase className="w-5 h-5 text-white" />
+                            </div>
+                            <h3 className="font-bold">Info Status</h3>
+                        </div>
+                        <div className="space-y-4">
+                            <div className="bg-white/5 p-3 rounded-lg border border-white/10">
+                                <p className="text-slate-400 text-xs uppercase mb-1">Total Tagihan</p>
+                                <p className="text-xl font-bold">{new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(grandTotal)}</p>
+                            </div>
+                             <div className="bg-white/5 p-3 rounded-lg border border-white/10">
+                                <p className="text-slate-400 text-xs uppercase mb-1">Sudah Dibayar</p>
+                                <p className="text-xl font-bold text-green-400">{new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(paymentAmount)}</p>
+                            </div>
+                             <div className="bg-white/5 p-3 rounded-lg border border-white/10">
+                                <p className="text-slate-400 text-xs uppercase mb-1">Sisa Kekurangan</p>
+                                <p className="text-xl font-bold text-red-400">{new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(remainingAmount)}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+             </div>
+        </div>
+    )
+};
+
+
 const App = () => {
   // Authentication State
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
@@ -299,7 +503,7 @@ const App = () => {
   const [empSearchQuery, setEmpSearchQuery] = useState('');
 
   // Invoice View State
-  const [invoiceViewState, setInvoiceViewState] = useState<'list' | 'create' | 'edit'>('list');
+  const [invoiceViewState, setInvoiceViewState] = useState<'list' | 'create' | 'edit' | 'detail'>('list');
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [invoiceSearchQuery, setInvoiceSearchQuery] = useState('');
   
@@ -429,7 +633,7 @@ const App = () => {
   const handleSaveEmployee = async (emp: Employee) => { try { await saveEmployee(emp); alert('Pegawai tersimpan!'); setEmpViewState('list'); } catch (e: any) { alert(e.message); } }
   const handleDeleteEmployee = async (id: string) => { if (window.confirm('Hapus pegawai?')) { try { await deleteEmployee(id); } catch (e: any) { alert(e.message); } } }
   const handleSaveInvoice = async (inv: Invoice) => { try { await saveInvoice(inv); alert('Invoice tersimpan!'); setInvoiceViewState('list'); } catch (e: any) { alert(e.message); } }
-  const handleDeleteInvoice = async (id: string) => { if (window.confirm('Hapus invoice?')) { try { await deleteInvoice(id); } catch (e: any) { alert(e.message); } } }
+  const handleDeleteInvoice = async (id: string) => { if (window.confirm('Hapus invoice?')) { try { await deleteInvoice(id); if (selectedInvoice?.id === id) { setSelectedInvoice(null); setInvoiceViewState('list'); } } catch (e: any) { alert(e.message); } } }
   const handleSaveSettings = async (e: React.FormEvent) => { e.preventDefault(); try { await saveSettings(settings); alert('Tersimpan!'); } catch (e: any) { alert(e.message); } };
 
   const filteredClients = clients.filter(c => c.name.toLowerCase().includes(searchQuery.toLowerCase()) || c.type.toLowerCase().includes(searchQuery.toLowerCase()));
@@ -572,9 +776,16 @@ const App = () => {
                                 </thead>
                                 <tbody>
                                     {invoices.filter(i => i.invoiceNumber.toLowerCase().includes(invoiceSearchQuery.toLowerCase()) || i.clientName.toLowerCase().includes(invoiceSearchQuery.toLowerCase())).map(inv => (
-                                        <tr key={inv.id} className="border-b">
+                                        <tr key={inv.id} className="border-b hover:bg-slate-50">
                                             <td className="p-4">{new Date(inv.date).toLocaleDateString()}</td>
-                                            <td className="p-4 font-mono font-medium">{inv.invoiceNumber}</td>
+                                            <td className="p-4">
+                                                <button 
+                                                    onClick={() => { setSelectedInvoice(inv); setInvoiceViewState('detail'); }}
+                                                    className="font-mono font-bold text-blue-600 hover:text-blue-800 hover:underline"
+                                                >
+                                                    {inv.invoiceNumber}
+                                                </button>
+                                            </td>
                                             <td className="p-4">{inv.clientName}</td>
                                             <td className="p-4 font-bold text-slate-700">
                                                 {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(inv.totalAmount)}
@@ -596,6 +807,14 @@ const App = () => {
                         </div>
                     </div>
                 </>
+              ) : invoiceViewState === 'detail' && selectedInvoice ? (
+                 <InvoiceDetail 
+                    invoice={selectedInvoice}
+                    onBack={() => setInvoiceViewState('list')}
+                    onEdit={() => setInvoiceViewState('edit')}
+                    onDelete={() => handleDeleteInvoice(selectedInvoice.id)}
+                    onPrint={() => printInvoice(selectedInvoice)}
+                 />
               ) : (
                 <InvoiceGenerator 
                     clients={clients} 

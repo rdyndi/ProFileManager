@@ -104,7 +104,7 @@ export const DeedReport: React.FC<DeedReportProps> = ({ deeds, onBack }) => {
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
         <style>
           body { font-family: 'Inter', sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-          @page { size: A4 landscape; margin: 1.5cm; }
+          @page { size: A4 portrait; margin: 1.5cm; }
           table { width: 100%; border-collapse: collapse; font-size: 11px; }
           /* Border tabel tebal solid hitam */
           table, th, td { border-color: black; }

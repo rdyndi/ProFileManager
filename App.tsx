@@ -8,17 +8,19 @@ import { DocumentGenerator, printDocument } from './components/DocumentGenerator
 import { DeedForm } from './components/DeedForm';
 import { DeedReport } from './components/DeedReport';
 import { DeedAlphabeticalReport } from './components/DeedAlphabeticalReport';
+import { InvoiceGenerator, printInvoice } from './components/InvoiceGenerator';
 import { 
   subscribeClients, saveClient, deleteClient, 
   subscribeDocuments, saveDocument, updateDocument, deleteDocument,
   subscribeSettings, saveSettings, syncSettingsToLocalCache,
   subscribeDeeds, saveDeed, deleteDeed,
-  subscribeEmployees, saveEmployee, deleteEmployee
+  subscribeEmployees, saveEmployee, deleteEmployee,
+  subscribeInvoices, saveInvoice, deleteInvoice
 } from './services/storage';
 import { auth } from './services/firebaseService';
 import { signInAnonymously } from "firebase/auth";
-import { Client, CompanySettings, DocumentData, DocType, Deed, Employee } from './types';
-import { Users, Search, Plus, Trash2, Eye, FileText, Briefcase, ArrowUpRight, Save, Pencil, Printer, ScrollText, BookOpen, ArrowDownAZ, ArrowLeft, UserCog, Link as LinkIcon, ExternalLink, MessageCircle, Mail, Truck, TrendingUp, BarChart3, Package, FileCheck } from 'lucide-react';
+import { Client, CompanySettings, DocumentData, DocType, Deed, Employee, Invoice } from './types';
+import { Users, Search, Plus, Trash2, Eye, FileText, Briefcase, ArrowUpRight, Save, Pencil, Printer, ScrollText, BookOpen, ArrowDownAZ, ArrowLeft, UserCog, Link as LinkIcon, ExternalLink, MessageCircle, Mail, Truck, TrendingUp, BarChart3, Package, FileCheck, CreditCard } from 'lucide-react';
 
 // --- Simple Custom SVG Line Chart Component ---
 const SimpleLineChart = ({ data }: { data: any[] }) => {
@@ -274,6 +276,7 @@ const App = () => {
   const [documents, setDocuments] = useState<DocumentData[]>([]);
   const [deeds, setDeeds] = useState<Deed[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
   
   // UI State
   const [clientViewState, setClientViewState] = useState<'list' | 'add' | 'detail'>('list');
@@ -294,6 +297,11 @@ const App = () => {
   const [empViewState, setEmpViewState] = useState<'list' | 'add'>('list');
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [empSearchQuery, setEmpSearchQuery] = useState('');
+
+  // Invoice View State
+  const [invoiceViewState, setInvoiceViewState] = useState<'list' | 'create' | 'edit'>('list');
+  const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
+  const [invoiceSearchQuery, setInvoiceSearchQuery] = useState('');
   
   // Settings State
   const [settings, setSettings] = useState<CompanySettings>({
@@ -373,6 +381,7 @@ const App = () => {
     let unsubDeeds: (() => void) | undefined;
     let unsubSettings: (() => void) | undefined;
     let unsubEmployees: (() => void) | undefined;
+    let unsubInvoices: (() => void) | undefined;
 
     const initData = async () => {
       try {
@@ -387,6 +396,7 @@ const App = () => {
         unsubDocs = subscribeDocuments((data) => setDocuments(data));
         unsubDeeds = subscribeDeeds((data) => setDeeds(data));
         unsubEmployees = subscribeEmployees((data) => setEmployees(data));
+        unsubInvoices = subscribeInvoices((data) => setInvoices(data));
         unsubSettings = subscribeSettings((data) => {
           setSettings(data);
           syncSettingsToLocalCache(data);
@@ -404,6 +414,7 @@ const App = () => {
       if (unsubDeeds) unsubDeeds();
       if (unsubSettings) unsubSettings();
       if (unsubEmployees) unsubEmployees();
+      if (unsubInvoices) unsubInvoices();
     };
   }, [isAuthenticated]);
 
@@ -417,6 +428,8 @@ const App = () => {
   const handleDeleteDeed = async (id: string) => { if (window.confirm('Hapus akta?')) { try { await deleteDeed(id); } catch (e: any) { alert(e.message); } } }
   const handleSaveEmployee = async (emp: Employee) => { try { await saveEmployee(emp); alert('Pegawai tersimpan!'); setEmpViewState('list'); } catch (e: any) { alert(e.message); } }
   const handleDeleteEmployee = async (id: string) => { if (window.confirm('Hapus pegawai?')) { try { await deleteEmployee(id); } catch (e: any) { alert(e.message); } } }
+  const handleSaveInvoice = async (inv: Invoice) => { try { await saveInvoice(inv); alert('Invoice tersimpan!'); setInvoiceViewState('list'); } catch (e: any) { alert(e.message); } }
+  const handleDeleteInvoice = async (id: string) => { if (window.confirm('Hapus invoice?')) { try { await deleteInvoice(id); } catch (e: any) { alert(e.message); } } }
   const handleSaveSettings = async (e: React.FormEvent) => { e.preventDefault(); try { await saveSettings(settings); alert('Tersimpan!'); } catch (e: any) { alert(e.message); } };
 
   const filteredClients = clients.filter(c => c.name.toLowerCase().includes(searchQuery.toLowerCase()) || c.type.toLowerCase().includes(searchQuery.toLowerCase()));
@@ -458,7 +471,14 @@ const App = () => {
   return (
     <Layout 
         activeTab={activeTab} 
-        onTabChange={(tab) => { setActiveTab(tab); setClientViewState('list'); setSelectedClient(null); setDocViewState('list'); setSelectedDocument(null); setDeedViewState('list'); setSelectedDeed(null); setEmpViewState('list'); setSelectedEmployee(null); }}
+        onTabChange={(tab) => { 
+            setActiveTab(tab); 
+            setClientViewState('list'); setSelectedClient(null); 
+            setDocViewState('list'); setSelectedDocument(null); 
+            setDeedViewState('list'); setSelectedDeed(null); 
+            setEmpViewState('list'); setSelectedEmployee(null); 
+            setInvoiceViewState('list'); setSelectedInvoice(null);
+        }}
         onLogout={handleLogout}
     >
       {/* --- DASHBOARD TAB --- */}
@@ -526,6 +546,68 @@ const App = () => {
 
       {/* ... (Akta Tab remains same) ... */}
       {activeTab === 'akta' && (<div className="space-y-6">{deedViewState === 'list' ? (<><div className="flex justify-between items-center"><h2 className="text-2xl font-bold text-slate-800">Daftar Akta</h2><div className="flex gap-2"><button onClick={() => setDeedViewState('report_alphabetical')} className="bg-white border border-slate-300 text-slate-700 px-3 py-2 rounded-lg hover:bg-slate-50 flex items-center gap-2 transition shadow-sm text-sm"><ArrowDownAZ className="w-4 h-4" /> Laporan A-Z</button><button onClick={() => setDeedViewState('report_monthly')} className="bg-white border border-slate-300 text-slate-700 px-3 py-2 rounded-lg hover:bg-slate-50 flex items-center gap-2 transition shadow-sm text-sm"><BookOpen className="w-4 h-4" /> Laporan Bulanan</button><button onClick={() => { setDeedViewState('create'); setSelectedDeed(null); }} className="bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 flex items-center gap-2 transition shadow-sm text-sm"><Plus className="w-4 h-4" /> Buat Akta Baru</button></div></div><div className="bg-white rounded-xl shadow-sm border border-slate-200"><div className="p-4 border-b"><input type="text" placeholder="Cari..." className="w-full px-4 py-2 border rounded-lg" value={deedSearchQuery} onChange={e => setDeedSearchQuery(e.target.value)} /></div><div className="overflow-x-auto"><table className="w-full text-sm text-left"><thead className="bg-slate-50"><tr><th className="p-4">No. Akta</th><th className="p-4">Judul</th><th className="p-4">Klien</th><th className="p-4 text-right">Aksi</th></tr></thead><tbody>{deeds.filter(d => d.deedNumber.toLowerCase().includes(deedSearchQuery.toLowerCase()) || d.deedTitle.toLowerCase().includes(deedSearchQuery.toLowerCase()) || d.clientName.toLowerCase().includes(deedSearchQuery.toLowerCase())).map(d => (<tr key={d.id} className="border-b"><td className="p-4 font-bold">{d.deedNumber}</td><td className="p-4">{d.deedTitle}</td><td className="p-4">{d.clientName}</td><td className="p-4 text-right flex justify-end gap-2"><button onClick={() => { setSelectedDeed(d); setDeedViewState('edit'); }}><Pencil className="w-4 h-4 text-blue-600" /></button><button onClick={() => handleDeleteDeed(d.id)}><Trash2 className="w-4 h-4 text-red-600" /></button></td></tr>))}</tbody></table></div></div></>) : deedViewState === 'report_monthly' ? <DeedReport deeds={deeds} onBack={() => setDeedViewState('list')} /> : deedViewState === 'report_alphabetical' ? <DeedAlphabeticalReport deeds={deeds} onBack={() => setDeedViewState('list')} /> : <DeedForm clients={clients} onSave={handleSaveDeed} onCancel={() => setDeedViewState('list')} onAddClient={handleDirectAddClient} initialData={selectedDeed || undefined} />}</div>)}
+      
+      {/* INVOICE TAB */}
+      {activeTab === 'invoice' && (
+          <div className="space-y-6">
+              {invoiceViewState === 'list' ? (
+                <>
+                    <div className="flex justify-between items-center">
+                        <h2 className="text-2xl font-bold text-slate-800">Daftar Invoice</h2>
+                        <button onClick={() => { setInvoiceViewState('create'); setSelectedInvoice(null); }} className="bg-primary-600 text-white px-4 py-2 rounded-lg flex gap-2"><Plus className="w-4 h-4"/> Buat Invoice</button>
+                    </div>
+                    <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
+                        <input type="text" placeholder="Cari No Invoice atau Nama Klien..." className="w-full px-4 py-2 border rounded-lg mb-4" value={invoiceSearchQuery} onChange={e => setInvoiceSearchQuery(e.target.value)} />
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-sm text-left">
+                                <thead className="bg-slate-50">
+                                    <tr>
+                                        <th className="p-4">Tanggal</th>
+                                        <th className="p-4">No. Invoice</th>
+                                        <th className="p-4">Klien</th>
+                                        <th className="p-4">Total</th>
+                                        <th className="p-4">Status</th>
+                                        <th className="p-4 text-right">Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {invoices.filter(i => i.invoiceNumber.toLowerCase().includes(invoiceSearchQuery.toLowerCase()) || i.clientName.toLowerCase().includes(invoiceSearchQuery.toLowerCase())).map(inv => (
+                                        <tr key={inv.id} className="border-b">
+                                            <td className="p-4">{new Date(inv.date).toLocaleDateString()}</td>
+                                            <td className="p-4 font-mono font-medium">{inv.invoiceNumber}</td>
+                                            <td className="p-4">{inv.clientName}</td>
+                                            <td className="p-4 font-bold text-slate-700">
+                                                {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(inv.totalAmount)}
+                                            </td>
+                                            <td className="p-4">
+                                                <span className={`px-2 py-1 rounded-full text-xs font-bold ${inv.status === 'PAID' ? 'bg-green-100 text-green-700' : 'bg-red-50 text-red-600'}`}>
+                                                    {inv.status === 'PAID' ? 'LUNAS' : 'BELUM BAYAR'}
+                                                </span>
+                                            </td>
+                                            <td className="p-4 text-right flex justify-end gap-2">
+                                                <button onClick={() => printInvoice(inv)} className="p-2 text-slate-400 hover:text-green-600"><Printer className="w-4 h-4" /></button>
+                                                <button onClick={() => { setSelectedInvoice(inv); setInvoiceViewState('edit'); }} className="p-2 text-slate-400 hover:text-blue-600"><Pencil className="w-4 h-4" /></button>
+                                                <button onClick={() => handleDeleteInvoice(inv.id)} className="p-2 text-slate-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </>
+              ) : (
+                <InvoiceGenerator 
+                    clients={clients} 
+                    existingInvoices={invoices}
+                    onSave={handleSaveInvoice} 
+                    onCancel={() => setInvoiceViewState('list')} 
+                    onAddClient={handleDirectAddClient} 
+                    initialData={selectedInvoice} 
+                />
+              )}
+          </div>
+      )}
 
       {/* UPDATE: Pass 'documents' prop to Generator to enable Auto-Increment Logic */}
       {activeTab === 'receipt' && docViewState === 'list' && <DocumentList type="RECEIPT" />}

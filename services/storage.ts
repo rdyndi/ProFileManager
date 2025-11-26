@@ -1,4 +1,3 @@
-
 import { 
   collection, 
   doc, 
@@ -33,7 +32,7 @@ const safeStringify = (data: any): string | null => {
   const seen = new WeakSet();
   try {
     return JSON.stringify(data, (key, value) => {
-      // Handle circular references, non-serializable DOM nodes, and React elements
+      // Handle objects
       if (typeof value === "object" && value !== null) {
         // Exclude DOM nodes (checking for nodeType)
         if (typeof value.nodeType === 'number') {
@@ -43,17 +42,21 @@ const safeStringify = (data: any): string | null => {
         if (value.$$typeof) {
             return undefined;
         }
+        // Exclude Window/Document
+        if (value === window || value === document) {
+            return undefined;
+        }
 
         if (seen.has(value)) {
-          return; // Remove circular reference
+          return undefined; // Remove circular reference
         }
         seen.add(value);
       }
       return value;
     });
   } catch (error) {
-    // Log minimal message to avoid recursive error logging if 'error' is circular
-    console.warn("JSON.stringify failed in safeStringify");
+    // Log error safely
+    console.warn("SafeStringify Error (circular/invalid data):", error);
     return null;
   }
 };

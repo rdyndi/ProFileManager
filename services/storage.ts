@@ -33,8 +33,17 @@ const safeStringify = (data: any): string | null => {
   const seen = new WeakSet();
   try {
     return JSON.stringify(data, (key, value) => {
-      // Handle circular references & non-serializable DOM nodes
+      // Handle circular references, non-serializable DOM nodes, and React elements
       if (typeof value === "object" && value !== null) {
+        // Exclude DOM nodes (checking for nodeType)
+        if (typeof value.nodeType === 'number') {
+            return undefined;
+        }
+        // Exclude React Elements (checking for $$typeof)
+        if (value.$$typeof) {
+            return undefined;
+        }
+
         if (seen.has(value)) {
           return; // Remove circular reference
         }
@@ -43,7 +52,8 @@ const safeStringify = (data: any): string | null => {
       return value;
     });
   } catch (error) {
-    console.warn("JSON.stringify failed in safeStringify:", error);
+    // Log minimal message to avoid recursive error logging if 'error' is circular
+    console.warn("JSON.stringify failed in safeStringify");
     return null;
   }
 };
@@ -63,7 +73,7 @@ const setLocalData = <T>(key: string, data: T) => {
     try {
       localStorage.setItem(key, json);
     } catch (error) {
-      console.error(`Failed to save to localStorage [${key}]:`, error);
+      console.error(`Failed to save to localStorage [${key}]`);
     }
   }
 };
@@ -104,7 +114,7 @@ export const subscribeClients = (callback: (data: Client[]) => void) => {
     setLocalData(LS_CLIENTS, sanitizedClients);
     callback(sanitizedClients);
   }, (error) => {
-    console.warn("Firestore offline/error (clients), menggunakan data lokal:", error.message);
+    console.warn("Firestore offline/error (clients):", error.message);
   });
 };
 
@@ -123,7 +133,7 @@ export const saveClient = async (client: Client): Promise<void> => {
     const docRef = doc(db, COLL_CLIENTS, clientData.id);
     await setDoc(docRef, clientData);
   } catch (error) {
-    console.error("Error syncing client to Firebase:", error);
+    console.error("Error syncing client to Firebase");
     throw error;
   }
 };
@@ -135,7 +145,7 @@ export const deleteClient = async (id: string): Promise<void> => {
   try {
     await deleteDoc(doc(db, COLL_CLIENTS, id));
   } catch (error) {
-    console.error("Error deleting client from Firebase:", error);
+    console.error("Error deleting client from Firebase");
     throw error;
   }
 };
@@ -174,7 +184,7 @@ export const saveEmployee = async (employee: Employee): Promise<void> => {
     const docRef = doc(db, COLL_EMPLOYEES, dataToSave.id);
     await setDoc(docRef, dataToSave);
   } catch (error) {
-    console.error("Error saving employee to Firebase:", error);
+    console.error("Error saving employee to Firebase");
     throw error;
   }
 };
@@ -186,7 +196,7 @@ export const deleteEmployee = async (id: string): Promise<void> => {
   try {
     await deleteDoc(doc(db, COLL_EMPLOYEES, id));
   } catch (error) {
-    console.error("Error deleting employee from Firebase:", error);
+    console.error("Error deleting employee from Firebase");
     throw error;
   }
 };
@@ -228,7 +238,7 @@ export const saveDocument = async (docData: DocumentData): Promise<void> => {
     const docRef = doc(db, COLL_DOCS, dataToSave.id);
     await setDoc(docRef, dataToSave);
   } catch (error) {
-    console.error("Error saving document to Firebase:", error);
+    console.error("Error saving document to Firebase");
     throw error;
   }
 };
@@ -244,7 +254,7 @@ export const deleteDocument = async (id: string): Promise<void> => {
   try {
     await deleteDoc(doc(db, COLL_DOCS, id));
   } catch (error) {
-    console.error("Error deleting document from Firebase:", error);
+    console.error("Error deleting document from Firebase");
     throw error;
   }
 };
@@ -285,7 +295,7 @@ export const saveDeed = async (deed: Deed): Promise<void> => {
     const docRef = doc(db, COLL_DEEDS, dataToSave.id);
     await setDoc(docRef, dataToSave);
   } catch (error) {
-    console.error("Error saving deed to Firebase:", error);
+    console.error("Error saving deed to Firebase");
     throw error;
   }
 };
@@ -297,7 +307,7 @@ export const deleteDeed = async (id: string): Promise<void> => {
   try {
     await deleteDoc(doc(db, COLL_DEEDS, id));
   } catch (error) {
-    console.error("Error deleting deed from Firebase:", error);
+    console.error("Error deleting deed from Firebase");
     throw error;
   }
 };
@@ -338,7 +348,7 @@ export const saveInvoice = async (invoice: Invoice): Promise<void> => {
     const docRef = doc(db, COLL_INVOICES, dataToSave.id);
     await setDoc(docRef, dataToSave);
   } catch (error) {
-    console.error("Error saving invoice to Firebase:", error);
+    console.error("Error saving invoice to Firebase");
     throw error;
   }
 };
@@ -350,7 +360,7 @@ export const deleteInvoice = async (id: string): Promise<void> => {
   try {
     await deleteDoc(doc(db, COLL_INVOICES, id));
   } catch (error) {
-    console.error("Error deleting invoice from Firebase:", error);
+    console.error("Error deleting invoice from Firebase");
     throw error;
   }
 };
@@ -397,7 +407,7 @@ export const syncSettingsToLocalCache = (settings: CompanySettings) => {
             localStorage.setItem('cached_print_settings', json);
             localStorage.setItem(LS_SETTINGS, json);
         } catch (e) {
-            console.error("Failed to cache settings:", e);
+            console.error("Failed to cache settings");
         }
     }
 }
@@ -421,7 +431,7 @@ export const saveSettings = async (settings: CompanySettings): Promise<void> => 
     const docRef = doc(db, COLL_SETTINGS, DOC_SETTINGS_ID);
     await setDoc(docRef, dataToSave);
   } catch (error) {
-    console.error("Error saving settings to Firebase:", error);
+    console.error("Error saving settings to Firebase");
     throw error;
   }
 };

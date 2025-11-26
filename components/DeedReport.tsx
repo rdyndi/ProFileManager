@@ -40,6 +40,20 @@ export const DeedReport: React.FC<DeedReportProps> = ({ deeds, onBack }) => {
     const settings = getCachedSettings();
     const monthName = months[selectedMonth];
     
+    // Logic Tanggal Tanda Tangan: Bulan Laporan + 1 Bulan
+    let signMonthIndex = selectedMonth + 1;
+    let signYear = selectedYear;
+
+    // Jika bulan laporan Desember (11), maka tanda tangan Januari (0) tahun depan
+    if (signMonthIndex > 11) {
+        signMonthIndex = 0;
+        signYear = signYear + 1;
+    }
+
+    const signMonthName = months[signMonthIndex];
+    // Format tanggal tanda tangan: 01 [Bulan Depan] [Tahun]
+    const signatureDateStr = `01 ${signMonthName} ${signYear}`;
+
     // Generate Rows HTML
     const rowsHtml = filteredDeeds.map((deed, index) => {
         // Gabungkan semua penghadap dalam satu sel, dipisah baris baru
@@ -116,7 +130,7 @@ export const DeedReport: React.FC<DeedReportProps> = ({ deeds, onBack }) => {
              
              <div class="flex justify-end mt-12 px-12">
                 <div class="text-center w-64">
-                    <p class="mb-24 text-xs font-medium">Bandung Barat, ${new Date().toLocaleDateString('id-ID', {day: 'numeric', month: 'long', year: 'numeric'})}</p>
+                    <p class="mb-24 text-xs font-medium">Bandung Barat, ${signatureDateStr}</p>
                     <p class="font-bold text-sm uppercase underline underline-offset-2">${settings.companyName.split(',')[0]}</p>
                     <p class="font-bold text-xs mt-1">Notaris di Kabupaten Bandung Barat</p>
                 </div>

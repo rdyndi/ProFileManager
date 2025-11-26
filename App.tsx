@@ -83,7 +83,7 @@ const SimpleLineChart = ({ data }: { data: any[] }) => {
   );
 };
 
-// ... (ClientDetail component) ...
+// --- Client Detail Component ---
 const ClientDetail: React.FC<{
   client: Client;
   onBack: () => void;
@@ -262,7 +262,7 @@ const ClientDetail: React.FC<{
   );
 };
 
-// ... (InvoiceDetail component updated) ...
+// --- Invoice Detail Component (Updated with Payment Logic) ---
 const InvoiceDetail: React.FC<{
     invoice: Invoice;
     onBack: () => void;
@@ -436,6 +436,20 @@ const InvoiceDetail: React.FC<{
                                         <span className="text-base font-bold text-slate-800">TOTAL TAGIHAN</span>
                                         <span className="text-xl font-bold text-slate-900 font-mono">{new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(grandTotal)}</span>
                                     </div>
+                                    
+                                    {paymentAmount > 0 && (
+                                        <div className="flex justify-between items-center pt-2 text-sm">
+                                            <span className="text-slate-600">Sudah Dibayar</span>
+                                            <span className="font-bold text-green-600 font-mono">({new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(paymentAmount)})</span>
+                                        </div>
+                                    )}
+                                    
+                                    {paymentAmount > 0 && remainingAmount > 0 && (
+                                        <div className="flex justify-between items-center pt-2 text-sm font-bold text-red-600">
+                                            <span>Sisa Tagihan</span>
+                                            <span className="font-mono">{new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(remainingAmount)}</span>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </div>

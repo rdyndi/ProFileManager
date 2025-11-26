@@ -1,3 +1,4 @@
+
 export type EntityType = 'PT' | 'CV' | 'Perorangan' | 'YAYASAN' | 'PERKUMPULAN' | 'Lainnya';
 
 export interface Client {
@@ -17,6 +18,7 @@ export interface AttachedFile {
   id: string;
   name: string;
   uploadDate: number;
+  url?: string; // URL Link to Google Drive / External
 }
 
 export interface Employee {

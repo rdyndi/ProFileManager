@@ -86,3 +86,24 @@ export interface Deed {
   appearers: DeedAppearer[]; // Unlimited Penghadap
   createdAt: number;
 }
+
+// --- INVOICE TYPES ---
+
+export interface InvoiceItem {
+  description: string;
+  amount: number;
+}
+
+export interface Invoice {
+  id: string;
+  invoiceNumber: string;
+  date: string;
+  clientId: string;
+  clientName: string;
+  clientAddress: string;
+  items: InvoiceItem[];
+  totalAmount: number;
+  status: 'UNPAID' | 'PAID';
+  notes?: string; // Catatan tambahan / Info Pembayaran
+  createdAt: number;
+}

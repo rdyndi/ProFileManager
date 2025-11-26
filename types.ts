@@ -1,4 +1,5 @@
 
+
 export type EntityType = 'PT' | 'CV' | 'YAYASAN' | 'PERKUMPULAN' | 'Perorangan' | 'Lainnya';
 
 export interface AttachedFile {
@@ -105,6 +106,17 @@ export interface Invoice {
   paymentDate?: string; // Last payment date
   paymentAmount?: number; // Total amount paid
   paymentHistory?: PaymentRecord[]; // List of payments
+}
+
+export interface Expense {
+  id: string;
+  date: string;
+  description: string;
+  category: string;
+  amount: number;
+  paymentMethod: 'Cash' | 'Transfer';
+  note?: string;
+  createdAt: number;
 }
 
 export interface CompanySettings {

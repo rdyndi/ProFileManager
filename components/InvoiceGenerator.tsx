@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Client, Invoice, InvoiceItem } from '../types';
+import { Client, Invoice, InvoiceItem, PaymentRecord } from '../types';
 import { Printer, Search, Calendar, Plus, Trash2, Save, ArrowLeft, CreditCard, Clock, RotateCcw } from 'lucide-react';
 import { getCachedSettings } from '../services/storage';
 
@@ -30,6 +30,37 @@ const addDays = (dateStr: string, days: number) => {
     }
 };
 
+// --- Helper: Terbilang (Number to Words in Indonesian) ---
+const terbilang = (nilai: number): string => {
+    const huruf = ["", "Satu", "Dua", "Tiga", "Empat", "Lima", "Enam", "Tujuh", "Delapan", "Sembilan", "Sepuluh", "Sebelas"];
+    let temp = "";
+    
+    // Handle decimal/floor
+    nilai = Math.floor(Math.abs(nilai));
+
+    if (nilai < 12) {
+        temp = " " + huruf[nilai];
+    } else if (nilai < 20) {
+        temp = terbilang(nilai - 10) + " Belas";
+    } else if (nilai < 100) {
+        temp = terbilang(Math.floor(nilai / 10)) + " Puluh" + terbilang(nilai % 10);
+    } else if (nilai < 200) {
+        temp = " Seratus" + terbilang(nilai - 100);
+    } else if (nilai < 1000) {
+        temp = terbilang(Math.floor(nilai / 100)) + " Ratus" + terbilang(nilai % 100);
+    } else if (nilai < 2000) {
+        temp = " Seribu" + terbilang(nilai - 1000);
+    } else if (nilai < 1000000) {
+        temp = terbilang(Math.floor(nilai / 1000)) + " Ribu" + terbilang(nilai % 1000);
+    } else if (nilai < 1000000000) {
+        temp = terbilang(Math.floor(nilai / 1000000)) + " Juta" + terbilang(nilai % 1000000);
+    } else if (nilai < 1000000000000) {
+        temp = terbilang(Math.floor(nilai / 1000000000)) + " Milyar" + terbilang(nilai % 1000000000);
+    }
+    
+    return temp.trim();
+}
+
 // --- Helper Calculations (Exported) ---
 export const calculateItemValues = (item: InvoiceItem) => {
     // Jika dicentang pajak: Harga Input / 0.975 (Gross Up). Dibulatkan ke bawah (floor).
@@ -40,6 +71,97 @@ export const calculateItemValues = (item: InvoiceItem) => {
     const taxAmount = item.isTaxed ? Math.floor(grossAmount * 0.025) : 0;
     
     return { grossAmount, taxAmount };
+};
+
+// --- Standalone Receipt (Kwitansi) Print Function ---
+export const printReceipt = (invoice: Invoice, payment: PaymentRecord) => {
+    const settings = getCachedSettings();
+    const companyName = settings.companyName;
+    const companyAddress = settings.companyAddress;
+    
+    // Generate Receipt Number: RCT-[InvNumber]-[Last4DigitsOfPaymentID]
+    const receiptNo = `KW/${invoice.invoiceNumber.replace(/\//g, '-')}/${payment.id.substr(-3).toUpperCase()}`;
+    const amountInWords = terbilang(payment.amount) + " Rupiah";
+
+    const printContent = `
+      <!DOCTYPE html><html><head><title>Kwitansi - ${receiptNo}</title><script src="https://cdn.tailwindcss.com"></script><link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"><style>
+      body { font-family: 'Inter', sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; } 
+      @page { size: A4; margin: 10mm 15mm; } 
+      @media print { .no-print { display: none; } body { -webkit-print-color-adjust: exact; } }
+      .receipt-box { border: 2px solid #334155; position: relative; }
+      .bg-pattern { background-image: radial-gradient(#e2e8f0 1px, transparent 1px); background-size: 20px 20px; }
+      </style></head><body class="bg-white text-slate-900 p-8 max-w-[21cm] mx-auto relative">
+        
+        <div class="receipt-box p-8 rounded-xl bg-white relative overflow-hidden">
+            <!-- Decorative Background -->
+            <div class="absolute top-0 right-0 w-32 h-32 bg-slate-100 rounded-bl-full -mr-16 -mt-16 z-0"></div>
+            
+            <!-- Header -->
+            <div class="relative z-10 flex justify-between items-start border-b-2 border-slate-800 pb-6 mb-8">
+                <div class="max-w-[60%]">
+                    <h1 class="text-xl font-bold text-slate-800 tracking-tight uppercase">${companyName}</h1>
+                    <p class="text-xs text-slate-600 leading-relaxed mt-1">${companyAddress}</p>
+                </div>
+                <div class="text-right">
+                    <h2 class="text-3xl font-bold text-slate-800 uppercase tracking-widest">KWITANSI</h2>
+                    <p class="text-sm font-mono font-bold text-slate-500 mt-1">No. ${receiptNo}</p>
+                </div>
+            </div>
+
+            <!-- Content -->
+            <div class="relative z-10 space-y-6 px-2">
+                <div class="flex items-start">
+                    <div class="w-40 text-sm font-bold text-slate-500 uppercase pt-1">Telah Terima Dari</div>
+                    <div class="flex-1 border-b-2 border-slate-200 border-dotted text-lg font-bold text-slate-800 px-2 pb-1">
+                        ${invoice.clientName}
+                    </div>
+                </div>
+
+                <div class="flex items-start">
+                    <div class="w-40 text-sm font-bold text-slate-500 uppercase pt-1">Uang Sejumlah</div>
+                    <div class="flex-1 bg-slate-100 p-3 rounded-lg text-base font-medium italic text-slate-700 border border-slate-200">
+                        # ${amountInWords} #
+                    </div>
+                </div>
+
+                <div class="flex items-start">
+                    <div class="w-40 text-sm font-bold text-slate-500 uppercase pt-1">Untuk Pembayaran</div>
+                    <div class="flex-1 border-b-2 border-slate-200 border-dotted text-base text-slate-700 px-2 pb-1 leading-relaxed">
+                        Pembayaran Invoice No. <strong>${invoice.invoiceNumber}</strong><br/>
+                        <span class="text-sm text-slate-500">${payment.note ? `(${payment.note})` : ''}</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="relative z-10 flex justify-between items-end mt-12 pt-4">
+                <div>
+                    <div class="inline-block bg-slate-800 text-white p-4 rounded-lg shadow-lg transform -rotate-2">
+                        <p class="text-xs font-bold text-slate-300 uppercase mb-1">Jumlah (IDR)</p>
+                        <p class="text-2xl font-mono font-bold">Rp ${new Intl.NumberFormat('id-ID').format(payment.amount)}</p>
+                    </div>
+                </div>
+
+                <div class="text-center">
+                    <p class="text-sm text-slate-600 mb-16">Bandung, ${new Date(payment.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+                    <div class="border-b border-slate-800 w-48 mx-auto mb-2"></div>
+                    <p class="font-bold text-slate-800 text-xs uppercase">( ${companyName} )</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="fixed bottom-0 left-0 w-full text-center py-2 text-[8px] text-slate-300 no-print">
+            Dicetak otomatis melalui Sistem Notaris Putri Office pada ${new Date().toLocaleString()}
+        </div>
+
+      </body></html>`;
+
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+        printWindow.document.open();
+        printWindow.document.write(printContent);
+        printWindow.document.close();
+    }
 };
 
 // --- Standalone Print Function ---

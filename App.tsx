@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Layout } from './components/Layout';
 import { LoginScreen } from './components/LoginScreen';
 import { ClientForm } from './components/ClientForm';
@@ -18,7 +18,69 @@ import {
 import { auth } from './services/firebaseService';
 import { signInAnonymously } from "firebase/auth";
 import { Client, CompanySettings, DocumentData, DocType, Deed, Employee } from './types';
-import { Users, Search, Plus, Trash2, Eye, FileText, Briefcase, ArrowUpRight, Save, Pencil, Printer, ScrollText, BookOpen, ArrowDownAZ, ArrowLeft, UserCog, Link as LinkIcon, ExternalLink } from 'lucide-react';
+import { Users, Search, Plus, Trash2, Eye, FileText, Briefcase, ArrowUpRight, Save, Pencil, Printer, ScrollText, BookOpen, ArrowDownAZ, ArrowLeft, UserCog, Link as LinkIcon, ExternalLink, MessageCircle, Mail, Truck, TrendingUp, BarChart3, Package, FileCheck } from 'lucide-react';
+
+// --- Simple Custom SVG Line Chart Component ---
+const SimpleLineChart = ({ data }: { data: any[] }) => {
+  if (!data || data.length === 0) return <div className="h-64 flex items-center justify-center text-slate-400">Belum ada data</div>;
+
+  const height = 250;
+  const width = 800;
+  const padding = 40;
+  
+  // Calculate Max Value for Y-Axis Scale
+  const maxValue = Math.max(
+    ...data.map(d => Math.max(d.clients, d.deeds, d.receipts, d.deliveries))
+  ) || 10; // Default to 10 if 0 to avoid division by zero
+  
+  const scaleY = (val: number) => height - padding - (val / (maxValue * 1.1)) * (height - padding * 2);
+  const scaleX = (index: number) => padding + (index / (data.length - 1)) * (width - padding * 2);
+
+  // Generate Paths
+  const createPath = (key: string) => {
+    return data.map((d, i) => 
+      `${i === 0 ? 'M' : 'L'} ${scaleX(i)} ${scaleY(d[key])}`
+    ).join(' ');
+  };
+
+  return (
+    <div className="w-full overflow-hidden">
+      <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto text-xs">
+        {/* Grid Lines */}
+        {[0, 0.25, 0.5, 0.75, 1].map((tick, i) => {
+            const y = height - padding - (tick * (height - padding * 2));
+            return (
+                <g key={i}>
+                    <line x1={padding} y1={y} x2={width - padding} y2={y} stroke="#e2e8f0" strokeDasharray="4" />
+                    <text x={0} y={y + 4} fill="#94a3b8" textAnchor="start">{Math.round(maxValue * 1.1 * tick)}</text>
+                </g>
+            );
+        })}
+
+        {/* Lines */}
+        <path d={createPath('clients')} fill="none" stroke="#3b82f6" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+        <path d={createPath('deeds')} fill="none" stroke="#8b5cf6" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+        <path d={createPath('receipts')} fill="none" stroke="#10b981" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+        <path d={createPath('deliveries')} fill="none" stroke="#f97316" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+
+        {/* X-Axis Labels */}
+        {data.map((d, i) => (
+          <text key={i} x={scaleX(i)} y={height - 10} textAnchor="middle" fill="#64748b" className="font-medium">
+            {d.month}
+          </text>
+        ))}
+      </svg>
+      
+      {/* Legend */}
+      <div className="flex justify-center gap-6 mt-4 text-sm">
+        <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-blue-500"></div><span className="text-slate-600">Klien Baru</span></div>
+        <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-violet-500"></div><span className="text-slate-600">Akta</span></div>
+        <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-green-500"></div><span className="text-slate-600">Tanda Terima</span></div>
+        <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-orange-500"></div><span className="text-slate-600">Surat Jalan</span></div>
+      </div>
+    </div>
+  );
+};
 
 // ... (ClientDetail component updated) ...
 const ClientDetail: React.FC<{
@@ -27,6 +89,18 @@ const ClientDetail: React.FC<{
   onEdit: () => void;
   onDelete: () => void;
 }> = ({ client, onBack, onEdit, onDelete }) => {
+  
+  // Helper to format WhatsApp URL
+  const getWaUrl = (number: string) => {
+    // Remove non-digits
+    let clean = number.replace(/\D/g, '');
+    // Replace leading 0 with 62
+    if (clean.startsWith('0')) {
+        clean = '62' + clean.slice(1);
+    }
+    return `https://wa.me/${clean}`;
+  };
+
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
       <div className="flex items-center justify-between">
@@ -68,12 +142,30 @@ const ClientDetail: React.FC<{
                         <p className="font-medium text-slate-900 mt-1">{client.picName || '-'}</p>
                     </div>
                     <div>
-                        <label className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Nomor Kontak</label>
-                        <p className="font-medium text-slate-900 mt-1">{client.contactNumber}</p>
+                        <label className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Nomor Kontak (WhatsApp)</label>
+                        <p className="font-medium text-slate-900 mt-1">
+                            <a 
+                                href={getWaUrl(client.contactNumber)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-1.5 text-green-600 hover:text-green-700 hover:underline w-fit"
+                            >
+                                <MessageCircle className="w-4 h-4" />
+                                {client.contactNumber}
+                            </a>
+                        </p>
                     </div>
                     <div>
                         <label className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Email</label>
-                        <p className="font-medium text-slate-900 mt-1">{client.email}</p>
+                        <p className="font-medium text-slate-900 mt-1">
+                            <a 
+                                href={`mailto:${client.email}`}
+                                className="flex items-center gap-1.5 text-blue-600 hover:text-blue-700 hover:underline w-fit"
+                            >
+                                <Mail className="w-4 h-4" />
+                                {client.email}
+                            </a>
+                        </p>
                     </div>
                      <div>
                         <label className="text-xs text-slate-500 uppercase tracking-wider font-semibold">NIB / SIUP</label>
@@ -211,6 +303,53 @@ const App = () => {
       companyPhone: ''
   });
 
+  // --- Derived Statistics ---
+  const stats = useMemo(() => {
+    const totalReceipts = documents.filter(d => d.type === 'RECEIPT').length;
+    const totalDeliveries = documents.filter(d => d.type === 'DELIVERY').length;
+    
+    // Chart Data Generation (Last 6 Months)
+    const chartData = [];
+    const today = new Date();
+    
+    for (let i = 5; i >= 0; i--) {
+        const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
+        const monthKey = d.getMonth(); // 0-11
+        const yearKey = d.getFullYear();
+        const label = d.toLocaleDateString('id-ID', { month: 'short', year: '2-digit' });
+
+        const countClients = clients.filter(c => {
+            const cd = new Date(c.createdAt);
+            return cd.getMonth() === monthKey && cd.getFullYear() === yearKey;
+        }).length;
+
+        const countDeeds = deeds.filter(item => {
+            const cd = new Date(item.deedDate);
+            return cd.getMonth() === monthKey && cd.getFullYear() === yearKey;
+        }).length;
+
+        const countReceipts = documents.filter(item => {
+            const cd = new Date(item.date);
+            return item.type === 'RECEIPT' && cd.getMonth() === monthKey && cd.getFullYear() === yearKey;
+        }).length;
+
+        const countDeliveries = documents.filter(item => {
+            const cd = new Date(item.date);
+            return item.type === 'DELIVERY' && cd.getMonth() === monthKey && cd.getFullYear() === yearKey;
+        }).length;
+
+        chartData.push({
+            month: label,
+            clients: countClients,
+            deeds: countDeeds,
+            receipts: countReceipts,
+            deliveries: countDeliveries
+        });
+    }
+
+    return { totalReceipts, totalDeliveries, chartData };
+  }, [clients, deeds, documents]);
+
   // --- Login Handler ---
   const handleLogin = (status: boolean) => {
     if (status) {
@@ -283,6 +422,15 @@ const App = () => {
   const filteredClients = clients.filter(c => c.name.toLowerCase().includes(searchQuery.toLowerCase()) || c.type.toLowerCase().includes(searchQuery.toLowerCase()));
   const filteredEmployees = employees.filter(e => e.name.toLowerCase().includes(empSearchQuery.toLowerCase()) || e.role.toLowerCase().includes(empSearchQuery.toLowerCase()));
 
+  // Helper to format WhatsApp URL (Duplicate here for list view usage if needed, or inline)
+  const getWaUrl = (number: string) => {
+    let clean = number.replace(/\D/g, '');
+    if (clean.startsWith('0')) {
+        clean = '62' + clean.slice(1);
+    }
+    return `https://wa.me/${clean}`;
+  };
+
   // Document List Helper
   const DocumentList = ({ type }: { type: DocType }) => {
      const filteredDocs = documents
@@ -313,9 +461,68 @@ const App = () => {
         onTabChange={(tab) => { setActiveTab(tab); setClientViewState('list'); setSelectedClient(null); setDocViewState('list'); setSelectedDocument(null); setDeedViewState('list'); setSelectedDeed(null); setEmpViewState('list'); setSelectedEmployee(null); }}
         onLogout={handleLogout}
     >
-      {/* ... (Dashboard & Clients Tab remains same) ... */}
-      {activeTab === 'dashboard' && ( <div className="space-y-6"><h2 className="text-2xl font-bold text-slate-800">Dashboard Overview</h2><div className="grid grid-cols-1 md:grid-cols-4 gap-6"><div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200"><p className="text-sm text-slate-500">Total Klien</p><h3 className="text-3xl font-bold text-slate-800">{clients.length}</h3></div><div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200"><p className="text-sm text-slate-500">Total Akta</p><h3 className="text-3xl font-bold text-slate-800">{deeds.length}</h3></div></div></div> )}
-      {activeTab === 'clients' && (<div className="space-y-6">{clientViewState === 'list' && (<><div className="flex justify-between items-center"><h2 className="text-2xl font-bold text-slate-800">Data Klien</h2><button onClick={() => { setClientViewState('add'); setSelectedClient(null); }} className="bg-primary-600 text-white px-4 py-2 rounded-lg flex gap-2"><Plus className="w-4 h-4"/> Tambah Klien</button></div><div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4"><input type="text" placeholder="Cari..." className="w-full px-4 py-2 border rounded-lg mb-4" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} /><table className="w-full text-sm text-left"><thead className="bg-slate-50"><tr><th className="p-4">Nama</th><th className="p-4">Kontak</th><th className="p-4">Tipe</th><th className="p-4 text-right">Aksi</th></tr></thead><tbody>{filteredClients.map(c => (<tr key={c.id} className="border-b"><td className="p-4 font-bold">{c.name}</td><td className="p-4">{c.contactNumber}</td><td className="p-4">{c.type}</td><td className="p-4 text-right"><button onClick={() => { setClientViewState('detail'); setSelectedClient(c); }} className="text-primary-600">Lihat</button></td></tr>))}</tbody></table></div></>)}{clientViewState === 'add' && <ClientForm onSave={handleSaveClient} onCancel={() => setClientViewState('list')} initialData={selectedClient || undefined} />}{clientViewState === 'detail' && selectedClient && <ClientDetail client={selectedClient} onBack={() => setClientViewState('list')} onEdit={() => setClientViewState('add')} onDelete={() => handleDeleteClient(selectedClient.id)} />}</div>)}
+      {/* --- DASHBOARD TAB --- */}
+      {activeTab === 'dashboard' && ( 
+        <div className="space-y-6">
+            <h2 className="text-2xl font-bold text-slate-800">Dashboard Overview</h2>
+            
+            {/* Stats Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between">
+                    <div>
+                        <p className="text-sm text-slate-500 font-medium">Total Klien</p>
+                        <h3 className="text-3xl font-bold text-slate-800 mt-1">{clients.length}</h3>
+                    </div>
+                    <div className="bg-blue-50 p-3 rounded-lg text-blue-600">
+                        <Users className="w-6 h-6" />
+                    </div>
+                </div>
+
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between">
+                    <div>
+                        <p className="text-sm text-slate-500 font-medium">Total Akta</p>
+                        <h3 className="text-3xl font-bold text-slate-800 mt-1">{deeds.length}</h3>
+                    </div>
+                    <div className="bg-violet-50 p-3 rounded-lg text-violet-600">
+                        <ScrollText className="w-6 h-6" />
+                    </div>
+                </div>
+
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between">
+                    <div>
+                        <p className="text-sm text-slate-500 font-medium">Tanda Terima</p>
+                        <h3 className="text-3xl font-bold text-slate-800 mt-1">{stats.totalReceipts}</h3>
+                    </div>
+                    <div className="bg-green-50 p-3 rounded-lg text-green-600">
+                        <FileCheck className="w-6 h-6" />
+                    </div>
+                </div>
+
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between">
+                    <div>
+                        <p className="text-sm text-slate-500 font-medium">Surat Jalan</p>
+                        <h3 className="text-3xl font-bold text-slate-800 mt-1">{stats.totalDeliveries}</h3>
+                    </div>
+                    <div className="bg-orange-50 p-3 rounded-lg text-orange-600">
+                        <Truck className="w-6 h-6" />
+                    </div>
+                </div>
+            </div>
+
+            {/* Graphic Chart */}
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                <div className="flex items-center gap-2 mb-6 border-b border-slate-100 pb-4">
+                    <TrendingUp className="w-5 h-5 text-primary-600" />
+                    <h3 className="text-lg font-bold text-slate-800">Statistik Bulanan (6 Bulan Terakhir)</h3>
+                </div>
+                <div className="w-full">
+                    <SimpleLineChart data={stats.chartData} />
+                </div>
+            </div>
+        </div> 
+      )}
+
+      {activeTab === 'clients' && (<div className="space-y-6">{clientViewState === 'list' && (<><div className="flex justify-between items-center"><h2 className="text-2xl font-bold text-slate-800">Data Klien</h2><button onClick={() => { setClientViewState('add'); setSelectedClient(null); }} className="bg-primary-600 text-white px-4 py-2 rounded-lg flex gap-2"><Plus className="w-4 h-4"/> Tambah Klien</button></div><div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4"><input type="text" placeholder="Cari..." className="w-full px-4 py-2 border rounded-lg mb-4" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} /><table className="w-full text-sm text-left"><thead className="bg-slate-50"><tr><th className="p-4">Nama</th><th className="p-4">Kontak (WhatsApp)</th><th className="p-4">Tipe</th><th className="p-4 text-right">Aksi</th></tr></thead><tbody>{filteredClients.map(c => (<tr key={c.id} className="border-b"><td className="p-4 font-bold">{c.name}</td><td className="p-4"><a href={getWaUrl(c.contactNumber)} target="_blank" rel="noopener noreferrer" className="text-slate-600 hover:text-green-600 hover:underline flex items-center gap-1 w-fit"><MessageCircle className="w-3 h-3"/>{c.contactNumber}</a></td><td className="p-4">{c.type}</td><td className="p-4 text-right"><button onClick={() => { setClientViewState('detail'); setSelectedClient(c); }} className="text-primary-600">Lihat</button></td></tr>))}</tbody></table></div></>)}{clientViewState === 'add' && <ClientForm onSave={handleSaveClient} onCancel={() => setClientViewState('list')} initialData={selectedClient || undefined} />}{clientViewState === 'detail' && selectedClient && <ClientDetail client={selectedClient} onBack={() => setClientViewState('list')} onEdit={() => setClientViewState('add')} onDelete={() => handleDeleteClient(selectedClient.id)} />}</div>)}
 
       {/* ... (Akta Tab remains same) ... */}
       {activeTab === 'akta' && (<div className="space-y-6">{deedViewState === 'list' ? (<><div className="flex justify-between items-center"><h2 className="text-2xl font-bold text-slate-800">Daftar Akta</h2><div className="flex gap-2"><button onClick={() => setDeedViewState('report_alphabetical')} className="bg-white border border-slate-300 text-slate-700 px-3 py-2 rounded-lg hover:bg-slate-50 flex items-center gap-2 transition shadow-sm text-sm"><ArrowDownAZ className="w-4 h-4" /> Laporan A-Z</button><button onClick={() => setDeedViewState('report_monthly')} className="bg-white border border-slate-300 text-slate-700 px-3 py-2 rounded-lg hover:bg-slate-50 flex items-center gap-2 transition shadow-sm text-sm"><BookOpen className="w-4 h-4" /> Laporan Bulanan</button><button onClick={() => { setDeedViewState('create'); setSelectedDeed(null); }} className="bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 flex items-center gap-2 transition shadow-sm text-sm"><Plus className="w-4 h-4" /> Buat Akta Baru</button></div></div><div className="bg-white rounded-xl shadow-sm border border-slate-200"><div className="p-4 border-b"><input type="text" placeholder="Cari..." className="w-full px-4 py-2 border rounded-lg" value={deedSearchQuery} onChange={e => setDeedSearchQuery(e.target.value)} /></div><div className="overflow-x-auto"><table className="w-full text-sm text-left"><thead className="bg-slate-50"><tr><th className="p-4">No. Akta</th><th className="p-4">Judul</th><th className="p-4">Klien</th><th className="p-4 text-right">Aksi</th></tr></thead><tbody>{deeds.filter(d => d.deedNumber.toLowerCase().includes(deedSearchQuery.toLowerCase()) || d.deedTitle.toLowerCase().includes(deedSearchQuery.toLowerCase()) || d.clientName.toLowerCase().includes(deedSearchQuery.toLowerCase())).map(d => (<tr key={d.id} className="border-b"><td className="p-4 font-bold">{d.deedNumber}</td><td className="p-4">{d.deedTitle}</td><td className="p-4">{d.clientName}</td><td className="p-4 text-right flex justify-end gap-2"><button onClick={() => { setSelectedDeed(d); setDeedViewState('edit'); }}><Pencil className="w-4 h-4 text-blue-600" /></button><button onClick={() => handleDeleteDeed(d.id)}><Trash2 className="w-4 h-4 text-red-600" /></button></td></tr>))}</tbody></table></div></div></>) : deedViewState === 'report_monthly' ? <DeedReport deeds={deeds} onBack={() => setDeedViewState('list')} /> : deedViewState === 'report_alphabetical' ? <DeedAlphabeticalReport deeds={deeds} onBack={() => setDeedViewState('list')} /> : <DeedForm clients={clients} onSave={handleSaveDeed} onCancel={() => setDeedViewState('list')} onAddClient={handleDirectAddClient} initialData={selectedDeed || undefined} />}</div>)}

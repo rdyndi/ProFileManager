@@ -76,15 +76,15 @@ export const DeedReport: React.FC<DeedReportProps> = ({ deeds, onBack }) => {
 
         return `
             <tr class="border-b border-black align-top">
-                <td class="py-1 px-1 text-center border-r border-black font-medium">${deed.orderNumber}</td>
-                <td class="py-1 px-1 text-center border-r border-black">${index + 1}</td>
-                <td class="py-1 px-1 text-center border-r border-black whitespace-nowrap">
+                <td class="py-1 px-1 text-center border-r border-black font-medium break-words">${deed.orderNumber}</td>
+                <td class="py-1 px-1 text-center border-r border-black break-words">${index + 1}</td>
+                <td class="py-1 px-1 text-center border-r border-black break-words">
                     ${new Date(deed.deedDate).toLocaleDateString('id-ID', {day: '2-digit', month: 'long', year: 'numeric'})}
                 </td>
-                <td class="py-1 px-1 text-left border-r border-black font-medium leading-tight">
+                <td class="py-1 px-1 text-left border-r border-black font-medium leading-tight break-words">
                     ${deed.deedTitle}
                 </td>
-                <td class="py-1 px-1 text-left leading-tight">
+                <td class="py-1 px-1 text-left leading-tight break-words">
                     ${appearersHtml}
                 </td>
             </tr>
@@ -106,16 +106,17 @@ export const DeedReport: React.FC<DeedReportProps> = ({ deeds, onBack }) => {
         <style>
           body { font-family: 'Inter', sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
           @page { size: A4 portrait; margin: 10mm; }
-          table { width: 100%; border-collapse: collapse; font-size: 10px; }
+          table { width: 100%; border-collapse: collapse; font-size: 10px; table-layout: fixed; }
           /* Border tabel tebal solid hitam */
           table, th, td { border-color: black; }
+          td { word-wrap: break-word; overflow-wrap: break-word; word-break: break-word; }
           @media print {
             body { background: white; }
             .no-print { display: none; }
           }
         </style>
       </head>
-      <body class="bg-white text-black p-4">
+      <body class="bg-white text-black">
         
         <div class="mb-4">
             <h1 class="text-md font-bold uppercase mb-1">Salinan Daftar Akta-Akta Notaris ${signatureName}</h1>
@@ -125,11 +126,11 @@ export const DeedReport: React.FC<DeedReportProps> = ({ deeds, onBack }) => {
         <table class="w-full border border-black table-fixed">
             <thead>
                 <tr class="border-b border-black bg-gray-100 uppercase text-[10px] font-bold tracking-wider text-center">
-                    <th class="py-1 px-1 border-r border-black w-[8%]">NOMOR URUT</th>
-                    <th class="py-1 px-1 border-r border-black w-[10%]">NOMOR BULANAN</th>
-                    <th class="py-1 px-1 border-r border-black w-[12%]">TANGGAL</th>
-                    <th class="py-1 px-1 border-r border-black w-[35%]">SIFAT AKTA</th>
-                    <th class="py-1 px-1 w-[35%]">NAMA PENGHADAP</th>
+                    <th class="py-1 px-1 border-r border-black w-[8%] break-words">NOMOR URUT</th>
+                    <th class="py-1 px-1 border-r border-black w-[10%] break-words">NOMOR BULANAN</th>
+                    <th class="py-1 px-1 border-r border-black w-[12%] break-words">TANGGAL</th>
+                    <th class="py-1 px-1 border-r border-black w-[35%] break-words">SIFAT AKTA</th>
+                    <th class="py-1 px-1 w-[35%] break-words">NAMA PENGHADAP</th>
                 </tr>
             </thead>
             <tbody class="text-[10px]">

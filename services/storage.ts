@@ -29,12 +29,11 @@ const LS_SETTINGS = 'app_settings_data';
 
 // --- HELPERS LOCAL STORAGE ---
 
-// Safe JSON stringify that handles circular refs and removes non-serializable data
 const safeStringify = (data: any): string | null => {
   const seen = new WeakSet();
   try {
     return JSON.stringify(data, (key, value) => {
-      // Handle circular references
+      // Handle circular references & non-serializable DOM nodes
       if (typeof value === "object" && value !== null) {
         if (seen.has(value)) {
           return; // Remove circular reference
@@ -74,10 +73,15 @@ const sanitizeData = <T>(data: T): T => {
     // Attempt to stringify and parse to remove non-JSON compatible data (like Functions, DOM nodes)
     // and break circular references.
     const json = safeStringify(data);
-    // If stringify fails (returns null), return the original data to avoid data loss, 
-    // though this might still cause issues downstream if not handled.
-    // Ideally, we return a parsed version of the clean JSON.
-    return json ? JSON.parse(json) : data;
+    
+    // CRITICAL FIX: If stringify fails (returns null), DO NOT return original data.
+    // Returning original data passes circular refs to Firebase SDK/React causing crashes.
+    if (!json) {
+        console.error("sanitizeData failed: Data is circular or invalid. Returning empty fallback.");
+        return (Array.isArray(data) ? [] : {}) as T;
+    }
+    
+    return JSON.parse(json);
 }
 
 // --- CLIENTS ---
@@ -100,7 +104,7 @@ export const subscribeClients = (callback: (data: Client[]) => void) => {
     setLocalData(LS_CLIENTS, sanitizedClients);
     callback(sanitizedClients);
   }, (error) => {
-    console.warn("Firestore offline/error (clients), menggunakan data lokal:", error);
+    console.warn("Firestore offline/error (clients), menggunakan data lokal:", error.message);
   });
 };
 
@@ -151,7 +155,7 @@ export const subscribeEmployees = (callback: (data: Employee[]) => void) => {
     setLocalData(LS_EMPLOYEES, sanitizedEmployees);
     callback(sanitizedEmployees);
   }, (error) => {
-    console.warn("Firestore employee sync error:", error);
+    console.warn("Firestore employee sync error:", error.message);
   });
 };
 
@@ -205,7 +209,7 @@ export const subscribeDocuments = (callback: (data: DocumentData[]) => void) => 
     setLocalData(LS_DOCS, sanitizedDocs);
     callback(sanitizedDocs);
   }, (error) => {
-    console.warn("Firestore doc sync error:", error);
+    console.warn("Firestore doc sync error:", error.message);
   });
 };
 
@@ -262,7 +266,7 @@ export const subscribeDeeds = (callback: (data: Deed[]) => void) => {
     setLocalData(LS_DEEDS, sanitizedDeeds);
     callback(sanitizedDeeds);
   }, (error) => {
-    console.warn("Firestore deed sync error:", error);
+    console.warn("Firestore deed sync error:", error.message);
   });
 };
 
@@ -315,7 +319,7 @@ export const subscribeInvoices = (callback: (data: Invoice[]) => void) => {
     setLocalData(LS_INVOICES, sanitizedInvoices);
     callback(sanitizedInvoices);
   }, (error) => {
-    console.warn("Firestore invoice sync error:", error);
+    console.warn("Firestore invoice sync error:", error.message);
   });
 };
 
@@ -382,7 +386,7 @@ export const subscribeSettings = (callback: (data: CompanySettings) => void) => 
       callback(sanitizedSettings);
     } 
   }, (error) => {
-     console.warn("Firestore settings sync error:", error);
+     console.warn("Firestore settings sync error:", error.message);
   });
 };
 

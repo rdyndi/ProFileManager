@@ -7,7 +7,7 @@ import { DocumentGenerator, printDocument } from './components/DocumentGenerator
 import { DeedForm } from './components/DeedForm';
 import { DeedReport } from './components/DeedReport';
 import { DeedAlphabeticalReport } from './components/DeedAlphabeticalReport';
-import { InvoiceGenerator, printInvoice, calculateItemValues } from './components/InvoiceGenerator';
+import { InvoiceGenerator, printInvoice, calculateItemValues, printReceipt } from './components/InvoiceGenerator';
 import { 
   subscribeClients, saveClient, deleteClient, 
   subscribeDocuments, saveDocument, updateDocument, deleteDocument,
@@ -21,7 +21,7 @@ import { signInAnonymously } from "firebase/auth";
 import { Client, CompanySettings, DocumentData, DocType, Deed, Employee, Invoice, PaymentRecord } from './types';
 import { Users, Search, Plus, Trash2, Eye, FileText, Briefcase, ArrowUpRight, Save, Pencil, Printer, ScrollText, BookOpen, ArrowDownAZ, ArrowLeft, UserCog, Link as LinkIcon, ExternalLink, MessageCircle, Mail, Truck, TrendingUp, BarChart3, Package, FileCheck, CreditCard, Calendar, User, Banknote, X, Wallet } from 'lucide-react';
 
-// ... (SimpleLineChart Component remains the same) ...
+// --- Simple Custom SVG Line Chart Component ---
 const SimpleLineChart = ({ data }: { data: any[] }) => {
   if (!data || data.length === 0) return <div className="h-64 flex items-center justify-center text-slate-400">Belum ada data</div>;
 
@@ -83,7 +83,7 @@ const SimpleLineChart = ({ data }: { data: any[] }) => {
   );
 };
 
-// ... (ClientDetail component remains the same) ...
+// ... (ClientDetail component) ...
 const ClientDetail: React.FC<{
   client: Client;
   onBack: () => void;
@@ -262,7 +262,7 @@ const ClientDetail: React.FC<{
   );
 };
 
-// ... (InvoiceDetail component remains the same) ...
+// ... (InvoiceDetail component updated) ...
 const InvoiceDetail: React.FC<{
     invoice: Invoice;
     onBack: () => void;
@@ -447,107 +447,93 @@ const InvoiceDetail: React.FC<{
                             </div>
                         )}
                     </div>
+                </div>
 
-                    {/* TABLE INFORMASI PEMBAYARAN */}
+                {/* Sidebar - Payment Menu (Replaces Info Status) */}
+                <div className="space-y-6">
                     <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                        <div className="px-6 py-4 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                                <Banknote className="w-4 h-4 text-slate-600"/>
-                                <h3 className="font-bold text-slate-800 text-sm">Riwayat Pembayaran</h3>
-                            </div>
-                            {/* Tombol Tambah Pembayaran */}
+                        <div className="px-5 py-4 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
+                            <h3 className="font-bold text-slate-800 text-sm flex items-center gap-2">
+                                <Banknote className="w-4 h-4"/> Menu Pembayaran
+                            </h3>
                             {invoice.status === 'UNPAID' && (
                                 <button 
                                     onClick={() => setIsPaymentModalOpen(true)}
-                                    className="text-xs bg-green-50 text-green-700 px-3 py-1.5 rounded-lg font-bold border border-green-200 hover:bg-green-100 flex items-center gap-1 transition"
+                                    className="text-[10px] bg-green-600 text-white px-2.5 py-1.5 rounded-lg font-bold hover:bg-green-700 flex items-center gap-1 transition"
                                 >
-                                    <Plus className="w-3 h-3" /> Tambah Pembayaran
+                                    <Plus className="w-3 h-3" /> Tambah
                                 </button>
                             )}
                         </div>
+
+                        {/* Mini Stats in Payment Menu */}
+                        <div className="p-5 bg-white border-b border-slate-100 space-y-3">
+                             <div className="flex justify-between items-center text-sm">
+                                <span className="text-slate-500">Total Tagihan</span>
+                                <span className="font-bold text-slate-800 font-mono">{new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(grandTotal)}</span>
+                            </div>
+                             <div className="flex justify-between items-center text-sm">
+                                <span className="text-slate-500">Sudah Dibayar</span>
+                                <span className="font-bold text-green-600 font-mono">{new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(paymentAmount)}</span>
+                            </div>
+                             <div className="flex justify-between items-center text-sm pt-2 border-t border-slate-50">
+                                <span className="font-bold text-slate-600">Sisa Kekurangan</span>
+                                <span className="font-bold text-red-600 font-mono">{new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(remainingAmount)}</span>
+                            </div>
+                        </div>
+
+                        {/* History Table */}
                         <div className="p-0">
-                            <table className="w-full text-sm">
+                            <table className="w-full text-xs">
                                 <thead className="bg-slate-50 text-slate-500 border-b border-slate-100">
                                     <tr>
-                                        <th className="px-6 py-3 text-left font-medium">Tanggal Pembayaran</th>
-                                        <th className="px-6 py-3 text-right font-medium">Jumlah Dibayar</th>
+                                        <th className="px-4 py-2 text-left font-medium">Tanggal</th>
+                                        <th className="px-4 py-2 text-right font-medium">Jumlah</th>
+                                        <th className="px-2 py-2 w-8"></th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100">
                                     {invoice.paymentHistory && invoice.paymentHistory.length > 0 ? (
                                         invoice.paymentHistory.map((pay) => (
                                             <tr key={pay.id}>
-                                                <td className="px-6 py-4 text-slate-700">
-                                                    {new Date(pay.date).toLocaleDateString('id-ID', {day: 'numeric', month: 'long', year: 'numeric'})}
-                                                    {pay.note && <div className="text-[10px] text-slate-400 italic">{pay.note}</div>}
+                                                <td className="px-4 py-3 text-slate-700">
+                                                    {new Date(pay.date).toLocaleDateString('id-ID', {day: 'numeric', month: 'short', year: 'numeric'})}
+                                                    {pay.note && <div className="text-[9px] text-slate-400 italic truncate max-w-[120px]">{pay.note}</div>}
                                                 </td>
-                                                <td className="px-6 py-4 text-right font-mono font-medium text-slate-700">
-                                                    {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(pay.amount)}
+                                                <td className="px-4 py-3 text-right font-mono font-medium text-slate-700">
+                                                    {new Intl.NumberFormat('id-ID').format(pay.amount)}
+                                                </td>
+                                                <td className="px-2 py-3 text-right">
+                                                    <button 
+                                                        onClick={() => printReceipt(invoice, pay)}
+                                                        className="text-slate-400 hover:text-blue-600 transition"
+                                                        title="Cetak Kwitansi"
+                                                    >
+                                                        <Printer className="w-3.5 h-3.5" />
+                                                    </button>
                                                 </td>
                                             </tr>
                                         ))
                                     ) : paymentAmount > 0 ? (
-                                        // Fallback Legacy Single Payment Data
                                         <tr>
-                                            <td className="px-6 py-4 text-slate-700">
-                                                {invoice.paymentDate ? new Date(invoice.paymentDate).toLocaleDateString('id-ID', {day: 'numeric', month: 'long', year: 'numeric'}) : '-'}
-                                                <div className="text-[10px] text-slate-400 italic">Data lama</div>
+                                            <td className="px-4 py-3 text-slate-700">
+                                                {invoice.paymentDate ? new Date(invoice.paymentDate).toLocaleDateString('id-ID') : '-'}
+                                                <div className="text-[9px] text-slate-400">Manual</div>
                                             </td>
-                                            <td className="px-6 py-4 text-right font-mono font-medium text-slate-700">
-                                                {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(paymentAmount)}
+                                            <td className="px-4 py-3 text-right font-mono font-medium text-slate-700">
+                                                {new Intl.NumberFormat('id-ID').format(paymentAmount)}
                                             </td>
+                                            <td></td>
                                         </tr>
                                     ) : (
                                         <tr>
-                                            <td colSpan={2} className="px-6 py-8 text-center text-slate-400 italic">
-                                                Belum ada pembayaran yang tercatat.
+                                            <td colSpan={3} className="px-4 py-6 text-center text-slate-400 italic">
+                                                Belum ada data.
                                             </td>
                                         </tr>
                                     )}
-                                    
-                                    {/* Footer Total */}
-                                    {paymentAmount > 0 && (
-                                        <tr className="bg-slate-50 font-bold">
-                                            <td className="px-6 py-3 text-slate-800 text-right">Total Terbayar</td>
-                                            <td className="px-6 py-3 text-right font-mono text-green-700">
-                                                {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(paymentAmount)}
-                                            </td>
-                                        </tr>
-                                    )}
-                                    <tr className="bg-white font-bold border-t-2 border-slate-100">
-                                        <td className="px-6 py-3 text-slate-800 text-right">Sisa Tagihan</td>
-                                        <td className="px-6 py-3 text-right font-mono text-red-600">
-                                            {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(remainingAmount)}
-                                        </td>
-                                    </tr>
                                 </tbody>
                             </table>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Sidebar Info */}
-                <div className="space-y-6">
-                    <div className="bg-slate-800 text-white p-6 rounded-xl shadow-lg">
-                        <div className="flex items-center gap-3 mb-4">
-                            <div className="p-2 bg-white/10 rounded-lg">
-                                <Briefcase className="w-5 h-5 text-white" />
-                            </div>
-                            <h3 className="font-bold">Info Status</h3>
-                        </div>
-                        <div className="space-y-4">
-                            <div className="bg-white/5 p-3 rounded-lg border border-white/10">
-                                <p className="text-slate-400 text-xs uppercase mb-1">Total Tagihan</p>
-                                <p className="text-xl font-bold">{new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(grandTotal)}</p>
-                            </div>
-                             <div className="bg-white/5 p-3 rounded-lg border border-white/10">
-                                <p className="text-slate-400 text-xs uppercase mb-1">Sudah Dibayar</p>
-                                <p className="text-xl font-bold text-green-400">{new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(paymentAmount)}</p>
-                            </div>
-                             <div className="bg-white/5 p-3 rounded-lg border border-white/10">
-                                <p className="text-slate-400 text-xs uppercase mb-1">Sisa Kekurangan</p>
-                                <p className="text-xl font-bold text-red-400">{new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(remainingAmount)}</p>
-                            </div>
                         </div>
                     </div>
                 </div>

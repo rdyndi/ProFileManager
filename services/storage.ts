@@ -7,7 +7,7 @@ import {
   getDoc 
 } from "firebase/firestore";
 import { db } from "./firebaseService";
-import { Client, DocumentData, CompanySettings, Deed, Employee, Invoice } from '../types';
+import { Client, DocumentData, CompanySettings, Deed, Employee, Invoice, Expense } from '../types';
 
 // Nama Collection di Firestore
 const COLL_CLIENTS = 'clients';
@@ -15,6 +15,7 @@ const COLL_DOCS = 'documents';
 const COLL_DEEDS = 'deeds';
 const COLL_EMPLOYEES = 'employees';
 const COLL_INVOICES = 'invoices';
+const COLL_EXPENSES = 'expenses';
 const COLL_SETTINGS = 'settings';
 const DOC_SETTINGS_ID = 'company_profile'; // ID statis untuk settings
 
@@ -24,6 +25,7 @@ const LS_DOCS = 'app_docs_data';
 const LS_DEEDS = 'app_deeds_data';
 const LS_EMPLOYEES = 'app_employees_data';
 const LS_INVOICES = 'app_invoices_data';
+const LS_EXPENSES = 'app_expenses_data';
 const LS_SETTINGS = 'app_settings_data';
 
 // --- HELPERS LOCAL STORAGE ---
@@ -364,6 +366,59 @@ export const deleteInvoice = async (id: string): Promise<void> => {
     await deleteDoc(doc(db, COLL_INVOICES, id));
   } catch (error) {
     console.error("Error deleting invoice from Firebase");
+    throw error;
+  }
+};
+
+// --- EXPENSES (Biaya/Pengeluaran) ---
+
+export const subscribeExpenses = (callback: (data: Expense[]) => void) => {
+  const localExpenses = getLocalData<Expense>(LS_EXPENSES);
+  if (localExpenses.length > 0) {
+    localExpenses.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    callback(localExpenses);
+  }
+
+  const q = collection(db, COLL_EXPENSES);
+  return onSnapshot(q, (snapshot) => {
+    const expenses = snapshot.docs.map(doc => ({...doc.data(), id: doc.id} as Expense));
+    expenses.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    const sanitizedExpenses = sanitizeData(expenses);
+    setLocalData(LS_EXPENSES, sanitizedExpenses);
+    callback(sanitizedExpenses);
+  }, (error) => {
+    console.warn("Firestore expense sync error:", error.message);
+  });
+};
+
+export const saveExpense = async (expense: Expense): Promise<void> => {
+  const dataToSave = sanitizeData(expense);
+  const expenses = getLocalData<Expense>(LS_EXPENSES);
+  const index = expenses.findIndex(e => e.id === dataToSave.id);
+  if (index >= 0) {
+    expenses[index] = dataToSave;
+  } else {
+    expenses.push(dataToSave);
+  }
+  setLocalData(LS_EXPENSES, expenses);
+
+  try {
+    const docRef = doc(db, COLL_EXPENSES, dataToSave.id);
+    await setDoc(docRef, dataToSave);
+  } catch (error) {
+    console.error("Error saving expense to Firebase");
+    throw error;
+  }
+};
+
+export const deleteExpense = async (id: string): Promise<void> => {
+  const expenses = getLocalData<Expense>(LS_EXPENSES).filter(e => e.id !== id);
+  setLocalData(LS_EXPENSES, expenses);
+
+  try {
+    await deleteDoc(doc(db, COLL_EXPENSES, id));
+  } catch (error) {
+    console.error("Error deleting expense from Firebase");
     throw error;
   }
 };

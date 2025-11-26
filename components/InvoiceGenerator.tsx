@@ -1,25 +1,58 @@
 
+
 import React, { useState, useEffect } from 'react';
 import { Client, Invoice, InvoiceItem } from '../types';
-import { Printer, Search, Calendar, Plus, Trash2, Save, ArrowLeft, CreditCard } from 'lucide-react';
+import { Printer, Search, Calendar, Plus, Trash2, Save, ArrowLeft, CreditCard, Banknote } from 'lucide-react';
 import { getCachedSettings } from '../services/storage';
 
-// --- Helper Rupiah Formatter ---
-const formatRupiah = (amount: number) => {
-  return new Intl.NumberFormat('id-ID', {
-    style: 'currency',
-    currency: 'IDR',
-    minimumFractionDigits: 0
-  }).format(amount);
+// --- Helper Rupiah Formatter for Input Display ---
+const formatInputNumber = (num: number | undefined) => {
+  if (num === undefined || num === 0) return '';
+  return new Intl.NumberFormat('id-ID').format(num);
+};
+
+// --- Helper Calculations ---
+const calculateItemValues = (item: InvoiceItem) => {
+    // Jika dicentang pajak: Harga Input / 0.975 (Gross Up). Dibulatkan ke bawah (floor).
+    // Jika tidak: Harga Input.
+    const grossAmount = item.isTaxed ? Math.floor(item.amount / 0.975) : item.amount;
+    
+    // Pajak: Gross * 2.5% (jika taxed). Dibulatkan ke bawah.
+    const taxAmount = item.isTaxed ? Math.floor(grossAmount * 0.025) : 0;
+    
+    return { grossAmount, taxAmount };
 };
 
 // --- Standalone Print Function ---
 export const printInvoice = (invoice: Invoice) => {
-    const { invoiceNumber, date, clientName, clientAddress, items, totalAmount, notes, status } = invoice;
+    const { invoiceNumber, date, clientName, clientAddress, items, status, paymentDate, paymentAmount, notes } = invoice;
     const settings = getCachedSettings();
     const companyName = settings.companyName;
     const companyAddress = settings.companyAddress;
     const companyContact = `Email: ${settings.companyEmail} | Telp: ${settings.companyPhone}`;
+
+    // Recalculate totals for display to ensure consistency
+    let subTotal = 0;
+    let totalTax = 0;
+
+    const itemsHtml = items.map((item, idx) => {
+        const { grossAmount, taxAmount } = calculateItemValues(item);
+        subTotal += grossAmount;
+        totalTax += taxAmount;
+
+        return `
+            <tr class="border-b border-slate-100">
+                <td class="py-3 px-4 font-mono text-slate-500 align-top">${idx + 1}</td>
+                <td class="py-3 px-4 font-medium align-top">
+                    ${item.description}
+                    ${item.isTaxed ? '<div class="text-[10px] text-slate-500 italic mt-0.5">Termasuk Gross Up PPH 21</div>' : ''}
+                </td>
+                <td class="py-3 px-4 text-right font-mono font-semibold align-top">${new Intl.NumberFormat('id-ID').format(grossAmount)}</td>
+            </tr>
+        `;
+    }).join('');
+
+    const grandTotal = subTotal - totalTax;
 
     const printContent = `
       <!DOCTYPE html><html><head><title>Invoice - ${invoiceNumber}</title><script src="https://cdn.tailwindcss.com"></script><link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"><style>
@@ -38,6 +71,7 @@ export const printInvoice = (invoice: Invoice) => {
                 <h2 class="text-3xl font-bold text-slate-800 uppercase tracking-widest text-primary-700">INVOICE</h2>
                 <p class="text-sm font-medium text-slate-500 mt-1">#${invoiceNumber}</p>
                 ${status === 'PAID' ? '<span class="inline-block mt-2 px-3 py-1 bg-green-100 text-green-700 text-xs font-bold rounded border border-green-200">LUNAS / PAID</span>' : '<span class="inline-block mt-2 px-3 py-1 bg-red-50 text-red-600 text-xs font-bold rounded border border-red-100">BELUM LUNAS</span>'}
+                ${status === 'PAID' && paymentDate ? `<p class="text-[10px] text-green-600 mt-1 font-medium">Lunas Tgl: ${new Date(paymentDate).toLocaleDateString('id-ID')}</p>` : ''}
             </div>
         </div>
 
@@ -65,23 +99,35 @@ export const printInvoice = (invoice: Invoice) => {
                     </tr>
                 </thead>
                 <tbody class="text-slate-700 text-sm">
-                    ${items.map((item, idx) => `
-                        <tr class="border-b border-slate-100">
-                            <td class="py-3 px-4 font-mono text-slate-500">${idx + 1}</td>
-                            <td class="py-3 px-4 font-medium">${item.description}</td>
-                            <td class="py-3 px-4 text-right font-mono font-semibold">${new Intl.NumberFormat('id-ID').format(item.amount)}</td>
-                        </tr>
-                    `).join('')}
+                    ${itemsHtml}
                 </tbody>
             </table>
         </div>
 
         <div class="flex justify-end mb-12">
-            <div class="w-64">
-                <div class="flex justify-between items-center py-3 border-t-2 border-slate-800">
-                    <span class="text-base font-bold text-slate-800">TOTAL TAGIHAN</span>
-                    <span class="text-xl font-bold text-slate-900">${new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(totalAmount)}</span>
+            <div class="w-72">
+                <div class="flex justify-between items-center py-2 border-t border-slate-200">
+                    <span class="text-sm font-medium text-slate-600">Sub Total</span>
+                    <span class="text-sm font-bold text-slate-800">${new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(subTotal)}</span>
                 </div>
+                
+                ${totalTax > 0 ? `
+                <div class="flex justify-between items-center py-2 border-t border-slate-100">
+                    <span class="text-sm font-medium text-red-600">Pajak PPH 21 (2.5%)</span>
+                    <span class="text-sm font-bold text-red-600">(${new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(totalTax)})</span>
+                </div>
+                ` : ''}
+
+                <div class="flex justify-between items-center py-3 border-t-2 border-slate-800 mt-1">
+                    <span class="text-base font-bold text-slate-800">TOTAL TAGIHAN</span>
+                    <span class="text-xl font-bold text-slate-900">${new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(grandTotal)}</span>
+                </div>
+
+                 ${paymentAmount && paymentAmount > 0 ? `
+                 <div class="flex justify-between items-center py-1 text-sm text-slate-600 mt-2">
+                    <span>Dibayar</span>
+                    <span>${new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(paymentAmount)}</span>
+                </div>` : ''}
             </div>
         </div>
 
@@ -130,11 +176,15 @@ export const InvoiceGenerator: React.FC<InvoiceGeneratorProps> = ({ clients, onS
   const [selectedClientId, setSelectedClientId] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [invoiceNumber, setInvoiceNumber] = useState('');
-  const [items, setItems] = useState<InvoiceItem[]>([{ description: '', amount: 0 }]);
+  const [items, setItems] = useState<InvoiceItem[]>([{ description: '', amount: 0, isTaxed: false }]);
   const [status, setStatus] = useState<'UNPAID' | 'PAID'>('UNPAID');
   const [notes, setNotes] = useState('');
+  
+  // Payment Menu State
+  const [paymentDate, setPaymentDate] = useState('');
+  const [paymentAmount, setPaymentAmount] = useState(0);
 
-  // Auto-generate number on mount
+  // Auto-generate number or Load Data
   useEffect(() => {
     if (initialData) {
         setSelectedClientId(initialData.clientId);
@@ -143,6 +193,8 @@ export const InvoiceGenerator: React.FC<InvoiceGeneratorProps> = ({ clients, onS
         setItems(initialData.items);
         setStatus(initialData.status);
         setNotes(initialData.notes || '');
+        setPaymentDate(initialData.paymentDate || '');
+        setPaymentAmount(initialData.paymentAmount || 0);
     } else {
         const year = new Date().getFullYear();
         const count = existingInvoices.length + 1;
@@ -152,8 +204,33 @@ export const InvoiceGenerator: React.FC<InvoiceGeneratorProps> = ({ clients, onS
 
   const selectedClient = clients.find(c => c.id === selectedClientId);
 
+  // --- Live Calculations for UI ---
+  let subTotal = 0;
+  let totalTax = 0;
+  
+  items.forEach(item => {
+      const { grossAmount, taxAmount } = calculateItemValues(item);
+      subTotal += grossAmount;
+      totalTax += taxAmount;
+  });
+  
+  const grandTotal = subTotal - totalTax;
+
+  // Logic Otomatis Lunas
+  useEffect(() => {
+    // Jalankan logika hanya jika user sedang menginput pembayaran (amount > 0)
+    // dan total tagihan valid.
+    if (paymentAmount > 0 && grandTotal > 0) {
+        if (paymentAmount >= grandTotal) {
+            setStatus('PAID');
+        } else {
+            setStatus('UNPAID');
+        }
+    }
+  }, [paymentAmount, grandTotal]);
+
   const addItem = () => {
-    setItems([...items, { description: '', amount: 0 }]);
+    setItems([...items, { description: '', amount: 0, isTaxed: false }]);
   };
 
   const removeItem = (index: number) => {
@@ -168,8 +245,6 @@ export const InvoiceGenerator: React.FC<InvoiceGeneratorProps> = ({ clients, onS
     newItems[index] = { ...newItems[index], [field]: value };
     setItems(newItems);
   };
-
-  const totalAmount = items.reduce((sum, item) => sum + Number(item.amount), 0);
 
   const constructInvoiceData = (): Invoice | null => {
     if (!selectedClientId) {
@@ -192,10 +267,12 @@ export const InvoiceGenerator: React.FC<InvoiceGeneratorProps> = ({ clients, onS
         clientName: client?.name || initialData?.clientName || "Unknown",
         clientAddress: client?.address || initialData?.clientAddress || "",
         items: items.map(i => ({...i, amount: Number(i.amount)})),
-        totalAmount,
+        totalAmount: grandTotal, // Saving the Final Net Amount
         status,
         notes,
-        createdAt: initialData?.createdAt || Date.now()
+        createdAt: initialData?.createdAt || Date.now(),
+        paymentDate,
+        paymentAmount
     };
   };
 
@@ -229,9 +306,6 @@ export const InvoiceGenerator: React.FC<InvoiceGeneratorProps> = ({ clients, onS
                         </h2>
                         <p className="text-sm text-slate-500">Kelola tagihan klien</p>
                     </div>
-                </div>
-                <div className="bg-indigo-50 text-indigo-700 px-4 py-2 rounded-lg font-bold font-mono">
-                    Total: {formatRupiah(totalAmount)}
                 </div>
             </div>
 
@@ -311,7 +385,8 @@ export const InvoiceGenerator: React.FC<InvoiceGeneratorProps> = ({ clients, onS
                                 <tr>
                                     <th className="px-4 py-2 text-left w-12">No</th>
                                     <th className="px-4 py-2 text-left">Deskripsi</th>
-                                    <th className="px-4 py-2 text-right w-48">Jumlah (Rp)</th>
+                                    <th className="px-4 py-2 text-center w-20">PPH 21</th>
+                                    <th className="px-4 py-2 text-right w-48">Jumlah (Net)</th>
                                     <th className="px-4 py-2 w-12"></th>
                                 </tr>
                             </thead>
@@ -328,14 +403,33 @@ export const InvoiceGenerator: React.FC<InvoiceGeneratorProps> = ({ clients, onS
                                                 className="w-full px-2 py-1 outline-none border-b border-transparent focus:border-indigo-300 transition-colors"
                                             />
                                         </td>
-                                        <td className="px-4 py-2">
-                                            <input
-                                                type="number"
-                                                value={item.amount}
-                                                onChange={(e) => updateItem(idx, 'amount', e.target.value)}
-                                                className="w-full px-2 py-1 text-right outline-none border-b border-transparent focus:border-indigo-300 transition-colors font-mono"
-                                                min="0"
+                                        <td className="px-4 py-2 text-center">
+                                            <input 
+                                                type="checkbox" 
+                                                checked={item.isTaxed || false}
+                                                onChange={(e) => updateItem(idx, 'isTaxed', e.target.checked)}
+                                                className="w-4 h-4 text-primary-600 rounded border-slate-300 focus:ring-primary-500"
                                             />
+                                        </td>
+                                        <td className="px-4 py-2">
+                                            <div className="relative">
+                                                 <input
+                                                    type="text"
+                                                    value={formatInputNumber(item.amount)}
+                                                    onChange={(e) => {
+                                                        const raw = e.target.value.replace(/\D/g, '');
+                                                        updateItem(idx, 'amount', Number(raw));
+                                                    }}
+                                                    placeholder="0"
+                                                    className="w-full px-2 py-1 text-right outline-none border-b border-transparent focus:border-indigo-300 transition-colors font-mono"
+                                                />
+                                                {/* Preview Gross jika Taxed */}
+                                                {item.isTaxed && item.amount > 0 && (
+                                                    <div className="text-[10px] text-slate-400 text-right mt-0.5">
+                                                        Gross: {new Intl.NumberFormat('id-ID').format(calculateItemValues(item).grossAmount)}
+                                                    </div>
+                                                )}
+                                            </div>
                                         </td>
                                         <td className="px-4 py-2 text-center">
                                             {items.length > 1 && (
@@ -349,6 +443,63 @@ export const InvoiceGenerator: React.FC<InvoiceGeneratorProps> = ({ clients, onS
                         <button onClick={addItem} className="w-full py-2 bg-slate-50 text-slate-500 text-xs font-medium hover:bg-slate-100 border-t border-slate-100 flex items-center justify-center gap-1">
                             <Plus className="w-3 h-3" /> Tambah Baris
                         </button>
+                    </div>
+
+                    {/* Total Section */}
+                    <div className="flex justify-end mt-4">
+                        <div className="w-full md:w-1/2 lg:w-1/3 bg-slate-50 px-4 py-3 rounded-lg border border-slate-200">
+                             <div className="flex justify-between items-center py-2">
+                                <span className="font-medium text-slate-600">Sub Total (Gross)</span>
+                                <span className="font-bold text-slate-800 font-mono">{new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(subTotal)}</span>
+                            </div>
+                            
+                            {totalTax > 0 && (
+                                <div className="flex justify-between items-center py-2 border-t border-slate-200 border-dashed">
+                                    <span className="font-medium text-red-600 text-sm">Pajak PPH 21 (2.5%)</span>
+                                    <span className="font-bold text-red-600 font-mono text-sm">({new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(totalTax)})</span>
+                                </div>
+                            )}
+
+                             <div className="flex justify-between items-center py-3 border-t-2 border-slate-200 mt-1">
+                                <span className="font-bold text-slate-800 text-lg">Total Tagihan</span>
+                                <span className="font-bold text-xl text-slate-900 font-mono">{new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(grandTotal)}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Menu Pembayaran */}
+                <div className="bg-slate-50 p-5 rounded-xl border border-slate-200">
+                    <h3 className="text-sm font-bold text-slate-800 mb-4 flex items-center gap-2">
+                        <Banknote className="w-4 h-4 text-slate-600"/> Informasi Pembayaran
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label className="block text-sm font-medium text-slate-700 mb-1">Tanggal Pembayaran</label>
+                            <input
+                                type="date"
+                                value={paymentDate}
+                                onChange={(e) => setPaymentDate(e.target.value)}
+                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-slate-700 mb-1">Jumlah Pembayaran</label>
+                            <div className="relative">
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-medium">Rp</span>
+                                <input 
+                                    type="text" 
+                                    value={formatInputNumber(paymentAmount)}
+                                    onChange={(e) => {
+                                        const raw = e.target.value.replace(/\D/g, '');
+                                        setPaymentAmount(Number(raw));
+                                    }}
+                                    placeholder="0"
+                                    className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none font-mono"
+                                />
+                            </div>
+                            <p className="text-[10px] text-slate-500 mt-1">Status otomatis "LUNAS" jika pembayaran sesuai tagihan.</p>
+                        </div>
                     </div>
                 </div>
 

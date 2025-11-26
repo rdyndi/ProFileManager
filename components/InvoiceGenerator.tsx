@@ -1,14 +1,23 @@
-
-
 import React, { useState, useEffect } from 'react';
 import { Client, Invoice, InvoiceItem } from '../types';
-import { Printer, Search, Calendar, Plus, Trash2, Save, ArrowLeft, CreditCard, Banknote } from 'lucide-react';
+import { Printer, Search, Calendar, Plus, Trash2, Save, ArrowLeft, CreditCard, Banknote, Clock } from 'lucide-react';
 import { getCachedSettings } from '../services/storage';
 
 // --- Helper Rupiah Formatter for Input Display ---
 const formatInputNumber = (num: number | undefined) => {
   if (num === undefined || num === 0) return '';
   return new Intl.NumberFormat('id-ID').format(num);
+};
+
+// --- Helper: Add Days to Date ---
+const addDays = (dateStr: string, days: number) => {
+    try {
+        const date = new Date(dateStr);
+        date.setDate(date.getDate() + days);
+        return date.toISOString().split('T')[0];
+    } catch (e) {
+        return dateStr;
+    }
 };
 
 // --- Helper Calculations ---
@@ -25,7 +34,7 @@ const calculateItemValues = (item: InvoiceItem) => {
 
 // --- Standalone Print Function ---
 export const printInvoice = (invoice: Invoice) => {
-    const { invoiceNumber, date, clientName, clientAddress, items, status, paymentDate, paymentAmount, notes } = invoice;
+    const { invoiceNumber, date, dueDate, clientName, clientAddress, items, status, paymentDate, paymentAmount, notes } = invoice;
     const settings = getCachedSettings();
     const companyName = settings.companyName;
     const companyAddress = settings.companyAddress;
@@ -81,11 +90,17 @@ export const printInvoice = (invoice: Invoice) => {
                 <h3 class="text-lg font-bold text-slate-800">${clientName}</h3>
                 <p class="text-sm text-slate-600 mt-1 max-w-xs">${clientAddress}</p>
             </div>
-            <div class="text-right">
-                <div class="mb-2">
+            <div class="text-right space-y-3">
+                <div>
                     <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">TANGGAL INVOICE</p>
                     <p class="text-sm font-semibold text-slate-800">${new Date(date).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
                 </div>
+                ${dueDate ? `
+                <div>
+                    <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">JATUH TEMPO</p>
+                    <p class="text-sm font-bold text-red-600">${new Date(dueDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+                </div>
+                ` : ''}
             </div>
         </div>
 
@@ -175,6 +190,7 @@ interface InvoiceGeneratorProps {
 export const InvoiceGenerator: React.FC<InvoiceGeneratorProps> = ({ clients, onSave, onCancel, onAddClient, initialData, existingInvoices }) => {
   const [selectedClientId, setSelectedClientId] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [dueDate, setDueDate] = useState('');
   const [invoiceNumber, setInvoiceNumber] = useState('');
   const [items, setItems] = useState<InvoiceItem[]>([{ description: '', amount: 0, isTaxed: false }]);
   const [status, setStatus] = useState<'UNPAID' | 'PAID'>('UNPAID');
@@ -189,6 +205,7 @@ export const InvoiceGenerator: React.FC<InvoiceGeneratorProps> = ({ clients, onS
     if (initialData) {
         setSelectedClientId(initialData.clientId);
         setDate(initialData.date);
+        setDueDate(initialData.dueDate || addDays(initialData.date, 3));
         setInvoiceNumber(initialData.invoiceNumber);
         setItems(initialData.items);
         setStatus(initialData.status);
@@ -196,11 +213,25 @@ export const InvoiceGenerator: React.FC<InvoiceGeneratorProps> = ({ clients, onS
         setPaymentDate(initialData.paymentDate || '');
         setPaymentAmount(initialData.paymentAmount || 0);
     } else {
+        // Mode Buat Baru
         const year = new Date().getFullYear();
         const count = existingInvoices.length + 1;
         setInvoiceNumber(`INV/${year}/${String(count).padStart(3, '0')}`);
+        
+        // Default Due Date: Today + 3 Days
+        const today = new Date().toISOString().split('T')[0];
+        setDueDate(addDays(today, 3));
     }
   }, [initialData, existingInvoices]);
+
+  // Handler: Saat tanggal invoice berubah, update jatuh tempo otomatis JIKA mode buat baru
+  const handleDateChange = (newDate: string) => {
+      setDate(newDate);
+      // Jika mode buat baru (initialData null), otomatis geser jatuh tempo +3 hari
+      if (!initialData) {
+          setDueDate(addDays(newDate, 3));
+      }
+  };
 
   const selectedClient = clients.find(c => c.id === selectedClientId);
 
@@ -263,6 +294,7 @@ export const InvoiceGenerator: React.FC<InvoiceGeneratorProps> = ({ clients, onS
         id: initialData?.id || Math.random().toString(36).substr(2, 9),
         invoiceNumber,
         date,
+        dueDate,
         clientId: selectedClientId,
         clientName: client?.name || initialData?.clientName || "Unknown",
         clientAddress: client?.address || initialData?.clientAddress || "",
@@ -356,22 +388,37 @@ export const InvoiceGenerator: React.FC<InvoiceGeneratorProps> = ({ clients, onS
                                     <input
                                         type="date"
                                         value={date}
-                                        onChange={(e) => setDate(e.target.value)}
+                                        onChange={(e) => handleDateChange(e.target.value)}
                                         className="w-full pl-10 pr-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none"
                                     />
                                 </div>
                             </div>
                         </div>
-                        <div>
-                             <label className="block text-sm font-medium text-slate-700 mb-1">Status Pembayaran</label>
-                             <select
-                                value={status}
-                                onChange={(e) => setStatus(e.target.value as 'UNPAID' | 'PAID')}
-                                className={`w-full px-3 py-2 border rounded-lg outline-none font-medium ${status === 'PAID' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'}`}
-                             >
-                                <option value="UNPAID">BELUM LUNAS (UNPAID)</option>
-                                <option value="PAID">LUNAS (PAID)</option>
-                             </select>
+
+                         <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                 <label className="block text-sm font-medium text-slate-700 mb-1">Jatuh Tempo</label>
+                                 <div className="relative">
+                                    <Clock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
+                                    <input
+                                        type="date"
+                                        value={dueDate}
+                                        onChange={(e) => setDueDate(e.target.value)}
+                                        className="w-full pl-10 pr-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none"
+                                    />
+                                 </div>
+                            </div>
+                            <div>
+                                 <label className="block text-sm font-medium text-slate-700 mb-1">Status</label>
+                                 <select
+                                    value={status}
+                                    onChange={(e) => setStatus(e.target.value as 'UNPAID' | 'PAID')}
+                                    className={`w-full px-3 py-2 border rounded-lg outline-none font-medium ${status === 'PAID' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'}`}
+                                 >
+                                    <option value="UNPAID">BELUM LUNAS</option>
+                                    <option value="PAID">LUNAS</option>
+                                 </select>
+                            </div>
                         </div>
                     </div>
                 </div>

@@ -1,32 +1,30 @@
-
-
-export type EntityType = 'PT' | 'CV' | 'Perorangan' | 'YAYASAN' | 'PERKUMPULAN' | 'Lainnya';
-
-export interface Client {
-  id: string;
-  name: string;
-  picName?: string; // Nama Penanggung Jawab (PIC)
-  type: EntityType;
-  address: string;
-  contactNumber: string;
-  email: string;
-  nibSiup?: string; // Optional
-  createdAt: number;
-  files: AttachedFile[];
-}
+export type EntityType = 'PT' | 'CV' | 'YAYASAN' | 'PERKUMPULAN' | 'Perorangan' | 'Lainnya';
 
 export interface AttachedFile {
   id: string;
   name: string;
   uploadDate: number;
-  url?: string; // URL Link to Google Drive / External
+  url?: string;
+}
+
+export interface Client {
+  id: string;
+  name: string;
+  picName?: string;
+  type: EntityType;
+  address: string;
+  contactNumber: string;
+  email: string;
+  nibSiup?: string;
+  createdAt: number;
+  files?: AttachedFile[];
 }
 
 export interface Employee {
   id: string;
   name: string;
-  role: string; // Jabatan (e.g. Staff Admin, Kurir)
-  phone?: string;
+  role: string;
+  phone: string;
 }
 
 export type DocType = 'RECEIPT' | 'DELIVERY';
@@ -39,30 +37,19 @@ export interface DocumentItem {
 export interface DocumentData {
   id: string;
   type: DocType;
+  referenceNo: string;
+  date: string;
   clientId: string;
   clientName: string;
-  clientPic?: string; // Snapshot nama PIC saat dokumen dibuat
-  clientAddress: string;
-  clientContact: string; // Added for snapshot
-  items: DocumentItem[]; // List of files with status
-  date: string; // ISO Date string
+  clientPic?: string;
+  clientAddress?: string;
+  clientContact?: string;
+  items: DocumentItem[];
   officerName: string;
-  referenceNo: string; // For Receipt
-  destination?: string; // For Delivery Note
-  deliveryMethod?: string; // NEW: Metode Pengiriman
-  trackingNumber?: string; // NEW: Nomor Resi (Opsional)
+  destination?: string;
+  deliveryMethod?: string;
+  trackingNumber?: string;
 }
-
-export interface CompanySettings {
-  companyName: string;
-  companyAddress: string;
-  companyEmail: string;
-  companyPhone: string;
-}
-
-// --- DEED / AKTA TYPES ---
-
-export type AppearerRole = 'Self' | 'Proxy'; // Diri Sendiri | Kuasa
 
 export interface DeedGrantor {
   id: string;
@@ -72,42 +59,48 @@ export interface DeedGrantor {
 export interface DeedAppearer {
   id: string;
   name: string;
-  role: AppearerRole;
-  grantors?: DeedGrantor[]; // Hanya jika role == Proxy, unlimited
+  role: 'Self' | 'Proxy';
+  grantors?: DeedGrantor[];
 }
 
 export interface Deed {
   id: string;
-  orderNumber: string; // Nomor Urut (Wajib)
+  orderNumber: string;
   clientId: string;
-  clientName: string; // Snapshot
-  deedNumber: string; // Nomor Akta (Manual, Wajib)
-  deedDate: string; // Tanggal Akta (Manual, Wajib)
-  deedTitle: string; // Judul Akta (Manual, Wajib)
-  appearers: DeedAppearer[]; // Unlimited Penghadap
+  clientName: string;
+  deedNumber: string;
+  deedDate: string;
+  deedTitle: string;
+  appearers: DeedAppearer[];
   createdAt: number;
 }
-
-// --- INVOICE TYPES ---
 
 export interface InvoiceItem {
   description: string;
   amount: number;
-  isTaxed?: boolean; // NEW: Checkbox PPH 21
+  isTaxed?: boolean;
 }
 
 export interface Invoice {
   id: string;
   invoiceNumber: string;
   date: string;
+  dueDate?: string;
   clientId: string;
   clientName: string;
   clientAddress: string;
   items: InvoiceItem[];
   totalAmount: number;
   status: 'UNPAID' | 'PAID';
-  notes?: string; // Catatan tambahan / Info Pembayaran
+  notes?: string;
   createdAt: number;
-  paymentDate?: string; // Tanggal Pembayaran
-  paymentAmount?: number; // Jumlah Pembayaran
+  paymentDate?: string;
+  paymentAmount?: number;
+}
+
+export interface CompanySettings {
+  companyName: string;
+  companyAddress: string;
+  companyEmail: string;
+  companyPhone: string;
 }

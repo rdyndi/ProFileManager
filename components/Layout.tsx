@@ -1,5 +1,6 @@
+
 import React, { useState } from 'react';
-import { LayoutDashboard, Users, FileText, Truck, Settings, Menu, X, Briefcase, ScrollText, UserCog, LogOut } from 'lucide-react';
+import { LayoutDashboard, Users, FileText, Truck, Settings, Menu, X, Briefcase, ScrollText, UserCog, LogOut, CreditCard } from 'lucide-react';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -15,6 +16,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'clients', label: 'Data Klien', icon: Users },
     { id: 'akta', label: 'Akta', icon: ScrollText },
+    { id: 'invoice', label: 'Invoice / Tagihan', icon: CreditCard },
     { id: 'receipt', label: 'Tanda Terima', icon: FileText },
     { id: 'delivery', label: 'Surat Jalan', icon: Truck },
     { id: 'employees', label: 'Data Pegawai', icon: UserCog },

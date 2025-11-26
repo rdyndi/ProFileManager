@@ -20,8 +20,8 @@ const addDays = (dateStr: string, days: number) => {
     }
 };
 
-// --- Helper Calculations ---
-const calculateItemValues = (item: InvoiceItem) => {
+// --- Helper Calculations (Exported) ---
+export const calculateItemValues = (item: InvoiceItem) => {
     // Jika dicentang pajak: Harga Input / 0.975 (Gross Up). Dibulatkan ke bawah (floor).
     // Jika tidak: Harga Input.
     const grossAmount = item.isTaxed ? Math.floor(item.amount / 0.975) : item.amount;

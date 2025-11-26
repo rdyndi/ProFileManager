@@ -51,8 +51,20 @@ export const DeedReport: React.FC<DeedReportProps> = ({ deeds, onBack }) => {
     }
 
     const signMonthName = months[signMonthIndex];
-    // Format tanggal tanda tangan: 01 [Bulan Depan] [Tahun]
+    // Format tanggal tanda tangan: [Tanggal Hari Ini] [Bulan Depan] [Tahun]
+    // Menggunakan tanggal '01' agar selalu tanggal satu.
     const signatureDateStr = `01 ${signMonthName} ${signYear}`;
+
+    // Helper to clean notary name from settings for the signature block
+    // Removes "Notaris/PPAT" prefix if present to show just the name + titles
+    let signatureName = settings.companyName;
+    const prefix1 = "Notaris/PPAT ";
+    const prefix2 = "Notaris ";
+    if (signatureName.toLowerCase().startsWith(prefix1.toLowerCase())) {
+        signatureName = signatureName.substring(prefix1.length);
+    } else if (signatureName.toLowerCase().startsWith(prefix2.toLowerCase())) {
+        signatureName = signatureName.substring(prefix2.length);
+    }
 
     // Generate Rows HTML
     const rowsHtml = filteredDeeds.map((deed, index) => {
@@ -105,18 +117,18 @@ export const DeedReport: React.FC<DeedReportProps> = ({ deeds, onBack }) => {
       <body class="bg-white text-black p-8">
         
         <div class="mb-6">
-            <h1 class="text-lg font-bold uppercase mb-1">Salinan Daftar Akta-Akta Notaris ${settings.companyName.split(',')[0]}</h1>
+            <h1 class="text-lg font-bold uppercase mb-1">Salinan Daftar Akta-Akta Notaris ${signatureName}</h1>
             <h2 class="text-md font-semibold uppercase">Bulan ${monthName} ${selectedYear}</h2>
         </div>
 
         <table class="w-full border border-black">
             <thead>
                 <tr class="border-b border-black bg-gray-100 uppercase text-xs font-bold tracking-wider text-center">
-                    <th class="py-2 px-2 border-r border-black w-24">Nomor Urut</th>
-                    <th class="py-2 px-2 border-r border-black w-24">Nomor Bulanan</th>
-                    <th class="py-2 px-2 border-r border-black w-32">Tanggal</th>
-                    <th class="py-2 px-2 border-r border-black">Sifat Akta</th>
-                    <th class="py-2 px-2">Nama Penghadap</th>
+                    <th class="py-2 px-2 border-r border-black w-24">NOMOR URUT</th>
+                    <th class="py-2 px-2 border-r border-black w-24">NOMOR BULANAN</th>
+                    <th class="py-2 px-2 border-r border-black w-32">TANGGAL</th>
+                    <th class="py-2 px-2 border-r border-black">SIFAT AKTA</th>
+                    <th class="py-2 px-2">NAMA PENGHADAP</th>
                 </tr>
             </thead>
             <tbody class="text-xs">
@@ -125,15 +137,11 @@ export const DeedReport: React.FC<DeedReportProps> = ({ deeds, onBack }) => {
             </tbody>
         </table>
 
-        <div class="mt-8 pt-4 break-inside-avoid">
-             <p class="text-xs mb-8">Salinan Daftar Akta-Akta yang telah dibuat oleh saya, Notaris, selama Bulan ${monthName} ${selectedYear}.</p>
-             
-             <div class="flex justify-end mt-12 px-12">
-                <div class="text-center w-64">
-                    <p class="mb-24 text-xs font-medium">Bandung Barat, ${signatureDateStr}</p>
-                    <p class="font-bold text-sm uppercase underline underline-offset-2">${settings.companyName.split(',')[0]}</p>
-                    <p class="font-bold text-xs mt-1">Notaris di Kabupaten Bandung Barat</p>
-                </div>
+        <div class="mt-8 flex justify-end break-inside-avoid">
+             <div class="text-center w-1/2">
+                <p class="text-xs mb-4 leading-relaxed font-medium">Salinan Daftar Akta-Akta yang telah dibuat oleh saya, Notaris, selama Bulan ${monthName} ${selectedYear}.</p>
+                <p class="mb-24 text-md font-medium">Bandung Barat, ${signatureDateStr}</p>
+                <p class="font-bold text-lg uppercase underline underline-offset-4">${signatureName}</p>
              </div>
         </div>
 

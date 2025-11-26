@@ -1,21 +1,22 @@
+
 import React, { useState } from 'react';
-import { Lock, User, KeyRound, AlertCircle } from 'lucide-react';
+import { Lock, KeyRound, AlertCircle } from 'lucide-react';
 
 interface LoginScreenProps {
   onLogin: (status: boolean) => void;
 }
 
 export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
-  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    if (username === 'notpu3' && password === 'bandung16') {
+    // Check for either password
+    if (password === 'bandung16' || password === 'bandung15') {
       onLogin(true);
     } else {
-      setError('Username atau password salah. Silakan coba lagi.');
+      setError('Password salah. Silakan coba lagi.');
       setPassword('');
     }
   };
@@ -41,24 +42,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
             )}
 
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">Username</label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <User className="h-5 w-5 text-slate-400" />
-                </div>
-                <input
-                  type="text"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  className="block w-full pl-10 pr-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all"
-                  placeholder="Masukkan username"
-                  required
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">Password</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">Kode Akses / Password</label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <KeyRound className="h-5 w-5 text-slate-400" />
@@ -83,7 +67,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
           </form>
           
           <div className="mt-6 text-center">
-            <p className="text-xs text-slate-400">© 2025 Nendi @rdyndi</p>
+            <p className="text-xs text-slate-400">© 2024 Notaris & PPAT Putri Parincha</p>
           </div>
         </div>
       </div>

@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { Invoice, Expense } from '../types';
 import { Calendar, Printer, TrendingUp, TrendingDown, DollarSign, Wallet, FileBarChart, PieChart } from 'lucide-react';
@@ -7,6 +6,22 @@ import { getCachedSettings } from '../services/storage';
 interface ProfitLossReportProps {
   invoices: Invoice[];
   expenses: Expense[];
+}
+
+interface MonthlyData {
+    totalRevenue: number;
+    totalExpense: number;
+    netProfit: number;
+    revenueByClient: Record<string, number>;
+    expenseByCategory: Record<string, number>;
+    totalCashReceived: number;
+}
+
+interface AnnualData {
+    revenuePerMonth: number[];
+    expensePerMonth: number[];
+    expenseByCategoryPerMonth: Record<string, number[]>;
+    netProfitPerMonth: number[];
 }
 
 export const ProfitLossReport: React.FC<ProfitLossReportProps> = ({ invoices, expenses }) => {
@@ -22,7 +37,7 @@ export const ProfitLossReport: React.FC<ProfitLossReportProps> = ({ invoices, ex
   const currencyFormatter = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 });
 
   // --- MONTHLY DATA LOGIC ---
-  const monthlyData = useMemo(() => {
+  const monthlyData: MonthlyData = useMemo(() => {
     // 1. Calculate Revenue (Pendapatan)
     const periodInvoices = invoices.filter(inv => {
         const d = new Date(inv.date);
@@ -80,10 +95,10 @@ export const ProfitLossReport: React.FC<ProfitLossReportProps> = ({ invoices, ex
   }, [invoices, expenses, selectedMonth, selectedYear]);
 
   // --- ANNUAL DATA LOGIC ---
-  const annualData = useMemo(() => {
+  const annualData: AnnualData = useMemo(() => {
     // Initialize Arrays (Index 0-11 for Jan-Dec, Index 12 for Total)
-    const revenuePerMonth = new Array(13).fill(0);
-    const expensePerMonth = new Array(13).fill(0);
+    const revenuePerMonth: number[] = new Array(13).fill(0);
+    const expensePerMonth: number[] = new Array(13).fill(0);
     const expenseByCategoryPerMonth: Record<string, number[]> = {};
 
     // 1. Process Revenue
@@ -135,20 +150,20 @@ export const ProfitLossReport: React.FC<ProfitLossReportProps> = ({ invoices, ex
     const monthName = months[selectedMonth];
 
     const revenueRows = Object.entries(monthlyData.revenueByClient)
-        .sort(([, a], [, b]) => b - a)
+        .sort(([, a], [, b]) => (b as number) - (a as number))
         .map(([client, amount]) => `
             <tr>
                 <td class="py-1 px-2 border-b border-slate-200">${client}</td>
-                <td class="py-1 px-2 border-b border-slate-200 text-right">${currencyFormatter.format(amount)}</td>
+                <td class="py-1 px-2 border-b border-slate-200 text-right">${currencyFormatter.format(amount as number)}</td>
             </tr>
         `).join('');
 
     const expenseRows = Object.entries(monthlyData.expenseByCategory)
-        .sort(([, a], [, b]) => b - a)
+        .sort(([, a], [, b]) => (b as number) - (a as number))
         .map(([cat, amount]) => `
             <tr>
                 <td class="py-1 px-2 border-b border-slate-200">${cat}</td>
-                <td class="py-1 px-2 border-b border-slate-200 text-right text-red-600">(${currencyFormatter.format(amount)})</td>
+                <td class="py-1 px-2 border-b border-slate-200 text-right text-red-600">(${currencyFormatter.format(amount as number)})</td>
             </tr>
         `).join('');
 
@@ -176,60 +191,60 @@ export const ProfitLossReport: React.FC<ProfitLossReportProps> = ({ invoices, ex
         </div>
         <div class="mb-6">
             <h3 class="font-bold text-slate-800 border-b border-slate-800 mb-2 pb-1">PENDAPATAN USAHA</h3>
-            <table class="w-full text-sm mb-4">
-                ${revenueRows || '<tr><td colspan="2" class="italic text-slate-400 py-2">Tidak ada pendapatan periode ini.</td></tr>'}
-                <tr class="font-bold bg-slate-50">
-                    <td class="py-2 px-2 text-right">Total Pendapatan</td>
-                    <td class="py-2 px-2 text-right">${currencyFormatter.format(monthlyData.totalRevenue)}</td>
-                </tr>
+            <table class="w-full text-xs">
+                ${revenueRows || '<tr><td colspan="2" class="italic text-slate-400 py-2">Tidak ada pendapatan</td></tr>'}
             </table>
         </div>
         <div class="mb-6">
             <h3 class="font-bold text-slate-800 border-b border-slate-800 mb-2 pb-1">BEBAN OPERASIONAL</h3>
-            <table class="w-full text-sm mb-4">
-                ${expenseRows || '<tr><td colspan="2" class="italic text-slate-400 py-2">Tidak ada pengeluaran periode ini.</td></tr>'}
-                <tr class="font-bold bg-slate-50">
-                    <td class="py-2 px-2 text-right">Total Beban</td>
-                    <td class="py-2 px-2 text-right text-red-600">(${currencyFormatter.format(monthlyData.totalExpense)})</td>
-                </tr>
+            <table class="w-full text-xs">
+                ${expenseRows || '<tr><td colspan="2" class="italic text-slate-400 py-2">Tidak ada beban</td></tr>'}
             </table>
         </div>
-        <div class="border-t-4 border-double border-slate-800 pt-4 flex justify-between items-center">
-            <div class="text-sm font-medium text-slate-500 uppercase">Laba / (Rugi) Bersih</div>
-            <div class="text-2xl font-bold ${monthlyData.netProfit >= 0 ? 'text-slate-900' : 'text-red-600'}">
+        <div class="mt-8 border-t-2 border-slate-800 pt-4 flex justify-between items-center">
+            <h3 class="text-lg font-bold uppercase">LABA / (RUGI) BERSIH</h3>
+            <p class="text-2xl font-bold font-mono ${monthlyData.netProfit >= 0 ? 'text-green-700' : 'text-red-700'}">
                 ${currencyFormatter.format(monthlyData.netProfit)}
-            </div>
+            </p>
         </div>
-        <script>setTimeout(() => { window.print(); }, 800);</script>
-      </body></html>
-    `;
+        <div class="fixed bottom-0 left-0 w-full text-center py-2 text-[8px] text-slate-300 no-print">
+            Dicetak pada ${new Date().toLocaleString()}
+        </div>
+        <script>setTimeout(() => { window.print(); }, 500);</script>
+      </body></html>`;
+
     const printWindow = window.open('', '_blank');
-    if (printWindow) { printWindow.document.write(printContent); printWindow.document.close(); }
+    if (printWindow) {
+        printWindow.document.open();
+        printWindow.document.write(printContent);
+        printWindow.document.close();
+    }
   };
 
   const handlePrintAnnual = () => {
     const settings = getCachedSettings();
-    const shortMonths = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+    const headers = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des', 'TOTAL'];
     
-    // Generate Expense Category Rows
-    const expenseRows = Object.entries(annualData.expenseByCategoryPerMonth).map(([cat, amounts]) => {
-        const cols = amounts.slice(0, 12).map(amt => `<td class="text-right px-1 py-1 border-r border-slate-300 text-[8px]">${amt > 0 ? new Intl.NumberFormat('id-ID').format(amt) : '-'}</td>`).join('');
-        const total = `<td class="text-right px-1 py-1 font-bold text-[8px] bg-slate-50">${new Intl.NumberFormat('id-ID').format(amounts[12])}</td>`;
-        return `<tr><td class="px-1 py-1 border-r border-slate-300 font-medium text-[8px] truncate max-w-[100px]">${cat}</td>${cols}${total}</tr>`;
-    }).join('');
+    // Generate Header Cells
+    const headerHtml = headers.map(h => `<th class="px-1 py-1 border border-slate-300 text-center w-[6%]">${h}</th>`).join('');
 
-    // Generate Month Headers
-    const monthHeaders = shortMonths.map(m => `<th class="px-1 py-1 border-r border-slate-400 w-[6%]">${m}</th>`).join('');
+    // Generate Revenue Row
+    const revenueCells = annualData.revenuePerMonth.map(val => 
+        `<td class="px-1 py-1 border border-slate-300 text-right font-mono text-[9px]">${new Intl.NumberFormat('id-ID').format(val)}</td>`
+    ).join('');
 
-    // Totals Rows
-    const revenueCols = annualData.revenuePerMonth.slice(0, 12).map(amt => `<td class="text-right px-1 py-1 border-r border-slate-300 text-[8px] font-bold text-green-700 bg-green-50">${amt > 0 ? new Intl.NumberFormat('id-ID').format(amt) : '-'}</td>`).join('');
-    const revenueTotal = `<td class="text-right px-1 py-1 font-bold text-[8px] bg-green-100 text-green-800">${new Intl.NumberFormat('id-ID').format(annualData.revenuePerMonth[12])}</td>`;
-    
-    const expenseTotalCols = annualData.expensePerMonth.slice(0, 12).map(amt => `<td class="text-right px-1 py-1 border-r border-slate-300 text-[8px] font-bold text-red-700 bg-red-50">${amt > 0 ? '(' + new Intl.NumberFormat('id-ID').format(amt) + ')' : '-'}</td>`).join('');
-    const expenseTotalAll = `<td class="text-right px-1 py-1 font-bold text-[8px] bg-red-100 text-red-800">(${new Intl.NumberFormat('id-ID').format(annualData.expensePerMonth[12])})</td>`;
-    
-    const profitCols = annualData.netProfitPerMonth.slice(0, 12).map(amt => `<td class="text-right px-1 py-1 border-r border-slate-300 text-[8px] font-bold ${amt < 0 ? 'text-red-600' : 'text-slate-900'}">${new Intl.NumberFormat('id-ID').format(amt)}</td>`).join('');
-    const profitTotal = `<td class="text-right px-1 py-1 font-bold text-[8px] bg-slate-200 border border-slate-300">${new Intl.NumberFormat('id-ID').format(annualData.netProfitPerMonth[12])}</td>`;
+    // Generate Expense Rows
+    const expenseRowsHtml = Object.entries(annualData.expenseByCategoryPerMonth).map(([cat, vals]) => `
+        <tr>
+            <td class="px-1 py-1 border border-slate-300 font-medium truncate">${cat}</td>
+            ${vals.map(val => `<td class="px-1 py-1 border border-slate-300 text-right font-mono text-[9px] text-red-600">${val > 0 ? `(${new Intl.NumberFormat('id-ID').format(val)})` : '-'}</td>`).join('')}
+        </tr>
+    `).join('');
+
+    // Generate Net Profit Row
+    const netProfitCells = annualData.netProfitPerMonth.map(val => 
+        `<td class="px-1 py-1 border border-slate-300 text-right font-mono text-[9px] font-bold ${val >= 0 ? 'text-green-700' : 'text-red-700'}">${new Intl.NumberFormat('id-ID').format(val)}</td>`
+    ).join('');
 
     const printContent = `
       <!DOCTYPE html><html><head><title>Laporan Tahunan - ${selectedYear}</title>
@@ -239,95 +254,91 @@ export const ProfitLossReport: React.FC<ProfitLossReportProps> = ({ invoices, ex
         body { font-family: 'Inter', sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; } 
         @page { size: A4 landscape; margin: 10mm; }
         @media print { .no-print { display: none; } }
-        table { border-collapse: collapse; width: 100%; }
-        td, th { white-space: nowrap; }
       </style>
-      </head><body class="bg-white p-4 mx-auto text-slate-900">
-        <div class="text-center mb-6 border-b-2 border-slate-800 pb-2">
+      </head><body class="bg-white p-4 mx-auto text-slate-900 w-full">
+        <div class="text-center mb-6">
             <h1 class="text-lg font-bold uppercase">${settings.companyName}</h1>
-            <h2 class="text-xl font-bold mt-1 underline">LAPORAN LABA RUGI TAHUNAN</h2>
-            <p class="text-sm font-medium mt-1">Tahun Buku: ${selectedYear}</p>
+            <h2 class="text-xl font-bold mt-2 underline decoration-slate-400">LAPORAN LABA RUGI TAHUNAN</h2>
+            <p class="text-sm font-medium mt-1 uppercase">Tahun Buku: ${selectedYear}</p>
         </div>
-
-        <table class="w-full border border-slate-400">
+        
+        <table class="w-full border-collapse text-[10px]">
             <thead>
-                <tr class="bg-slate-800 text-white text-[9px] uppercase">
-                    <th class="px-2 py-2 text-left border-r border-slate-400 w-[15%]">Keterangan</th>
-                    ${monthHeaders}
-                    <th class="px-2 py-2 w-[8%] bg-slate-700">TOTAL</th>
+                <tr class="bg-slate-100 font-bold uppercase">
+                    <th class="px-2 py-1 border border-slate-300 text-left w-[15%]">KETERANGAN</th>
+                    ${headerHtml}
                 </tr>
             </thead>
             <tbody>
                 <!-- PENDAPATAN -->
-                <tr class="bg-slate-100"><td colspan="14" class="px-1 py-1 font-bold text-[9px] border-b border-slate-300">A. PENDAPATAN USAHA</td></tr>
-                <tr class="border-b border-slate-300">
-                    <td class="px-1 py-1 border-r border-slate-300 font-medium text-[8px]">Total Pendapatan (Invoice)</td>
-                    ${revenueCols}
-                    ${revenueTotal}
+                <tr class="bg-green-50">
+                    <td class="px-2 py-1 border border-slate-300 font-bold text-green-800">TOTAL PENDAPATAN</td>
+                    ${revenueCells}
                 </tr>
-
+                
                 <!-- BEBAN -->
-                <tr class="bg-slate-100"><td colspan="14" class="px-1 py-1 font-bold text-[9px] border-b border-slate-300 mt-2">B. BEBAN OPERASIONAL</td></tr>
-                ${expenseRows}
-                <tr class="border-t-2 border-slate-400 bg-slate-50">
-                    <td class="px-1 py-1 border-r border-slate-300 font-bold text-[8px] uppercase">Total Beban</td>
-                    ${expenseTotalCols}
-                    ${expenseTotalAll}
+                <tr><td colspan="14" class="px-2 py-1 border border-slate-300 font-bold bg-slate-50 text-slate-500 uppercase">Rincian Beban</td></tr>
+                ${expenseRowsHtml}
+                
+                <tr class="bg-red-50">
+                    <td class="px-2 py-1 border border-slate-300 font-bold text-red-800">TOTAL BEBAN</td>
+                    ${annualData.expensePerMonth.map(val => `<td class="px-1 py-1 border border-slate-300 text-right font-mono font-bold text-[9px] text-red-700">(${new Intl.NumberFormat('id-ID').format(val)})</td>`).join('')}
                 </tr>
 
                 <!-- LABA BERSIH -->
-                 <tr class="bg-slate-200 border-t-2 border-slate-800">
-                    <td class="px-1 py-2 border-r border-slate-400 font-bold text-[9px] uppercase">Laba / (Rugi) Bersih</td>
-                    ${profitCols}
-                    ${profitTotal}
+                <tr class="bg-slate-200 border-t-2 border-slate-400">
+                    <td class="px-2 py-2 border border-slate-300 font-bold uppercase">LABA / (RUGI) BERSIH</td>
+                    ${netProfitCells}
                 </tr>
             </tbody>
         </table>
-        
-        <div class="mt-4 text-[8px] text-slate-400 italic text-right">Dicetak pada ${new Date().toLocaleString('id-ID')}</div>
+
+        <div class="fixed bottom-0 left-0 w-full text-center py-2 text-[8px] text-slate-300 no-print">
+            Dicetak pada ${new Date().toLocaleString()}
+        </div>
         <script>setTimeout(() => { window.print(); }, 800);</script>
-      </body></html>
-    `;
+      </body></html>`;
+
     const printWindow = window.open('', '_blank');
-    if (printWindow) { printWindow.document.write(printContent); printWindow.document.close(); }
+    if (printWindow) {
+        printWindow.document.open();
+        printWindow.document.write(printContent);
+        printWindow.document.close();
+    }
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
-      <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-        <div>
-            <h2 className="text-2xl font-bold text-slate-800">Laporan Keuangan</h2>
-            <p className="text-sm text-slate-500">Analisa laba rugi perusahaan</p>
-        </div>
-        
-        {/* Toggle Buttons */}
-        <div className="flex bg-slate-100 p-1 rounded-lg">
-            <button 
-                onClick={() => setReportType('MONTHLY')}
-                className={`px-4 py-2 rounded-md text-sm font-medium transition flex items-center gap-2 ${reportType === 'MONTHLY' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="flex justify-between items-center">
+             <div className="flex items-center gap-4">
+                 <h2 className="text-2xl font-bold text-slate-800">Laporan Keuangan</h2>
+                 <div className="bg-slate-100 p-1 rounded-lg flex text-sm">
+                    <button 
+                        onClick={() => setReportType('MONTHLY')}
+                        className={`px-3 py-1.5 rounded-md font-medium transition ${reportType === 'MONTHLY' ? 'bg-white shadow text-primary-600' : 'text-slate-500 hover:text-slate-700'}`}
+                    >
+                        Bulanan
+                    </button>
+                    <button 
+                         onClick={() => setReportType('ANNUAL')}
+                         className={`px-3 py-1.5 rounded-md font-medium transition ${reportType === 'ANNUAL' ? 'bg-white shadow text-primary-600' : 'text-slate-500 hover:text-slate-700'}`}
+                    >
+                        Tahunan
+                    </button>
+                 </div>
+             </div>
+             <button 
+                onClick={reportType === 'MONTHLY' ? handlePrintMonthly : handlePrintAnnual}
+                className="bg-slate-800 text-white px-4 py-2 rounded-lg hover:bg-slate-900 flex items-center gap-2 transition shadow-sm"
             >
-                <PieChart className="w-4 h-4" /> Laporan Bulanan
-            </button>
-            <button 
-                onClick={() => setReportType('ANNUAL')}
-                className={`px-4 py-2 rounded-md text-sm font-medium transition flex items-center gap-2 ${reportType === 'ANNUAL' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-            >
-                <FileBarChart className="w-4 h-4" /> Laporan Tahunan
+                <Printer className="w-4 h-4" /> Cetak Laporan
             </button>
         </div>
 
-        <button 
-            onClick={reportType === 'MONTHLY' ? handlePrintMonthly : handlePrintAnnual}
-            className="bg-slate-800 text-white px-4 py-2 rounded-lg hover:bg-slate-900 flex items-center gap-2 shadow-sm transition"
-        >
-            <Printer className="w-4 h-4" /> Cetak PDF
-        </button>
-      </div>
-
-      {/* Filter Bar */}
-      <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-wrap gap-4 items-end">
+        {/* CONTROLS */}
+        <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-wrap gap-4 items-end">
             {reportType === 'MONTHLY' && (
-                <div className="animate-in fade-in">
+                <div>
                     <label className="block text-xs font-medium text-slate-500 mb-1">Bulan</label>
                     <div className="relative">
                         <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
@@ -355,203 +366,194 @@ export const ProfitLossReport: React.FC<ProfitLossReportProps> = ({ invoices, ex
                     ))}
                 </select>
             </div>
-       </div>
+        </div>
 
-       {/* --- MONTHLY REPORT VIEW --- */}
-       {reportType === 'MONTHLY' && (
-           <div className="space-y-6 animate-in slide-in-from-left-4 duration-300">
-               {/* Summary Cards */}
-               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 border-l-4 border-l-green-500">
-                        <div className="flex justify-between items-start mb-2">
-                            <div>
-                                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Pendapatan (Tagihan)</p>
-                                <p className="text-2xl font-bold text-green-600 mt-1">
-                                    {currencyFormatter.format(monthlyData.totalRevenue)}
-                                </p>
-                            </div>
-                            <div className="p-2 bg-green-50 rounded-lg"><TrendingUp className="w-6 h-6 text-green-600" /></div>
-                        </div>
-                        <div className="flex items-center gap-2 mt-2 pt-2 border-t border-slate-50">
-                            <Wallet className="w-3 h-3 text-slate-400" />
-                            <p className="text-xs text-slate-500">Kas Masuk (Real): <span className="font-semibold text-slate-700">{new Intl.NumberFormat('id-ID').format(monthlyData.totalCashReceived)}</span></p>
-                        </div>
-                    </div>
+        {/* MONTHLY VIEW */}
+        {reportType === 'MONTHLY' && (
+            <div className="space-y-6">
+                {/* SUMMARY CARDS */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                     <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 border-l-4 border-l-green-500">
+                         <div className="flex justify-between items-start mb-2">
+                             <div>
+                                 <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Pendapatan (Accrual)</p>
+                                 <p className="text-xl font-bold text-green-600 mt-1">{currencyFormatter.format(monthlyData.totalRevenue)}</p>
+                             </div>
+                             <div className="p-2 bg-green-50 rounded-lg"><TrendingUp className="w-5 h-5 text-green-600" /></div>
+                         </div>
+                         <p className="text-[10px] text-slate-500">Berdasarkan Invoice dibuat</p>
+                     </div>
 
-                    <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 border-l-4 border-l-red-500">
-                        <div className="flex justify-between items-start mb-2">
-                            <div>
-                                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Beban / Biaya</p>
-                                <p className="text-2xl font-bold text-red-600 mt-1">
-                                    {currencyFormatter.format(monthlyData.totalExpense)}
-                                </p>
-                            </div>
-                            <div className="p-2 bg-red-50 rounded-lg"><TrendingDown className="w-6 h-6 text-red-600" /></div>
-                        </div>
-                        <p className="text-xs text-slate-400 mt-2">Akumulasi pengeluaran operasional</p>
-                    </div>
+                     <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 border-l-4 border-l-red-500">
+                         <div className="flex justify-between items-start mb-2">
+                             <div>
+                                 <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Beban</p>
+                                 <p className="text-xl font-bold text-red-600 mt-1">({currencyFormatter.format(monthlyData.totalExpense)})</p>
+                             </div>
+                             <div className="p-2 bg-red-50 rounded-lg"><TrendingDown className="w-5 h-5 text-red-600" /></div>
+                         </div>
+                         <p className="text-[10px] text-slate-500">Total Pengeluaran Operasional</p>
+                     </div>
 
-                    <div className="bg-slate-800 text-white p-6 rounded-xl shadow-lg relative overflow-hidden">
-                        <div className="relative z-10">
-                            <p className="text-xs font-bold text-slate-300 uppercase tracking-wider">Laba / (Rugi) Bersih</p>
-                            <p className={`text-3xl font-bold mt-1 ${monthlyData.netProfit >= 0 ? 'text-white' : 'text-red-300'}`}>
-                                {currencyFormatter.format(monthlyData.netProfit)}
-                            </p>
-                            <p className="text-xs text-slate-400 mt-2">Pendapatan - Beban</p>
-                        </div>
-                        <DollarSign className="absolute -right-4 -bottom-4 w-32 h-32 text-white/5 z-0" />
-                    </div>
-               </div>
+                     <div className={`bg-white p-5 rounded-xl shadow-sm border border-slate-200 border-l-4 ${monthlyData.netProfit >= 0 ? 'border-l-blue-500' : 'border-l-orange-500'}`}>
+                         <div className="flex justify-between items-start mb-2">
+                             <div>
+                                 <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Laba / (Rugi) Bersih</p>
+                                 <p className={`text-xl font-bold mt-1 ${monthlyData.netProfit >= 0 ? 'text-blue-600' : 'text-orange-600'}`}>
+                                     {currencyFormatter.format(monthlyData.netProfit)}
+                                 </p>
+                             </div>
+                             <div className={`p-2 rounded-lg ${monthlyData.netProfit >= 0 ? 'bg-blue-50' : 'bg-orange-50'}`}>
+                                 <PieChart className={`w-5 h-5 ${monthlyData.netProfit >= 0 ? 'text-blue-600' : 'text-orange-600'}`} />
+                             </div>
+                         </div>
+                         <p className="text-[10px] text-slate-500">Pendapatan - Beban</p>
+                     </div>
 
-               {/* Detailed Breakdown */}
-               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* Revenue Breakdown */}
+                     <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 border-l-4 border-l-teal-500">
+                         <div className="flex justify-between items-start mb-2">
+                             <div>
+                                 <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Arus Kas Masuk</p>
+                                 <p className="text-xl font-bold text-teal-600 mt-1">{currencyFormatter.format(monthlyData.totalCashReceived)}</p>
+                             </div>
+                             <div className="p-2 bg-teal-50 rounded-lg"><Wallet className="w-5 h-5 text-teal-600" /></div>
+                         </div>
+                         <p className="text-[10px] text-slate-500">Total Pembayaran Diterima</p>
+                     </div>
+                </div>
+
+                {/* DETAILS GRID */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* REVENUE BREAKDOWN */}
                     <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                        <div className="bg-slate-50 px-6 py-4 border-b border-slate-200">
-                            <h3 className="font-bold text-slate-700 flex items-center gap-2">
-                                <TrendingUp className="w-4 h-4 text-green-600" /> Rincian Pendapatan (per Klien)
-                            </h3>
+                        <div className="px-4 py-3 border-b border-slate-100 bg-slate-50 flex items-center gap-2">
+                            <FileBarChart className="w-4 h-4 text-green-600" />
+                            <h3 className="font-bold text-slate-800 text-sm">Rincian Pendapatan per Klien</h3>
                         </div>
-                        <div className="p-0">
+                        <div className="max-h-[300px] overflow-y-auto p-0">
                             <table className="w-full text-sm">
+                                <thead className="bg-slate-50 text-slate-500 text-xs">
+                                    <tr>
+                                        <th className="px-4 py-2 text-left">Nama Klien</th>
+                                        <th className="px-4 py-2 text-right">Jumlah</th>
+                                    </tr>
+                                </thead>
                                 <tbody className="divide-y divide-slate-100">
-                                    {Object.entries(monthlyData.revenueByClient).length > 0 ? (
+                                    {Object.keys(monthlyData.revenueByClient).length > 0 ? (
                                         Object.entries(monthlyData.revenueByClient)
-                                            .sort(([, a], [, b]) => b - a)
-                                            .map(([client, amount], idx) => (
-                                            <tr key={idx} className="hover:bg-slate-50">
-                                                <td className="px-6 py-3 text-slate-700">{client}</td>
-                                                <td className="px-6 py-3 text-right font-medium text-slate-900">
-                                                    {new Intl.NumberFormat('id-ID').format(amount)}
-                                                </td>
-                                            </tr>
-                                        ))
+                                            .sort(([,a], [,b]) => (b as number) - (a as number))
+                                            .map(([name, amount], idx) => (
+                                                <tr key={idx}>
+                                                    <td className="px-4 py-2 text-slate-700">{name}</td>
+                                                    <td className="px-4 py-2 text-right font-medium text-slate-900">{currencyFormatter.format(amount as number)}</td>
+                                                </tr>
+                                            ))
                                     ) : (
-                                        <tr>
-                                            <td colSpan={2} className="px-6 py-8 text-center text-slate-400 italic">Belum ada pendapatan bulan ini.</td>
-                                        </tr>
+                                        <tr><td colSpan={2} className="px-4 py-8 text-center text-slate-400 italic">Belum ada pendapatan bulan ini.</td></tr>
                                     )}
                                 </tbody>
                             </table>
                         </div>
                     </div>
 
-                    {/* Expense Breakdown */}
-                    <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                        <div className="bg-slate-50 px-6 py-4 border-b border-slate-200">
-                            <h3 className="font-bold text-slate-700 flex items-center gap-2">
-                                <TrendingDown className="w-4 h-4 text-red-600" /> Rincian Biaya (per Kategori)
-                            </h3>
+                    {/* EXPENSE BREAKDOWN */}
+                     <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                        <div className="px-4 py-3 border-b border-slate-100 bg-slate-50 flex items-center gap-2">
+                            <TrendingDown className="w-4 h-4 text-red-600" />
+                            <h3 className="font-bold text-slate-800 text-sm">Rincian Beban per Kategori</h3>
                         </div>
-                        <div className="p-0">
+                        <div className="max-h-[300px] overflow-y-auto p-0">
                             <table className="w-full text-sm">
+                                <thead className="bg-slate-50 text-slate-500 text-xs">
+                                    <tr>
+                                        <th className="px-4 py-2 text-left">Kategori Biaya</th>
+                                        <th className="px-4 py-2 text-right">Jumlah</th>
+                                    </tr>
+                                </thead>
                                 <tbody className="divide-y divide-slate-100">
-                                    {Object.entries(monthlyData.expenseByCategory).length > 0 ? (
+                                    {Object.keys(monthlyData.expenseByCategory).length > 0 ? (
                                         Object.entries(monthlyData.expenseByCategory)
-                                            .sort(([, a], [, b]) => b - a)
+                                            .sort(([,a], [,b]) => (b as number) - (a as number))
                                             .map(([cat, amount], idx) => (
-                                            <tr key={idx} className="hover:bg-slate-50">
-                                                <td className="px-6 py-3 text-slate-700">{cat}</td>
-                                                <td className="px-6 py-3 text-right font-medium text-red-600">
-                                                    {new Intl.NumberFormat('id-ID').format(amount)}
-                                                </td>
-                                            </tr>
-                                        ))
+                                                <tr key={idx}>
+                                                    <td className="px-4 py-2 text-slate-700">{cat}</td>
+                                                    <td className="px-4 py-2 text-right font-medium text-red-600">{currencyFormatter.format(amount as number)}</td>
+                                                </tr>
+                                            ))
                                     ) : (
-                                        <tr>
-                                            <td colSpan={2} className="px-6 py-8 text-center text-slate-400 italic">Belum ada pengeluaran bulan ini.</td>
-                                        </tr>
+                                        <tr><td colSpan={2} className="px-4 py-8 text-center text-slate-400 italic">Belum ada pengeluaran bulan ini.</td></tr>
                                     )}
                                 </tbody>
                             </table>
                         </div>
                     </div>
-               </div>
-           </div>
-       )}
+                </div>
+            </div>
+        )}
 
-       {/* --- ANNUAL REPORT VIEW --- */}
-       {reportType === 'ANNUAL' && (
-           <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden animate-in slide-in-from-right-4 duration-300">
-               <div className="px-6 py-4 border-b border-slate-200 bg-slate-50 flex justify-between items-center">
-                    <h3 className="font-bold text-slate-800">Rincian Laba Rugi Tahunan ({selectedYear})</h3>
-                    <div className="text-xs text-slate-500 italic">Geser tabel untuk melihat seluruh bulan</div>
-               </div>
-               <div className="overflow-x-auto">
+        {/* ANNUAL VIEW */}
+        {reportType === 'ANNUAL' && (
+             <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                <div className="px-4 py-3 border-b border-slate-100 bg-slate-50">
+                    <h3 className="font-bold text-slate-800">Rekapitulasi Tahunan ({selectedYear})</h3>
+                </div>
+                <div className="overflow-x-auto">
                     <table className="w-full text-xs text-left whitespace-nowrap">
-                        <thead className="bg-slate-800 text-white uppercase font-bold">
-                            <tr>
-                                <th className="px-4 py-3 sticky left-0 bg-slate-800 z-10 w-48">Kategori</th>
-                                {months.map((m) => <th key={m} className="px-3 py-3 text-right min-w-[80px]">{m.substring(0,3)}</th>)}
-                                <th className="px-4 py-3 text-right bg-slate-700 font-bold min-w-[100px]">TOTAL</th>
+                        <thead>
+                            <tr className="bg-slate-100 font-bold text-slate-600 uppercase">
+                                <th className="px-4 py-3 text-left sticky left-0 bg-slate-100 border-r border-slate-200 shadow-sm z-10">Keterangan</th>
+                                {['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des', 'TOTAL'].map(m => (
+                                    <th key={m} className="px-2 py-3 text-right border-l border-slate-200 min-w-[80px]">{m}</th>
+                                ))}
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
-                            {/* Revenue Row */}
+                            {/* REVENUE ROW */}
                             <tr className="bg-green-50/50">
-                                <td className="px-4 py-3 font-bold text-slate-800 sticky left-0 bg-green-50/50 z-10 border-r border-green-100">Pendapatan Usaha</td>
-                                {annualData.revenuePerMonth.slice(0, 12).map((amt, idx) => (
-                                    <td key={idx} className="px-3 py-3 text-right font-medium text-green-700">
-                                        {amt !== 0 ? new Intl.NumberFormat('id-ID').format(amt) : '-'}
+                                <td className="px-4 py-3 font-bold text-green-700 sticky left-0 bg-green-50/50 border-r border-green-100">Pendapatan</td>
+                                {annualData.revenuePerMonth.map((val, idx) => (
+                                    <td key={idx} className="px-2 py-3 text-right font-mono text-slate-800 border-l border-slate-200">
+                                        {val > 0 ? new Intl.NumberFormat('id-ID').format(val) : '-'}
                                     </td>
                                 ))}
-                                <td className="px-4 py-3 text-right font-bold text-green-800 bg-green-100">
-                                    {new Intl.NumberFormat('id-ID').format(annualData.revenuePerMonth[12])}
-                                </td>
                             </tr>
-
-                            {/* Separator */}
-                            <tr className="bg-slate-100"><td colSpan={14} className="px-4 py-2 font-bold text-slate-500 text-[10px] uppercase sticky left-0 bg-slate-100">Beban Operasional</td></tr>
-
-                            {/* Expense Rows */}
-                            {Object.entries(annualData.expenseByCategoryPerMonth).length > 0 ? (
-                                Object.entries(annualData.expenseByCategoryPerMonth).map(([cat, amounts]) => (
-                                    <tr key={cat} className="hover:bg-slate-50">
-                                        <td className="px-4 py-2 font-medium text-slate-600 sticky left-0 bg-white hover:bg-slate-50 z-10 border-r border-slate-100">{cat}</td>
-                                        {amounts.slice(0, 12).map((amt, idx) => (
-                                            <td key={idx} className="px-3 py-2 text-right text-slate-500">
-                                                {amt !== 0 ? new Intl.NumberFormat('id-ID').format(amt) : '-'}
-                                            </td>
-                                        ))}
-                                        <td className="px-4 py-2 text-right font-bold text-slate-700 bg-slate-50">
-                                            {new Intl.NumberFormat('id-ID').format(amounts[12])}
+                            
+                            {/* EXPENSE CATEGORIES ROWS */}
+                             {Object.entries(annualData.expenseByCategoryPerMonth).map(([cat, vals], idx) => (
+                                <tr key={idx} className="hover:bg-slate-50">
+                                     <td className="px-4 py-2 text-slate-600 pl-8 sticky left-0 bg-white border-r border-slate-200 text-[11px] truncate max-w-[150px]" title={cat}>{cat}</td>
+                                     {vals.map((val, vIdx) => (
+                                        <td key={vIdx} className="px-2 py-2 text-right font-mono text-red-500 border-l border-slate-200 text-[10px]">
+                                            {val > 0 ? `(${new Intl.NumberFormat('id-ID').format(val)})` : '-'}
                                         </td>
-                                    </tr>
-                                ))
-                            ) : (
-                                <tr><td colSpan={14} className="px-4 py-4 text-center text-slate-400 italic">Tidak ada data pengeluaran tahun ini.</td></tr>
-                            )}
+                                     ))}
+                                </tr>
+                             ))}
 
-                            {/* Total Expense Row */}
-                            <tr className="bg-red-50/50 border-t border-red-100">
-                                <td className="px-4 py-3 font-bold text-slate-800 sticky left-0 bg-red-50/50 z-10 border-r border-red-100">Total Beban</td>
-                                {annualData.expensePerMonth.slice(0, 12).map((amt, idx) => (
-                                    <td key={idx} className="px-3 py-3 text-right font-bold text-red-600">
-                                        {amt !== 0 ? `(${new Intl.NumberFormat('id-ID').format(amt)})` : '-'}
+                             {/* TOTAL EXPENSE ROW */}
+                             <tr className="bg-red-50/50 font-medium">
+                                <td className="px-4 py-3 text-red-700 sticky left-0 bg-red-50/50 border-r border-red-100">Total Beban</td>
+                                {annualData.expensePerMonth.map((val, idx) => (
+                                    <td key={idx} className="px-2 py-3 text-right font-mono text-red-700 border-l border-slate-200">
+                                        {val > 0 ? `(${new Intl.NumberFormat('id-ID').format(val)})` : '-'}
                                     </td>
                                 ))}
-                                <td className="px-4 py-3 text-right font-bold text-red-800 bg-red-100">
-                                    ({new Intl.NumberFormat('id-ID').format(annualData.expensePerMonth[12])})
-                                </td>
                             </tr>
 
-                            {/* Net Profit Row */}
-                             <tr className="bg-slate-800 text-white border-t-2 border-slate-900">
-                                <td className="px-4 py-4 font-bold uppercase sticky left-0 bg-slate-800 z-10 border-r border-slate-700">Laba / (Rugi) Bersih</td>
-                                {annualData.netProfitPerMonth.slice(0, 12).map((amt, idx) => (
-                                    <td key={idx} className={`px-3 py-4 text-right font-bold ${amt < 0 ? 'text-red-300' : 'text-green-300'}`}>
-                                        {new Intl.NumberFormat('id-ID').format(amt)}
+                             {/* NET PROFIT ROW */}
+                             <tr className="bg-slate-100 font-bold border-t-2 border-slate-300">
+                                <td className="px-4 py-4 text-slate-800 sticky left-0 bg-slate-100 border-r border-slate-300">Laba Bersih</td>
+                                {annualData.netProfitPerMonth.map((val, idx) => (
+                                    <td key={idx} className={`px-2 py-4 text-right font-mono border-l border-slate-300 ${val >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+                                        {new Intl.NumberFormat('id-ID').format(val)}
                                     </td>
                                 ))}
-                                <td className="px-4 py-4 text-right font-bold text-white bg-slate-700">
-                                    {new Intl.NumberFormat('id-ID').format(annualData.netProfitPerMonth[12])}
-                                </td>
                             </tr>
                         </tbody>
                     </table>
-               </div>
-           </div>
-       )}
+                </div>
+             </div>
+        )}
     </div>
   );
 };

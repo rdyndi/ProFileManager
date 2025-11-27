@@ -10,6 +10,7 @@ import { DeedAlphabeticalReport } from './components/DeedAlphabeticalReport';
 import { InvoiceGenerator, printInvoice, calculateItemValues, printReceipt } from './components/InvoiceGenerator';
 import { ExpenseTracker } from './components/ExpenseTracker';
 import { ProfitLossReport } from './components/ProfitLossReport';
+import { OutgoingMailBook } from './components/OutgoingMailBook';
 import { 
   subscribeClients, saveClient, deleteClient, 
   subscribeDocuments, saveDocument, updateDocument, deleteDocument,
@@ -17,11 +18,12 @@ import {
   subscribeDeeds, saveDeed, deleteDeed,
   subscribeEmployees, saveEmployee, deleteEmployee,
   subscribeInvoices, saveInvoice, deleteInvoice,
-  subscribeExpenses, saveExpense, deleteExpense
+  subscribeExpenses, saveExpense, deleteExpense,
+  subscribeOutgoingMails, saveOutgoingMail, deleteOutgoingMail
 } from './services/storage';
 import { auth } from './services/firebaseService';
 import { signInAnonymously } from "firebase/auth";
-import { Client, CompanySettings, DocumentData, DocType, Deed, Employee, Invoice, PaymentRecord, Expense } from './types';
+import { Client, CompanySettings, DocumentData, DocType, Deed, Employee, Invoice, PaymentRecord, Expense, OutgoingMail } from './types';
 import { Users, Search, Plus, Trash2, Eye, FileText, Briefcase, ArrowUpRight, Save, Pencil, Printer, ScrollText, BookOpen, ArrowDownAZ, ArrowLeft, UserCog, Link as LinkIcon, ExternalLink, MessageCircle, Mail, Truck, TrendingUp, BarChart3, Package, FileCheck, CreditCard, Calendar, User, Banknote, X, Wallet } from 'lucide-react';
 
 // --- Simple Custom SVG Line Chart Component ---
@@ -533,7 +535,7 @@ const InvoiceDetail: React.FC<{
 
                          {invoice.notes && (
                             <div className="px-6 py-4 bg-slate-50 border-t border-slate-100">
-                                <p className="text-xs font-bold text-slate-500 uppercase mb-1">Catatan / Info:</p>
+                                <p className="text-xs font-bold text-slate-50 uppercase mb-1">Catatan / Info:</p>
                                 <p className="text-sm text-slate-600 whitespace-pre-line">{invoice.notes}</p>
                             </div>
                         )}
@@ -755,6 +757,7 @@ const App = () => {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [outgoingMails, setOutgoingMails] = useState<OutgoingMail[]>([]);
   
   // UI State
   const [clientViewState, setClientViewState] = useState<'list' | 'add' | 'detail'>('list');
@@ -885,6 +888,7 @@ const App = () => {
     let unsubEmployees: (() => void) | undefined;
     let unsubInvoices: (() => void) | undefined;
     let unsubExpenses: (() => void) | undefined;
+    let unsubOutgoingMails: (() => void) | undefined;
 
     const initData = async () => {
       try {
@@ -901,6 +905,7 @@ const App = () => {
         unsubEmployees = subscribeEmployees((data) => setEmployees(data));
         unsubInvoices = subscribeInvoices((data) => setInvoices(data));
         unsubExpenses = subscribeExpenses((data) => setExpenses(data));
+        unsubOutgoingMails = subscribeOutgoingMails((data) => setOutgoingMails(data));
         unsubSettings = subscribeSettings((data) => {
           setSettings(data);
           syncSettingsToLocalCache(data);
@@ -920,6 +925,7 @@ const App = () => {
       if (unsubEmployees) unsubEmployees();
       if (unsubInvoices) unsubInvoices();
       if (unsubExpenses) unsubExpenses();
+      if (unsubOutgoingMails) unsubOutgoingMails();
     };
   }, [isAuthenticated]);
 
@@ -937,6 +943,8 @@ const App = () => {
   const handleDeleteInvoice = async (id: string) => { if (window.confirm('Hapus invoice?')) { try { await deleteInvoice(id); if (selectedInvoice?.id === id) { setSelectedInvoice(null); setInvoiceViewState('list'); } } catch (e: any) { alert(e.message); } } }
   const handleSaveExpense = async (exp: Expense) => { try { await saveExpense(exp); alert('Pengeluaran tersimpan!'); } catch (e: any) { alert(e.message); } }
   const handleDeleteExpense = async (id: string) => { try { await deleteExpense(id); } catch (e: any) { alert(e.message); } }
+  const handleSaveOutgoingMail = async (mail: OutgoingMail) => { try { await saveOutgoingMail(mail); alert('Surat keluar tersimpan!'); } catch (e: any) { alert(e.message); } }
+  const handleDeleteOutgoingMail = async (id: string) => { try { await deleteOutgoingMail(id); } catch (e: any) { alert(e.message); } }
   const handleSaveSettings = async (e: React.FormEvent) => { e.preventDefault(); try { await saveSettings(settings); alert('Tersimpan!'); } catch (e: any) { alert(e.message); } };
   
   // Handler khusus untuk update payment dari Detail View
@@ -1209,6 +1217,15 @@ const App = () => {
             expenses={expenses}
             onSave={handleSaveExpense}
             onDelete={handleDeleteExpense}
+        />
+      )}
+      
+      {/* OUTGOING MAIL TAB */}
+      {activeTab === 'outgoing_mail' && (
+        <OutgoingMailBook 
+            mails={outgoingMails}
+            onSave={handleSaveOutgoingMail}
+            onDelete={handleDeleteOutgoingMail}
         />
       )}
 

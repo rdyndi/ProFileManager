@@ -119,6 +119,16 @@ export interface Expense {
   createdAt: number;
 }
 
+export interface OutgoingMail {
+  id: string;
+  date: string;
+  referenceNumber: string; // The "16" part
+  fullNumber: string; // The "16/NPP-NOT/IX/2025" part
+  recipient: string;
+  subject: string;
+  createdAt: number;
+}
+
 export interface CompanySettings {
   companyName: string;
   companyAddress: string;

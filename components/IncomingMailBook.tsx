@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { IncomingMail } from '../types';
-import { Plus, Search, Trash2, X, Save, Inbox, Calendar, Mail, User, BookOpen, ArrowLeft, Printer } from 'lucide-react';
+import { Plus, Search, Trash2, X, Save, Inbox, Calendar, Mail, User, BookOpen, ArrowLeft, Printer, Pencil } from 'lucide-react';
 import { getCachedSettings } from '../services/storage';
 
 interface IncomingMailBookProps {
@@ -14,6 +14,7 @@ export const IncomingMailBook: React.FC<IncomingMailBookProps> = ({ mails, onSav
   const [viewState, setViewState] = useState<'list' | 'report'>('list');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [editingId, setEditingId] = useState<string | null>(null);
   
   // Report Filter State
   const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth());
@@ -49,6 +50,28 @@ export const IncomingMailBook: React.FC<IncomingMailBookProps> = ({ mails, onSav
     }).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   }, [mails, selectedMonth, selectedYear]);
 
+  const handleOpenForm = (mail?: IncomingMail) => {
+    if (mail) {
+        setEditingId(mail.id);
+        setFormData({
+            id: mail.id,
+            date: mail.date,
+            mailNumber: mail.mailNumber,
+            sender: mail.sender,
+            subject: mail.subject,
+            createdAt: mail.createdAt
+        });
+    } else {
+        setEditingId(null);
+        setFormData({
+            date: new Date().toISOString().split('T')[0],
+            mailNumber: '',
+            sender: '',
+            subject: ''
+        });
+    }
+    setIsFormOpen(true);
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -74,6 +97,7 @@ export const IncomingMailBook: React.FC<IncomingMailBookProps> = ({ mails, onSav
         sender: '',
         subject: ''
     });
+    setEditingId(null);
   };
 
   const handlePrintReport = () => {
@@ -101,7 +125,7 @@ export const IncomingMailBook: React.FC<IncomingMailBookProps> = ({ mails, onSav
         rowsHtml = reportData.map((m, idx) => `
             <tr>
                 <td style="padding: 5px; border: 1px solid #000; text-align: center;">${idx + 1}</td>
-                <td style="padding: 5px; border: 1px solid #000; text-align: center;">${new Date(m.date).toLocaleDateString('id-ID')}</td>
+                <td style="padding: 5px; border: 1px solid #000; text-align: center; white-space: nowrap;">${new Date(m.date).toLocaleDateString('id-ID')}</td>
                 <td style="padding: 5px; border: 1px solid #000;">${m.mailNumber}</td>
                 <td style="padding: 5px; border: 1px solid #000;">${m.sender}</td>
                 <td style="padding: 5px; border: 1px solid #000;">${m.subject}</td>
@@ -117,7 +141,7 @@ export const IncomingMailBook: React.FC<IncomingMailBookProps> = ({ mails, onSav
     }
 
     const content = `
-        <div style="font-family: 'Inter', sans-serif; padding: 20px; color: #000;">
+        <div style="font-family: 'Inter', sans-serif; padding: 20px; color: #000; background: #fff;">
             <div style="text-align: center; margin-bottom: 20px;">
                 <h1 style="font-size: 16px; font-weight: bold; text-transform: uppercase;">${settings.companyName}</h1>
                 <p style="font-size: 12px; margin-bottom: 10px;">${settings.companyAddress}</p>
@@ -252,7 +276,7 @@ export const IncomingMailBook: React.FC<IncomingMailBookProps> = ({ mails, onSav
                     <BookOpen className="w-4 h-4" /> <span className="hidden md:inline">Laporan</span>
                 </button>
                 <button 
-                    onClick={() => setIsFormOpen(true)} 
+                    onClick={() => handleOpenForm()} 
                     className="bg-primary-600 text-white p-2 md:px-4 md:py-2 rounded-lg hover:bg-primary-700 flex items-center gap-2 transition shadow-sm"
                 >
                     <Plus className="w-4 h-4" /> <span className="hidden md:inline">Catat Surat Masuk</span>
@@ -305,7 +329,13 @@ export const IncomingMailBook: React.FC<IncomingMailBookProps> = ({ mails, onSav
                                     <td className="px-6 py-4 font-medium text-slate-800">
                                         {mail.subject}
                                     </td>
-                                    <td className="px-6 py-4 text-right">
+                                    <td className="px-6 py-4 text-right flex justify-end gap-2">
+                                        <button 
+                                            onClick={() => handleOpenForm(mail)} 
+                                            className="p-2 text-slate-400 hover:text-blue-600 transition"
+                                        >
+                                            <Pencil className="w-4 h-4" />
+                                        </button>
                                         <button 
                                             onClick={() => { if(window.confirm('Hapus data surat masuk ini?')) onDelete(mail.id); }} 
                                             className="p-2 text-slate-400 hover:text-red-600 transition"
@@ -333,7 +363,7 @@ export const IncomingMailBook: React.FC<IncomingMailBookProps> = ({ mails, onSav
                 <div className="bg-white rounded-xl shadow-xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200">
                     <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
                         <h3 className="font-bold text-slate-800 flex items-center gap-2">
-                            <Inbox className="w-4 h-4 text-primary-600" /> Catat Surat Masuk
+                            <Inbox className="w-4 h-4 text-primary-600" /> {editingId ? 'Edit Surat Masuk' : 'Catat Surat Masuk'}
                         </h3>
                         <button onClick={() => setIsFormOpen(false)} className="text-slate-400 hover:text-slate-600">
                             <X className="w-5 h-5" />

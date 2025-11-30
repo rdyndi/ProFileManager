@@ -1,20 +1,34 @@
 
 import React, { useState } from 'react';
-import { Lock, KeyRound, AlertCircle } from 'lucide-react';
+import { Lock, KeyRound, AlertCircle, User, ChevronDown } from 'lucide-react';
 
 interface LoginScreenProps {
-  onLogin: (status: boolean) => void;
+  onLogin: (status: boolean, username: string) => void;
 }
 
+const USERS = [
+  { id: 'putri', name: 'Putri', role: 'Notaris', password: 'bandung16' },
+  { id: 'azizah', name: 'Azizah', role: 'Staff', password: 'bandung16' },
+  { id: 'nendi', name: 'Nendi', role: 'Staff', password: 'bandung15' },
+];
+
 export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
+  const [selectedUser, setSelectedUser] = useState<string>('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    // Check for either password
-    if (password === 'bandung16' || password === 'bandung15') {
-      onLogin(true);
+    
+    if (!selectedUser) {
+      setError('Silakan pilih pengguna terlebih dahulu.');
+      return;
+    }
+
+    const user = USERS.find(u => u.name === selectedUser);
+
+    if (user && user.password === password) {
+      onLogin(true, user.name);
     } else {
       setError('Password salah. Silakan coba lagi.');
       setPassword('');
@@ -35,14 +49,40 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
         <div className="p-8">
           <form onSubmit={handleLogin} className="space-y-6">
             {error && (
-              <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm flex items-center gap-2 border border-red-100">
+              <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm flex items-center gap-2 border border-red-100 animate-in fade-in slide-in-from-top-2">
                 <AlertCircle className="w-4 h-4" />
                 {error}
               </div>
             )}
 
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">Kode Akses / Password</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">Pilih Pengguna</label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <User className="h-5 w-5 text-slate-400" />
+                </div>
+                <select
+                  value={selectedUser}
+                  onChange={(e) => {
+                    setSelectedUser(e.target.value);
+                    setError('');
+                  }}
+                  className="block w-full pl-10 pr-10 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all appearance-none bg-white text-slate-700"
+                  required
+                >
+                  <option value="" disabled>-- Pilih User --</option>
+                  {USERS.map(user => (
+                    <option key={user.id} value={user.name}>{user.name} ({user.role})</option>
+                  ))}
+                </select>
+                <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                  <ChevronDown className="h-4 w-4 text-slate-400" />
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">Password</label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <KeyRound className="h-5 w-5 text-slate-400" />
@@ -67,7 +107,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
           </form>
           
           <div className="mt-6 text-center">
-            <p className="text-xs text-slate-400">© 2024 Notaris & PPAT Putri Parincha</p>
+            <p className="text-xs text-slate-400">© 2025 Notaris & PPAT Putri Parincha</p>
           </div>
         </div>
       </div>

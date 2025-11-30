@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { OutgoingMail } from '../types';
-import { Plus, Search, Trash2, X, Save, Send, Calendar, Mail, BookOpen, ArrowLeft, Printer } from 'lucide-react';
+import { Plus, Search, Trash2, X, Save, Send, Calendar, Mail, BookOpen, ArrowLeft, Printer, Pencil } from 'lucide-react';
 import { getCachedSettings } from '../services/storage';
 
 interface OutgoingMailBookProps {
@@ -14,6 +14,7 @@ export const OutgoingMailBook: React.FC<OutgoingMailBookProps> = ({ mails, onSav
   const [viewState, setViewState] = useState<'list' | 'report'>('list');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [editingId, setEditingId] = useState<string | null>(null);
   
   // Report Filter State
   const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth());
@@ -81,11 +82,28 @@ export const OutgoingMailBook: React.FC<OutgoingMailBookProps> = ({ mails, onSav
     return (maxNum + 1).toString();
   };
 
-  useEffect(() => {
-    if (isFormOpen && !formData.referenceNumber) {
-        setFormData(prev => ({ ...prev, referenceNumber: suggestNextNumber() }));
-    }
-  }, [isFormOpen]);
+  const handleOpenForm = (mail?: OutgoingMail) => {
+      if (mail) {
+          setEditingId(mail.id);
+          setFormData({
+              id: mail.id,
+              date: mail.date,
+              referenceNumber: mail.referenceNumber,
+              recipient: mail.recipient,
+              subject: mail.subject,
+              createdAt: mail.createdAt
+          });
+      } else {
+          setEditingId(null);
+          setFormData({
+            date: new Date().toISOString().split('T')[0],
+            referenceNumber: suggestNextNumber(), // Auto suggest on new
+            subject: '',
+            recipient: ''
+          });
+      }
+      setIsFormOpen(true);
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -114,6 +132,7 @@ export const OutgoingMailBook: React.FC<OutgoingMailBookProps> = ({ mails, onSav
         subject: '',
         recipient: ''
     });
+    setEditingId(null);
   };
 
   const handlePrintReport = () => {
@@ -141,7 +160,7 @@ export const OutgoingMailBook: React.FC<OutgoingMailBookProps> = ({ mails, onSav
         rowsHtml = reportData.map((m, idx) => `
             <tr>
                 <td style="padding: 5px; border: 1px solid #000; text-align: center;">${idx + 1}</td>
-                <td style="padding: 5px; border: 1px solid #000; text-align: center;">${new Date(m.date).toLocaleDateString('id-ID')}</td>
+                <td style="padding: 5px; border: 1px solid #000; text-align: center; white-space: nowrap;">${new Date(m.date).toLocaleDateString('id-ID')}</td>
                 <td style="padding: 5px; border: 1px solid #000;">${m.fullNumber}</td>
                 <td style="padding: 5px; border: 1px solid #000;">${m.recipient}</td>
                 <td style="padding: 5px; border: 1px solid #000;">${m.subject}</td>
@@ -157,7 +176,7 @@ export const OutgoingMailBook: React.FC<OutgoingMailBookProps> = ({ mails, onSav
     }
 
     const content = `
-        <div style="font-family: 'Inter', sans-serif; padding: 20px; color: #000;">
+        <div style="font-family: 'Inter', sans-serif; padding: 20px; color: #000; background: #fff;">
             <div style="text-align: center; margin-bottom: 20px;">
                 <h1 style="font-size: 16px; font-weight: bold; text-transform: uppercase;">${settings.companyName}</h1>
                 <p style="font-size: 12px; margin-bottom: 10px;">${settings.companyAddress}</p>
@@ -293,7 +312,7 @@ export const OutgoingMailBook: React.FC<OutgoingMailBookProps> = ({ mails, onSav
                     <BookOpen className="w-4 h-4" /> <span className="hidden md:inline">Laporan</span>
                 </button>
                 <button 
-                    onClick={() => setIsFormOpen(true)} 
+                    onClick={() => handleOpenForm()} 
                     className="bg-primary-600 text-white p-2 md:px-4 md:py-2 rounded-lg hover:bg-primary-700 flex items-center gap-2 transition shadow-sm"
                 >
                     <Plus className="w-4 h-4" /> <span className="hidden md:inline">Catat Surat Baru</span>
@@ -346,7 +365,13 @@ export const OutgoingMailBook: React.FC<OutgoingMailBookProps> = ({ mails, onSav
                                     <td className="px-6 py-4 font-medium text-slate-800">
                                         {mail.subject}
                                     </td>
-                                    <td className="px-6 py-4 text-right">
+                                    <td className="px-6 py-4 text-right flex justify-end gap-2">
+                                        <button 
+                                            onClick={() => handleOpenForm(mail)} 
+                                            className="p-2 text-slate-400 hover:text-blue-600 transition"
+                                        >
+                                            <Pencil className="w-4 h-4" />
+                                        </button>
                                         <button 
                                             onClick={() => { if(window.confirm('Hapus surat ini?')) onDelete(mail.id); }} 
                                             className="p-2 text-slate-400 hover:text-red-600 transition"
@@ -374,7 +399,7 @@ export const OutgoingMailBook: React.FC<OutgoingMailBookProps> = ({ mails, onSav
                 <div className="bg-white rounded-xl shadow-xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200">
                     <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
                         <h3 className="font-bold text-slate-800 flex items-center gap-2">
-                            <Send className="w-4 h-4 text-primary-600" /> Catat Surat Keluar
+                            <Send className="w-4 h-4 text-primary-600" /> {editingId ? 'Edit Surat Keluar' : 'Catat Surat Keluar'}
                         </h3>
                         <button onClick={() => setIsFormOpen(false)} className="text-slate-400 hover:text-slate-600">
                             <X className="w-5 h-5" />

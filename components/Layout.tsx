@@ -1,5 +1,3 @@
-
-
 import React, { useState } from 'react';
 import { LayoutDashboard, Users, FileText, Truck, Settings, Briefcase, ScrollText, UserCog, LogOut, CreditCard, Wallet, PieChart, Send, Home, ChevronDown, Inbox } from 'lucide-react';
 
@@ -12,6 +10,8 @@ interface LayoutProps {
 
 export const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange, onLogout }) => {
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const todayName = new Date().toLocaleDateString('id-ID', { weekday: 'long' });
+  const currentUser = localStorage.getItem('currentUser') || 'Notaris Putri';
   
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -42,11 +42,14 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange
     }
   }
 
+  // Generate Avatar URL based on current user
+  const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser)}&background=eff6ff&color=2563eb&size=128`;
+
   return (
-    <div className="min-h-screen flex flex-col md:flex-row bg-slate-50 no-print font-sans">
+    <div className="min-h-screen flex flex-col md:flex-row bg-slate-50 text-slate-900 no-print font-sans transition-colors duration-200">
       
       {/* --- DESKTOP SIDEBAR (Hidden on Mobile) --- */}
-      <aside className="hidden md:flex flex-col w-64 bg-white border-r border-slate-200 h-screen sticky top-0">
+      <aside className="hidden md:flex flex-col w-64 bg-white border-r border-slate-200 h-screen sticky top-0 transition-colors duration-200">
         <div className="p-6 flex items-center gap-3 border-b border-slate-100">
             <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center text-white">
               <Briefcase className="w-5 h-5" />
@@ -94,14 +97,14 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange
       {/* --- MAIN CONTENT --- */}
       <main className="flex-1 overflow-y-auto h-screen pb-20 md:pb-0">
         {/* Mobile Top Header (Minimalist) */}
-        <div className="md:hidden bg-white px-5 py-4 flex items-center justify-between sticky top-0 z-20 shadow-sm border-b border-slate-100">
+        <div className="md:hidden bg-white px-5 py-4 flex items-center justify-between sticky top-0 z-20 shadow-sm border-b border-slate-100 transition-colors duration-200">
              <div className="flex items-center gap-2">
                 <div className="w-8 h-8 bg-primary-600 rounded-full flex items-center justify-center text-white shadow-lg shadow-primary-200">
                    <Briefcase className="w-4 h-4" />
                 </div>
                 <div>
-                   <h1 className="font-bold text-slate-800 text-sm leading-tight">Halo, Notaris Putri</h1>
-                   <p className="text-[10px] text-slate-500">Selamat bekerja!</p>
+                   <h1 className="font-bold text-slate-800 text-sm leading-tight">Halo, {currentUser}</h1>
+                   <p className="text-[10px] text-slate-500">Selamat hari {todayName}, selamat bekerja!</p>
                 </div>
              </div>
              
@@ -112,7 +115,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange
                     className="w-9 h-9 rounded-full bg-slate-100 border border-slate-200 p-0.5 focus:outline-none focus:ring-2 focus:ring-primary-100"
                 >
                     <img 
-                        src="https://ui-avatars.com/api/?name=Notaris+Putri&background=eff6ff&color=2563eb&size=128" 
+                        src={avatarUrl}
                         alt="Profile" 
                         className="w-full h-full rounded-full object-cover"
                     />
@@ -121,9 +124,10 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange
                 {isProfileMenuOpen && (
                     <div className="absolute right-0 top-12 w-48 bg-white rounded-xl shadow-xl border border-slate-100 py-1 z-50 animate-in fade-in slide-in-from-top-2 origin-top-right">
                         <div className="px-4 py-3 border-b border-slate-50 mb-1 bg-slate-50/50">
-                            <p className="text-xs font-bold text-slate-800">Notaris Putri</p>
-                            <p className="text-[10px] text-slate-500">Administrator</p>
+                            <p className="text-xs font-bold text-slate-800">{currentUser}</p>
+                            <p className="text-[10px] text-slate-500">{currentUser === 'Putri' ? 'Notaris' : 'Staff Admin'}</p>
                         </div>
+                        
                         <button 
                             onClick={() => {
                                 onTabChange('settings');
@@ -155,7 +159,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange
       </main>
 
       {/* --- MOBILE BOTTOM NAVIGATION (Fixed) --- */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 px-6 py-3 flex justify-around items-center z-50 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 px-6 py-3 flex justify-around items-center z-50 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] transition-colors duration-200">
          {mobileNavItems.map((item) => (
              <button
                 key={item.id}

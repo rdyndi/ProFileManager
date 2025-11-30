@@ -1,5 +1,3 @@
-
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { Layout } from './components/Layout';
 import { LoginScreen } from './components/LoginScreen';
@@ -658,7 +656,7 @@ const App = () => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
     return localStorage.getItem('isLoggedIn') === 'true';
   });
-
+  
   const [activeTab, setActiveTab] = useState('dashboard');
   
   // Data State (Real-time synced)
@@ -795,15 +793,19 @@ const App = () => {
   }, [invoices, invoiceSearchQuery]);
 
   // --- Login Handler ---
-  const handleLogin = (status: boolean) => {
+  const handleLogin = (status: boolean, username?: string) => {
     if (status) {
         localStorage.setItem('isLoggedIn', 'true');
+        if (username) {
+            localStorage.setItem('currentUser', username);
+        }
         setIsAuthenticated(true);
     }
   };
 
   const handleLogout = () => {
     localStorage.removeItem('isLoggedIn');
+    localStorage.removeItem('currentUser');
     setIsAuthenticated(false);
   };
 
@@ -916,8 +918,8 @@ const App = () => {
                 </button>
             </div>
             <div className="bg-white rounded-xl shadow-sm border border-slate-200">
-                <div className="p-4 border-b border-slate-100"><div className="relative max-w-md"><Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" /><input type="text" placeholder="Cari..." className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg outline-none text-sm" value={docSearchQuery} onChange={(e) => setDocSearchQuery(e.target.value)} /></div></div>
-                <div className="overflow-x-auto"><table className="w-full text-sm text-left"><thead className="bg-slate-50 text-slate-500 font-medium"><tr><th className="px-6 py-3">Tanggal</th><th className="px-6 py-3">No. Ref</th><th className="px-6 py-3">Klien</th><th className="px-6 py-3">Petugas</th><th className="px-6 py-3 text-right">Aksi</th></tr></thead><tbody>{filteredDocs.map(doc => (<tr key={doc.id} className="border-b border-slate-50 hover:bg-slate-50"><td className="px-6 py-4">{new Date(doc.date).toLocaleDateString()}</td><td className="px-6 py-4 font-mono">{doc.referenceNo}</td><td className="px-6 py-4">{doc.clientName}</td><td className="px-6 py-4">{doc.officerName}</td><td className="px-6 py-4 text-right flex justify-end gap-2"><button onClick={() => printDocument(doc)} className="p-2 text-slate-400 hover:text-green-600"><Printer className="w-4 h-4" /></button><button onClick={() => { setSelectedDocument(doc); setDocViewState('edit'); }} className="p-2 text-slate-400 hover:text-primary-600"><Pencil className="w-4 h-4" /></button><button onClick={() => handleDeleteDocument(doc.id)} className="p-2 text-slate-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></button></td></tr>))}</tbody></table></div>
+                <div className="p-4 border-b border-slate-100"><div className="relative max-w-md"><Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" /><input type="text" placeholder="Cari..." className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg outline-none text-sm bg-white text-slate-900" value={docSearchQuery} onChange={(e) => setDocSearchQuery(e.target.value)} /></div></div>
+                <div className="overflow-x-auto"><table className="w-full text-sm text-left text-slate-600"><thead className="bg-slate-50 font-medium text-slate-500"><tr><th className="px-6 py-3">Tanggal</th><th className="px-6 py-3">No. Ref</th><th className="px-6 py-3">Klien</th><th className="px-6 py-3">Petugas</th><th className="px-6 py-3 text-right">Aksi</th></tr></thead><tbody>{filteredDocs.map(doc => (<tr key={doc.id} className="border-b border-slate-50 hover:bg-slate-50"><td className="px-6 py-4">{new Date(doc.date).toLocaleDateString()}</td><td className="px-6 py-4 font-mono">{doc.referenceNo}</td><td className="px-6 py-4">{doc.clientName}</td><td className="px-6 py-4">{doc.officerName}</td><td className="px-6 py-4 text-right flex justify-end gap-2"><button onClick={() => printDocument(doc)} className="p-2 text-slate-400 hover:text-green-600"><Printer className="w-4 h-4" /></button><button onClick={() => { setSelectedDocument(doc); setDocViewState('edit'); }} className="p-2 text-slate-400 hover:text-primary-600"><Pencil className="w-4 h-4" /></button><button onClick={() => handleDeleteDocument(doc.id)} className="p-2 text-slate-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></button></td></tr>))}</tbody></table></div>
             </div>
         </div>
      )
@@ -981,7 +983,7 @@ const App = () => {
                     ))}
                 </div>
             </div>
-
+            
             <h2 className="text-xl md:text-2xl font-bold text-slate-800">Ringkasan</h2>
             
             {/* Stats Cards */}
@@ -1053,8 +1055,10 @@ const App = () => {
             </div>
         </div> 
       )}
-
-      {activeTab === 'clients' && (<div className="space-y-6">{clientViewState === 'list' && (<><div className="flex justify-between items-center"><h2 className="text-2xl font-bold text-slate-800">Data Klien</h2><button onClick={() => { setClientViewState('add'); setSelectedClient(null); }} className="bg-primary-600 text-white p-2 md:px-4 md:py-2 rounded-lg flex gap-2 text-sm items-center"><Plus className="w-4 h-4"/> <span className="hidden md:inline">Tambah</span></button></div><div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4"><input type="text" placeholder="Cari..." className="w-full px-4 py-2 border rounded-lg mb-4 text-sm" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} /><table className="w-full text-sm text-left"><thead className="bg-slate-50"><tr><th className="p-4">Nama</th><th className="p-4 hidden md:table-cell">Kontak</th><th className="p-4 hidden md:table-cell">Tipe</th><th className="p-4 text-right">Aksi</th></tr></thead><tbody>{filteredClients.map(c => (<tr key={c.id} className="border-b"><td className="p-4 font-bold"><div>{c.name}</div><div className="md:hidden text-xs font-normal text-slate-500">{c.type}</div></td><td className="p-4 hidden md:table-cell"><a href={getWaUrl(c.contactNumber)} target="_blank" rel="noopener noreferrer" className="text-slate-600 hover:text-green-600 hover:underline flex items-center gap-1 w-fit"><MessageCircle className="w-3 h-3"/>{c.contactNumber}</a></td><td className="p-4 hidden md:table-cell">{c.type}</td><td className="p-4 text-right"><button onClick={() => { setClientViewState('detail'); setSelectedClient(c); }} className="text-primary-600 text-xs bg-primary-50 px-3 py-1 rounded-full">Lihat</button></td></tr>))}</tbody></table></div></>)}{clientViewState === 'add' && <ClientForm onSave={handleSaveClient} onCancel={() => setClientViewState('list')} initialData={selectedClient || undefined} />}{clientViewState === 'detail' && selectedClient && <ClientDetail client={selectedClient} onBack={() => setClientViewState('list')} onEdit={() => setClientViewState('add')} onDelete={() => handleDeleteClient(selectedClient.id)} />}</div>)}
+      
+      {/* ... (Other Tabs Logic) ... */}
+      
+      {activeTab === 'clients' && (<div className="space-y-6">{clientViewState === 'list' && (<><div className="flex justify-between items-center"><h2 className="text-2xl font-bold text-slate-800">Data Klien</h2><button onClick={() => { setClientViewState('add'); setSelectedClient(null); }} className="bg-primary-600 text-white p-2 md:px-4 md:py-2 rounded-lg flex gap-2 text-sm items-center hover:bg-primary-700 transition"><Plus className="w-4 h-4"/> <span className="hidden md:inline">Tambah</span></button></div><div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4"><input type="text" placeholder="Cari..." className="w-full px-4 py-2 border border-slate-300 rounded-lg mb-4 text-sm bg-white text-slate-900 outline-none focus:ring-2 focus:ring-primary-500" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} /><table className="w-full text-sm text-left text-slate-600"><thead className="bg-slate-50 text-slate-700"><tr><th className="p-4">Nama</th><th className="p-4 hidden md:table-cell">Kontak</th><th className="p-4 hidden md:table-cell">Tipe</th><th className="p-4 text-right">Aksi</th></tr></thead><tbody>{filteredClients.map(c => (<tr key={c.id} className="border-b border-slate-100 hover:bg-slate-50"><td className="p-4 font-bold text-slate-800"><div>{c.name}</div><div className="md:hidden text-xs font-normal text-slate-500">{c.type}</div></td><td className="p-4 hidden md:table-cell"><a href={getWaUrl(c.contactNumber)} target="_blank" rel="noopener noreferrer" className="text-slate-600 hover:text-green-600 hover:underline flex items-center gap-1 w-fit"><MessageCircle className="w-3 h-3"/>{c.contactNumber}</a></td><td className="p-4 hidden md:table-cell">{c.type}</td><td className="p-4 text-right"><button onClick={() => { setClientViewState('detail'); setSelectedClient(c); }} className="text-primary-600 text-xs bg-primary-50 px-3 py-1 rounded-full hover:bg-primary-100">Lihat</button></td></tr>))}</tbody></table></div></>)}{clientViewState === 'add' && <ClientForm onSave={handleSaveClient} onCancel={() => setClientViewState('list')} initialData={selectedClient || undefined} />}{clientViewState === 'detail' && selectedClient && <ClientDetail client={selectedClient} onBack={() => setClientViewState('list')} onEdit={() => setClientViewState('add')} onDelete={() => handleDeleteClient(selectedClient.id)} />}</div>)}
 
       {/* ... (Akta Tab) ... */}
       {activeTab === 'akta' && (<div className="space-y-6">{deedViewState === 'list' ? (<><div className="flex justify-between items-center"><h2 className="text-2xl font-bold text-slate-800">Daftar Akta</h2>
@@ -1063,7 +1067,7 @@ const App = () => {
         <button onClick={() => setDeedViewState('report_monthly')} className="bg-white border border-slate-300 text-slate-700 p-2 md:px-3 md:py-2 rounded-lg hover:bg-slate-50 flex items-center gap-2 transition shadow-sm text-sm"><BookOpen className="w-4 h-4" /> <span className="hidden md:inline">Laporan</span></button>
         <button onClick={() => { setDeedViewState('create'); setSelectedDeed(null); }} className="bg-primary-600 text-white p-2 md:px-4 md:py-2 rounded-lg hover:bg-primary-700 flex items-center gap-2 transition shadow-sm text-sm"><Plus className="w-4 h-4" /> <span className="hidden md:inline">Baru</span></button>
       </div></div>
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200"><div className="p-4 border-b"><input type="text" placeholder="Cari..." className="w-full px-4 py-2 border rounded-lg text-sm" value={deedSearchQuery} onChange={e => setDeedSearchQuery(e.target.value)} /></div><div className="overflow-x-auto"><table className="w-full text-sm text-left"><thead className="bg-slate-50"><tr><th className="p-4">No. Akta</th><th className="p-4">Judul</th><th className="p-4 hidden md:table-cell">Klien</th><th className="p-4 text-right">Aksi</th></tr></thead><tbody>{deeds.filter(d => d.deedNumber.toLowerCase().includes(deedSearchQuery.toLowerCase()) || d.deedTitle.toLowerCase().includes(deedSearchQuery.toLowerCase()) || d.clientName.toLowerCase().includes(deedSearchQuery.toLowerCase())).map(d => (<tr key={d.id} className="border-b"><td className="p-4 font-bold font-mono">{d.deedNumber}</td><td className="p-4"><div className="line-clamp-2">{d.deedTitle}</div><div className="md:hidden text-xs text-slate-500 mt-1">{d.clientName}</div></td><td className="p-4 hidden md:table-cell">{d.clientName}</td><td className="p-4 text-right flex justify-end gap-2"><button onClick={() => { setSelectedDeed(d); setDeedViewState('edit'); }}><Pencil className="w-4 h-4 text-blue-600" /></button><button onClick={() => handleDeleteDeed(d.id)}><Trash2 className="w-4 h-4 text-red-600" /></button></td></tr>))}</tbody></table></div></div></>) : deedViewState === 'report_monthly' ? <DeedReport deeds={deeds} onBack={() => setDeedViewState('list')} /> : deedViewState === 'report_alphabetical' ? <DeedAlphabeticalReport deeds={deeds} onBack={() => setDeedViewState('list')} /> : <DeedForm clients={clients} deeds={deeds} onSave={handleSaveDeed} onCancel={() => setDeedViewState('list')} onAddClient={handleDirectAddClient} initialData={selectedDeed || undefined} />}</div>)}
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200"><div className="p-4 border-b border-slate-100"><input type="text" placeholder="Cari..." className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm bg-white text-slate-900 outline-none focus:ring-2 focus:ring-primary-500" value={deedSearchQuery} onChange={e => setDeedSearchQuery(e.target.value)} /></div><div className="overflow-x-auto"><table className="w-full text-sm text-left text-slate-600"><thead className="bg-slate-50 text-slate-700"><tr><th className="p-4">No. Akta</th><th className="p-4">Judul</th><th className="p-4 hidden md:table-cell">Klien</th><th className="p-4 text-right">Aksi</th></tr></thead><tbody>{deeds.filter(d => d.deedNumber.toLowerCase().includes(deedSearchQuery.toLowerCase()) || d.deedTitle.toLowerCase().includes(deedSearchQuery.toLowerCase()) || d.clientName.toLowerCase().includes(deedSearchQuery.toLowerCase())).map(d => (<tr key={d.id} className="border-b border-slate-100 hover:bg-slate-50"><td className="p-4 font-bold font-mono text-slate-800">{d.deedNumber}</td><td className="p-4"><div className="line-clamp-2">{d.deedTitle}</div><div className="md:hidden text-xs text-slate-500 mt-1">{d.clientName}</div></td><td className="p-4 hidden md:table-cell">{d.clientName}</td><td className="p-4 text-right flex justify-end gap-2"><button onClick={() => { setSelectedDeed(d); setDeedViewState('edit'); }}><Pencil className="w-4 h-4 text-blue-600" /></button><button onClick={() => handleDeleteDeed(d.id)}><Trash2 className="w-4 h-4 text-red-600" /></button></td></tr>))}</tbody></table></div></div></>) : deedViewState === 'report_monthly' ? <DeedReport deeds={deeds} onBack={() => setDeedViewState('list')} /> : deedViewState === 'report_alphabetical' ? <DeedAlphabeticalReport deeds={deeds} onBack={() => setDeedViewState('list')} /> : <DeedForm clients={clients} deeds={deeds} onSave={handleSaveDeed} onCancel={() => setDeedViewState('list')} onAddClient={handleDirectAddClient} initialData={selectedDeed || undefined} />}</div>)}
       
       {/* INVOICE TAB */}
       {activeTab === 'invoice' && (
@@ -1072,7 +1076,7 @@ const App = () => {
                 <>
                     <div className="flex justify-between items-center">
                         <h2 className="text-2xl font-bold text-slate-800">Daftar Invoice</h2>
-                        <button onClick={() => { setInvoiceViewState('create'); setSelectedInvoice(null); }} className="bg-primary-600 text-white p-2 md:px-4 md:py-2 rounded-lg flex gap-2 text-sm items-center"><Plus className="w-4 h-4"/> <span className="hidden md:inline">Buat Invoice</span></button>
+                        <button onClick={() => { setInvoiceViewState('create'); setSelectedInvoice(null); }} className="bg-primary-600 text-white p-2 md:px-4 md:py-2 rounded-lg flex gap-2 text-sm items-center hover:bg-primary-700 transition"><Plus className="w-4 h-4"/> <span className="hidden md:inline">Buat Invoice</span></button>
                     </div>
 
                     {/* SUMMARY CARD (CASHFLOW) */}
@@ -1107,10 +1111,10 @@ const App = () => {
                     </div>
 
                     <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
-                        <input type="text" placeholder="Cari..." className="w-full px-4 py-2 border rounded-lg mb-4 text-sm" value={invoiceSearchQuery} onChange={e => setInvoiceSearchQuery(e.target.value)} />
+                        <input type="text" placeholder="Cari..." className="w-full px-4 py-2 border border-slate-300 rounded-lg mb-4 text-sm bg-white text-slate-900 outline-none focus:ring-2 focus:ring-primary-500" value={invoiceSearchQuery} onChange={e => setInvoiceSearchQuery(e.target.value)} />
                         <div className="overflow-x-auto">
-                            <table className="w-full text-sm text-left">
-                                <thead className="bg-slate-50">
+                            <table className="w-full text-sm text-left text-slate-600">
+                                <thead className="bg-slate-50 text-slate-700">
                                     <tr>
                                         <th className="p-4 hidden md:table-cell">Tanggal</th>
                                         <th className="p-4">No. Invoice</th>
@@ -1127,7 +1131,7 @@ const App = () => {
                                         const remaining = Math.max(0, inv.totalAmount - paid);
 
                                         return (
-                                        <tr key={inv.id} className="border-b hover:bg-slate-50">
+                                        <tr key={inv.id} className="border-b border-slate-100 hover:bg-slate-50">
                                             <td className="p-4 hidden md:table-cell">{new Date(inv.date).toLocaleDateString()}</td>
                                             <td className="p-4">
                                                 <button 
@@ -1229,10 +1233,10 @@ const App = () => {
           <div className="space-y-6">
               {empViewState === 'list' ? (
                   <>
-                    <div className="flex justify-between items-center"><h2 className="text-2xl font-bold text-slate-800">Data Pegawai</h2><button onClick={() => { setEmpViewState('add'); setSelectedEmployee(null); }} className="bg-primary-600 text-white p-2 md:px-4 md:py-2 rounded-lg flex gap-2 text-sm items-center"><Plus className="w-4 h-4"/> <span className="hidden md:inline">Tambah</span></button></div>
-                    <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4"><input type="text" placeholder="Cari..." className="w-full px-4 py-2 border rounded-lg mb-4 text-sm" value={empSearchQuery} onChange={e => setEmpSearchQuery(e.target.value)} />
-                        <table className="w-full text-sm text-left"><thead className="bg-slate-50"><tr><th className="p-4">Nama</th><th className="p-4 hidden md:table-cell">Jabatan</th><th className="p-4 hidden md:table-cell">Telepon</th><th className="p-4 text-right">Aksi</th></tr></thead><tbody>
-                            {filteredEmployees.map(e => (<tr key={e.id} className="border-b"><td className="p-4 font-medium"><div>{e.name}</div><div className="md:hidden text-xs text-slate-500">{e.role}</div></td><td className="p-4 hidden md:table-cell">{e.role}</td><td className="p-4 hidden md:table-cell">{e.phone}</td><td className="p-4 text-right flex justify-end gap-2"><button onClick={() => { setSelectedEmployee(e); setEmpViewState('add'); }}><Pencil className="w-4 h-4 text-blue-600" /></button><button onClick={() => handleDeleteEmployee(e.id)}><Trash2 className="w-4 h-4 text-red-600" /></button></td></tr>))}
+                    <div className="flex justify-between items-center"><h2 className="text-2xl font-bold text-slate-800">Data Pegawai</h2><button onClick={() => { setEmpViewState('add'); setSelectedEmployee(null); }} className="bg-primary-600 text-white p-2 md:px-4 md:py-2 rounded-lg flex gap-2 text-sm items-center hover:bg-primary-700 transition"><Plus className="w-4 h-4"/> <span className="hidden md:inline">Tambah</span></button></div>
+                    <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4"><input type="text" placeholder="Cari..." className="w-full px-4 py-2 border border-slate-300 rounded-lg mb-4 text-sm bg-white text-slate-900 outline-none focus:ring-2 focus:ring-primary-500" value={empSearchQuery} onChange={e => setEmpSearchQuery(e.target.value)} />
+                        <table className="w-full text-sm text-left text-slate-600"><thead className="bg-slate-50 text-slate-700"><tr><th className="p-4">Nama</th><th className="p-4 hidden md:table-cell">Jabatan</th><th className="p-4 hidden md:table-cell">Telepon</th><th className="p-4 text-right">Aksi</th></tr></thead><tbody>
+                            {filteredEmployees.map(e => (<tr key={e.id} className="border-b border-slate-100 hover:bg-slate-50"><td className="p-4 font-medium"><div>{e.name}</div><div className="md:hidden text-xs text-slate-500">{e.role}</div></td><td className="p-4 hidden md:table-cell">{e.role}</td><td className="p-4 hidden md:table-cell">{e.phone}</td><td className="p-4 text-right flex justify-end gap-2"><button onClick={() => { setSelectedEmployee(e); setEmpViewState('add'); }}><Pencil className="w-4 h-4 text-blue-600" /></button><button onClick={() => handleDeleteEmployee(e.id)}><Trash2 className="w-4 h-4 text-red-600" /></button></td></tr>))}
                         </tbody></table>
                     </div>
                   </>
@@ -1247,13 +1251,13 @@ const App = () => {
             <h2 className="text-2xl font-bold text-slate-800">Pengaturan</h2>
             <form onSubmit={handleSaveSettings} className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
                 <div className="space-y-4">
-                    <div><label className="text-sm text-slate-700 font-medium">Nama</label><input type="text" value={settings.companyName} onChange={e=>setSettings({...settings, companyName:e.target.value})} className="w-full border p-2 rounded mt-1 outline-none focus:ring-2 focus:ring-primary-500"/></div>
-                    <div><label className="text-sm text-slate-700 font-medium">Alamat</label><textarea value={settings.companyAddress} onChange={e=>setSettings({...settings, companyAddress:e.target.value})} className="w-full border p-2 rounded mt-1 outline-none focus:ring-2 focus:ring-primary-500"/></div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4"><div><label className="text-sm text-slate-700 font-medium">Email</label><input type="text" value={settings.companyEmail} onChange={e=>setSettings({...settings, companyEmail:e.target.value})} className="w-full border p-2 rounded mt-1 outline-none focus:ring-2 focus:ring-primary-500"/></div><div><label className="text-sm text-slate-700 font-medium">Telp</label><input type="text" value={settings.companyPhone} onChange={e=>setSettings({...settings, companyPhone:e.target.value})} className="w-full border p-2 rounded mt-1 outline-none focus:ring-2 focus:ring-primary-500"/></div></div>
-                    <button className="bg-primary-600 text-white px-4 py-2 rounded mt-4 w-full md:w-auto">Simpan</button>
+                    <div><label className="text-sm text-slate-700 font-medium">Nama</label><input type="text" value={settings.companyName} onChange={e=>setSettings({...settings, companyName:e.target.value})} className="w-full border border-slate-300 p-2 rounded mt-1 outline-none focus:ring-2 focus:ring-primary-500 bg-white text-slate-900"/></div>
+                    <div><label className="text-sm text-slate-700 font-medium">Alamat</label><textarea value={settings.companyAddress} onChange={e=>setSettings({...settings, companyAddress:e.target.value})} className="w-full border border-slate-300 p-2 rounded mt-1 outline-none focus:ring-2 focus:ring-primary-500 bg-white text-slate-900"/></div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4"><div><label className="text-sm text-slate-700 font-medium">Email</label><input type="text" value={settings.companyEmail} onChange={e=>setSettings({...settings, companyEmail:e.target.value})} className="w-full border border-slate-300 p-2 rounded mt-1 outline-none focus:ring-2 focus:ring-primary-500 bg-white text-slate-900"/></div><div><label className="text-sm text-slate-700 font-medium">Telp</label><input type="text" value={settings.companyPhone} onChange={e=>setSettings({...settings, companyPhone:e.target.value})} className="w-full border border-slate-300 p-2 rounded mt-1 outline-none focus:ring-2 focus:ring-primary-500 bg-white text-slate-900"/></div></div>
+                    <button className="bg-primary-600 text-white px-4 py-2 rounded mt-4 w-full md:w-auto hover:bg-primary-700 transition">Simpan</button>
                 </div>
             </form>
-            <button onClick={handleLogout} className="w-full md:hidden bg-red-50 text-red-600 px-4 py-3 rounded-xl border border-red-100 flex justify-center items-center gap-2 font-medium">
+            <button onClick={handleLogout} className="w-full md:hidden bg-red-50 text-red-600 px-4 py-3 rounded-xl border border-red-100 flex justify-center items-center gap-2 font-medium hover:bg-red-100 transition">
                 <X className="w-4 h-4" /> Keluar Aplikasi
             </button>
         </div>

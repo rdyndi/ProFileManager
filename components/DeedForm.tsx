@@ -1,16 +1,18 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import { Client, Deed, DeedAppearer, DeedGrantor } from '../types';
 import { Save, X, Plus, Trash2, Search, User, UserPlus } from 'lucide-react';
 
 interface DeedFormProps {
   clients: Client[];
+  deeds: Deed[]; // Add deeds to props for auto-numbering
   onSave: (deed: Deed) => void;
   onCancel: () => void;
-  onAddClient: () => void; // Prop baru
+  onAddClient: () => void;
   initialData?: Deed;
 }
 
-export const DeedForm: React.FC<DeedFormProps> = ({ clients, onSave, onCancel, onAddClient, initialData }) => {
+export const DeedForm: React.FC<DeedFormProps> = ({ clients, deeds, onSave, onCancel, onAddClient, initialData }) => {
   const [formData, setFormData] = useState<Partial<Deed>>(initialData || {
     orderNumber: '',
     deedNumber: '',
@@ -24,6 +26,65 @@ export const DeedForm: React.FC<DeedFormProps> = ({ clients, onSave, onCancel, o
   ]);
 
   const [selectedClientId, setSelectedClientId] = useState<string>(initialData?.clientId || '');
+
+  // --- Auto Numbering Logic ---
+  useEffect(() => {
+    // Only run this logic if we are CREATING a new deed (not editing)
+    if (initialData) return;
+
+    const date = new Date(formData.deedDate || new Date());
+    const year = date.getFullYear();
+    const month = date.getMonth(); // 0-11
+
+    // 1. Calculate Deed Number (Nomor Akta) - Resets Monthly
+    // Filter deeds for specific Month & Year
+    const deedsInMonth = deeds.filter(d => {
+        const dDate = new Date(d.deedDate);
+        return dDate.getFullYear() === year && dDate.getMonth() === month;
+    });
+
+    let maxDeedNum = 0;
+    deedsInMonth.forEach(d => {
+        // Extract number from string (e.g. "01" -> 1)
+        const num = parseInt(d.deedNumber.replace(/\D/g, '')) || 0;
+        if (num > maxDeedNum) maxDeedNum = num;
+    });
+    
+    // Auto increment from last, or start at 1 if new month
+    const nextDeedNum = maxDeedNum + 1;
+    // Format: 2 digits if < 10 (e.g. 01, 09, 10, 100)
+    const formattedDeedNum = nextDeedNum < 10 ? `0${nextDeedNum}` : `${nextDeedNum}`;
+
+
+    // 2. Calculate Order Number (Nomor Urut) - Resets Yearly
+    // Filter deeds for specific Year
+    const deedsInYear = deeds.filter(d => {
+        const dDate = new Date(d.deedDate);
+        return dDate.getFullYear() === year;
+    });
+
+    let maxOrderNum = 0;
+    deedsInYear.forEach(d => {
+        // Parse int directly. parseInt("001") -> 1. parseInt("005/2024") -> 5.
+        // This handles both old format (with year) and new format (without year) correctly.
+        const num = parseInt(d.orderNumber) || 0;
+        if (num > maxOrderNum) maxOrderNum = num;
+    });
+
+    const nextOrderNum = maxOrderNum + 1;
+    // Format: 001 (Just the number, 3 digits padded)
+    const formattedOrderNum = nextOrderNum.toString().padStart(3, '0');
+
+    // Update state without overwriting user manual edits if they differ significantly? 
+    // For now, we overwrite on date change as per standard "auto" behavior.
+    setFormData(prev => ({
+        ...prev,
+        deedNumber: formattedDeedNum,
+        orderNumber: formattedOrderNum
+    }));
+
+  }, [formData.deedDate, deeds, initialData]);
+
 
   // --- Handlers for Appearers (Penghadap) ---
 
@@ -144,13 +205,16 @@ export const DeedForm: React.FC<DeedFormProps> = ({ clients, onSave, onCancel, o
             
             <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Nomor Urut <span className="text-red-500">*</span></label>
-                <input
-                    type="text"
-                    value={formData.orderNumber || ''}
-                    onChange={(e) => setFormData({...formData, orderNumber: e.target.value})}
-                    placeholder="Contoh: 001/2024"
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none"
-                />
+                <div className="relative">
+                  <input
+                      type="text"
+                      value={formData.orderNumber || ''}
+                      onChange={(e) => setFormData({...formData, orderNumber: e.target.value})}
+                      placeholder="Contoh: 001"
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none"
+                  />
+                  {!initialData && <p className="text-[10px] text-slate-400 mt-1 absolute right-0 -bottom-5">Otomatis (Max + 1)</p>}
+                </div>
             </div>
 
             <div>
@@ -182,12 +246,15 @@ export const DeedForm: React.FC<DeedFormProps> = ({ clients, onSave, onCancel, o
             {/* ... Sisa form ... */}
             <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Nomor Akta <span className="text-red-500">*</span></label>
-                <input
-                    type="text"
-                    value={formData.deedNumber || ''}
-                    onChange={(e) => setFormData({...formData, deedNumber: e.target.value})}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none"
-                />
+                 <div className="relative">
+                    <input
+                        type="text"
+                        value={formData.deedNumber || ''}
+                        onChange={(e) => setFormData({...formData, deedNumber: e.target.value})}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none"
+                    />
+                     {!initialData && <p className="text-[10px] text-slate-400 mt-1 absolute right-0 -bottom-5">Otomatis Reset Bulanan</p>}
+                </div>
             </div>
 
             <div>

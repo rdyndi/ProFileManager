@@ -1,6 +1,6 @@
 
-import React from 'react';
-import { LayoutDashboard, Users, FileText, Truck, Settings, Briefcase, ScrollText, UserCog, LogOut, CreditCard, Wallet, PieChart, Send, Home } from 'lucide-react';
+import React, { useState } from 'react';
+import { LayoutDashboard, Users, FileText, Truck, Settings, Briefcase, ScrollText, UserCog, LogOut, CreditCard, Wallet, PieChart, Send, Home, ChevronDown } from 'lucide-react';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -10,6 +10,7 @@ interface LayoutProps {
 }
 
 export const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange, onLogout }) => {
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -101,9 +102,49 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange
                    <p className="text-[10px] text-slate-500">Selamat bekerja!</p>
                 </div>
              </div>
-             <button onClick={handleLogout} className="p-2 bg-slate-50 rounded-full text-slate-400">
-                <LogOut className="w-4 h-4" />
-             </button>
+             
+             {/* Mobile Profile Dropdown */}
+             <div className="relative">
+                <button 
+                    onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
+                    className="w-9 h-9 rounded-full bg-slate-100 border border-slate-200 p-0.5 focus:outline-none focus:ring-2 focus:ring-primary-100"
+                >
+                    <img 
+                        src="https://ui-avatars.com/api/?name=Notaris+Putri&background=eff6ff&color=2563eb&size=128" 
+                        alt="Profile" 
+                        className="w-full h-full rounded-full object-cover"
+                    />
+                </button>
+
+                {isProfileMenuOpen && (
+                    <div className="absolute right-0 top-12 w-48 bg-white rounded-xl shadow-xl border border-slate-100 py-1 z-50 animate-in fade-in slide-in-from-top-2 origin-top-right">
+                        <div className="px-4 py-3 border-b border-slate-50 mb-1 bg-slate-50/50">
+                            <p className="text-xs font-bold text-slate-800">Notaris Putri</p>
+                            <p className="text-[10px] text-slate-500">Administrator</p>
+                        </div>
+                        <button 
+                            onClick={() => {
+                                onTabChange('settings');
+                                setIsProfileMenuOpen(false);
+                            }}
+                            className="w-full text-left px-4 py-2.5 text-xs font-medium text-slate-700 hover:bg-slate-50 flex items-center gap-2"
+                        >
+                            <Settings className="w-3.5 h-3.5 text-slate-400" />
+                            Pengaturan Akun
+                        </button>
+                        <button 
+                            onClick={() => {
+                                setIsProfileMenuOpen(false);
+                                handleLogout();
+                            }}
+                            className="w-full text-left px-4 py-2.5 text-xs font-medium text-red-600 hover:bg-red-50 flex items-center gap-2"
+                        >
+                            <LogOut className="w-3.5 h-3.5" />
+                            Keluar Sistem
+                        </button>
+                    </div>
+                )}
+             </div>
         </div>
 
         <div className="p-4 md:p-8 max-w-7xl mx-auto">
@@ -112,7 +153,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange
       </main>
 
       {/* --- MOBILE BOTTOM NAVIGATION (Fixed) --- */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 px-6 py-3 flex justify-between items-center z-50 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 px-6 py-3 flex justify-around items-center z-50 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
          {mobileNavItems.map((item) => (
              <button
                 key={item.id}
@@ -127,18 +168,6 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange
                 </span>
              </button>
          ))}
-         {/* Menu More / Settings as the last item logic if needed, or simply settings */}
-         <button
-            onClick={() => onTabChange('settings')}
-             className="flex flex-col items-center gap-1 min-w-[60px]"
-         >
-            <div className={`p-1.5 rounded-xl transition-all duration-300 ${activeTab === 'settings' ? 'bg-primary-100 text-primary-600 -translate-y-1' : 'text-slate-400'}`}>
-                <Settings className="w-5 h-5" />
-            </div>
-            <span className={`text-[10px] font-medium ${activeTab === 'settings' ? 'text-primary-700' : 'text-slate-400'}`}>
-                Akun
-            </span>
-         </button>
       </div>
 
     </div>

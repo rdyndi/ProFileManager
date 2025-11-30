@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Layout } from './components/Layout';
 import { LoginScreen } from './components/LoginScreen';
 import { ClientForm } from './components/ClientForm';
@@ -962,8 +962,8 @@ const App = () => {
      )
   }
 
-  // --- MOBILE GRID MENU DATA ---
-  const mobileFeatures = [
+  // --- MOBILE GRID MENU LOGIC & DRAG DROP ---
+  const defaultMobileFeatures = [
       { id: 'clients', label: 'Klien', icon: Users, color: 'text-blue-600', bg: 'bg-blue-100' },
       { id: 'akta', label: 'Akta', icon: ScrollText, color: 'text-violet-600', bg: 'bg-violet-100' },
       { id: 'outgoing_mail', label: 'Surat Keluar', icon: Send, color: 'text-indigo-600', bg: 'bg-indigo-100' },
@@ -975,6 +975,81 @@ const App = () => {
       { id: 'delivery', label: 'Surat Jalan', icon: Truck, color: 'text-amber-600', bg: 'bg-amber-100' },
       { id: 'employees', label: 'Pegawai', icon: UserCog, color: 'text-gray-600', bg: 'bg-gray-100' },
   ];
+
+  const [menuItems, setMenuItems] = useState(() => {
+    try {
+        const saved = localStorage.getItem('app_menu_order');
+        if (saved) {
+            const savedOrder = JSON.parse(saved);
+            // Ensure compatibility if new features are added in code but missing in savedOrder
+            const merged = [...defaultMobileFeatures];
+            // Sort merged based on saved order index
+            merged.sort((a, b) => {
+                const idxA = savedOrder.indexOf(a.id);
+                const idxB = savedOrder.indexOf(b.id);
+                // If ID not found in saved (new feature), put at end
+                if (idxA === -1) return 1;
+                if (idxB === -1) return -1;
+                return idxA - idxB;
+            });
+            return merged;
+        }
+    } catch(e) {}
+    return defaultMobileFeatures;
+  });
+
+  // Save order when changed
+  useEffect(() => {
+    const ids = menuItems.map(m => m.id);
+    localStorage.setItem('app_menu_order', JSON.stringify(ids));
+  }, [menuItems]);
+
+  const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
+  const longPressTimer = useRef<any>(null);
+
+  const handleTouchStart = (index: number) => {
+    longPressTimer.current = setTimeout(() => {
+        setDraggingIndex(index);
+        // Haptic feedback
+        if (navigator.vibrate) navigator.vibrate(50);
+    }, 500); // 500ms long press to activate drag
+  };
+
+  const handleTouchEnd = () => {
+    if (longPressTimer.current) clearTimeout(longPressTimer.current);
+    setDraggingIndex(null);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (draggingIndex === null) {
+        // If user moves finger before 500ms, cancel the long press timer (it's a scroll or click)
+        if (longPressTimer.current) clearTimeout(longPressTimer.current);
+        return;
+    }
+
+    e.preventDefault(); // Prevent scrolling while dragging
+
+    const touch = e.touches[0];
+    const target = document.elementFromPoint(touch.clientX, touch.clientY);
+    const button = target?.closest('button[data-menu-index]');
+
+    if (button) {
+        const targetIndex = parseInt(button.getAttribute('data-menu-index') || '-1');
+        if (targetIndex !== -1 && targetIndex !== draggingIndex) {
+            // Swap items
+            const newItems = [...menuItems];
+            const itemDragged = newItems[draggingIndex];
+            newItems.splice(draggingIndex, 1);
+            newItems.splice(targetIndex, 0, itemDragged);
+            
+            setMenuItems(newItems);
+            setDraggingIndex(targetIndex);
+            
+            // Optional: Light vibration on swap
+            if (navigator.vibrate) navigator.vibrate(10);
+        }
+    }
+  };
 
   if (!isAuthenticated) {
       return <LoginScreen onLogin={handleLogin} />;
@@ -991,21 +1066,33 @@ const App = () => {
         <div className="space-y-6">
             
             {/* Super App Mobile Grid Menu (Hidden on Desktop) */}
-            <div className="md:hidden">
+            <div className="md:hidden select-none">
                 <h3 className="text-sm font-bold text-slate-800 mb-4 px-1">Menu Utama</h3>
                 <div className="grid grid-cols-4 gap-4 mb-8">
-                    {mobileFeatures.map(item => (
+                    {menuItems.map((item, index) => (
                         <button 
                             key={item.id}
+                            data-menu-index={index}
+                            onTouchStart={() => handleTouchStart(index)}
+                            onTouchEnd={handleTouchEnd}
+                            onTouchMove={handleTouchMove}
                             onClick={() => {
-                                handleTabChange(item.id);
+                                // Only trigger navigation if not dragging
+                                if (draggingIndex === null) {
+                                    handleTabChange(item.id);
+                                }
                             }}
-                            className="flex flex-col items-center gap-2"
+                            className={`flex flex-col items-center gap-2 transition-all duration-200 ${
+                                draggingIndex === index ? 'scale-110 opacity-80 z-50' : ''
+                            }`}
+                            style={{ 
+                                touchAction: draggingIndex !== null ? 'none' : 'auto' 
+                            }}
                         >
-                            <div className={`${item.bg} p-3.5 rounded-2xl shadow-sm hover:scale-105 transition-transform duration-200`}>
+                            <div className={`${item.bg} p-3.5 rounded-2xl shadow-sm transition-transform duration-200 ${draggingIndex === index ? 'shadow-lg ring-2 ring-primary-300 ring-offset-2' : 'active:scale-95'}`}>
                                 <item.icon className={`w-6 h-6 ${item.color}`} />
                             </div>
-                            <span className="text-[11px] font-medium text-slate-700 text-center leading-tight">{item.label}</span>
+                            <span className="text-[11px] font-medium text-slate-700 text-center leading-tight line-clamp-2 min-h-[2.5em]">{item.label}</span>
                         </button>
                     ))}
                 </div>
@@ -1015,56 +1102,60 @@ const App = () => {
             
             {/* Stats Cards */}
             <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 md:gap-6">
-                <div className="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between">
+                {/* Klien - Blue Theme */}
+                <div className="bg-blue-50 p-4 md:p-6 rounded-xl shadow-sm border border-blue-100 flex items-center justify-between">
                     <div>
-                        <p className="text-[10px] md:text-sm text-slate-500 font-medium uppercase">Klien</p>
-                        <h3 className="text-xl md:text-3xl font-bold text-slate-800 mt-1">{clients.length}</h3>
+                        <p className="text-[10px] md:text-sm text-blue-600 font-medium uppercase">Klien</p>
+                        <h3 className="text-xl md:text-3xl font-bold text-blue-800 mt-1">{clients.length}</h3>
                     </div>
-                    <div className="bg-blue-50 p-2 md:p-3 rounded-lg text-blue-600">
+                    <div className="bg-white p-2 md:p-3 rounded-lg text-blue-600 shadow-sm">
                         <Users className="w-5 h-5 md:w-6 md:h-6" />
                     </div>
                 </div>
 
-                <div className="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between">
+                {/* Akta - Violet Theme */}
+                <div className="bg-violet-50 p-4 md:p-6 rounded-xl shadow-sm border border-violet-100 flex items-center justify-between">
                     <div>
-                        <p className="text-[10px] md:text-sm text-slate-500 font-medium uppercase">Akta</p>
-                        <h3 className="text-xl md:text-3xl font-bold text-slate-800 mt-1">{deeds.length}</h3>
+                        <p className="text-[10px] md:text-sm text-violet-600 font-medium uppercase">Akta</p>
+                        <h3 className="text-xl md:text-3xl font-bold text-violet-800 mt-1">{deeds.length}</h3>
                     </div>
-                    <div className="bg-violet-50 p-2 md:p-3 rounded-lg text-violet-600">
+                    <div className="bg-white p-2 md:p-3 rounded-lg text-violet-600 shadow-sm">
                         <ScrollText className="w-5 h-5 md:w-6 md:h-6" />
                     </div>
                 </div>
 
-                <div className="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between">
+                {/* Tanda Terima - Green Theme */}
+                <div className="bg-green-50 p-4 md:p-6 rounded-xl shadow-sm border border-green-100 flex items-center justify-between">
                     <div>
-                        <p className="text-[10px] md:text-sm text-slate-500 font-medium uppercase">Tanda Terima</p>
-                        <h3 className="text-xl md:text-3xl font-bold text-slate-800 mt-1">{stats.totalReceipts}</h3>
+                        <p className="text-[10px] md:text-sm text-green-600 font-medium uppercase">Tanda Terima</p>
+                        <h3 className="text-xl md:text-3xl font-bold text-green-800 mt-1">{stats.totalReceipts}</h3>
                     </div>
-                    <div className="bg-green-50 p-2 md:p-3 rounded-lg text-green-600">
+                    <div className="bg-white p-2 md:p-3 rounded-lg text-green-600 shadow-sm">
                         <FileCheck className="w-5 h-5 md:w-6 md:h-6" />
                     </div>
                 </div>
 
-                <div className="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between">
+                {/* Surat Jalan - Orange Theme */}
+                <div className="bg-orange-50 p-4 md:p-6 rounded-xl shadow-sm border border-orange-100 flex items-center justify-between">
                     <div>
-                        <p className="text-[10px] md:text-sm text-slate-500 font-medium uppercase">Surat Jalan</p>
-                        <h3 className="text-xl md:text-3xl font-bold text-slate-800 mt-1">{stats.totalDeliveries}</h3>
+                        <p className="text-[10px] md:text-sm text-orange-600 font-medium uppercase">Surat Jalan</p>
+                        <h3 className="text-xl md:text-3xl font-bold text-orange-800 mt-1">{stats.totalDeliveries}</h3>
                     </div>
-                    <div className="bg-orange-50 p-2 md:p-3 rounded-lg text-orange-600">
+                    <div className="bg-white p-2 md:p-3 rounded-lg text-orange-600 shadow-sm">
                         <Truck className="w-5 h-5 md:w-6 md:h-6" />
                     </div>
                 </div>
 
-                {/* Surat Keluar Stats Card */}
-                <div className="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between">
+                {/* Surat Keluar - Indigo Theme */}
+                <div className="bg-indigo-50 p-4 md:p-6 rounded-xl shadow-sm border border-indigo-100 flex items-center justify-between">
                     <div>
-                        <p className="text-[10px] md:text-sm text-slate-500 font-medium uppercase">Surat Keluar</p>
+                        <p className="text-[10px] md:text-sm text-indigo-600 font-medium uppercase">Surat Keluar</p>
                         <div className="flex flex-col mt-1">
-                            <span className="text-sm md:text-base font-bold text-slate-800">Next: {stats.nextMailNumber}</span>
-                            <span className="text-[10px] text-slate-400 truncate max-w-[100px]" title={stats.lastMailNumber}>Last: {stats.lastMailNumber}</span>
+                            <span className="text-sm md:text-base font-bold text-indigo-800">Next: {stats.nextMailNumber}</span>
+                            <span className="text-[10px] text-indigo-400 truncate max-w-[100px]" title={stats.lastMailNumber}>Last: {stats.lastMailNumber}</span>
                         </div>
                     </div>
-                    <div className="bg-indigo-50 p-2 md:p-3 rounded-lg text-indigo-600">
+                    <div className="bg-white p-2 md:p-3 rounded-lg text-indigo-600 shadow-sm">
                         <Send className="w-5 h-5 md:w-6 md:h-6" />
                     </div>
                 </div>

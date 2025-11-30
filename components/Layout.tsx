@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { LayoutDashboard, Users, FileText, Truck, Settings, Menu, X, Briefcase, ScrollText, UserCog, LogOut, CreditCard, Wallet, PieChart, Send } from 'lucide-react';
+
+import React from 'react';
+import { LayoutDashboard, Users, FileText, Truck, Settings, Briefcase, ScrollText, UserCog, LogOut, CreditCard, Wallet, PieChart, Send, Home } from 'lucide-react';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -9,26 +10,28 @@ interface LayoutProps {
 }
 
 export const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange, onLogout }) => {
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-
+  
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'clients', label: 'Data Klien', icon: Users },
     { id: 'akta', label: 'Akta', icon: ScrollText },
-    { id: 'outgoing_mail', label: 'Buku Surat Keluar', icon: Send },
-    { id: 'invoice', label: 'Invoice / Tagihan', icon: CreditCard },
-    { id: 'expenses', label: 'Biaya / Pengeluaran', icon: Wallet },
-    { id: 'reports', label: 'Laporan Laba Rugi', icon: PieChart },
+    { id: 'outgoing_mail', label: 'Surat Keluar', icon: Send },
+    { id: 'invoice', label: 'Invoice', icon: CreditCard },
+    { id: 'expenses', label: 'Biaya', icon: Wallet },
+    { id: 'reports', label: 'Laporan', icon: PieChart },
     { id: 'receipt', label: 'Tanda Terima', icon: FileText },
     { id: 'delivery', label: 'Surat Jalan', icon: Truck },
-    { id: 'employees', label: 'Data Pegawai', icon: UserCog },
+    { id: 'employees', label: 'Pegawai', icon: UserCog },
     { id: 'settings', label: 'Pengaturan', icon: Settings },
   ];
 
-  const handleNavClick = (id: string) => {
-    onTabChange(id);
-    setIsMobileMenuOpen(false);
-  };
+  // Mobile Bottom Nav Items (Main Features)
+  const mobileNavItems = [
+    { id: 'dashboard', label: 'Beranda', icon: Home },
+    { id: 'clients', label: 'Klien', icon: Users },
+    { id: 'akta', label: 'Akta', icon: ScrollText },
+    { id: 'invoice', label: 'Tagihan', icon: CreditCard },
+  ];
 
   const handleLogout = () => {
     if (window.confirm('Apakah anda yakin ingin keluar dari sistem?')) {
@@ -37,26 +40,11 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange
   }
 
   return (
-    <div className="min-h-screen flex flex-col md:flex-row bg-slate-50 no-print">
-      {/* Mobile Header */}
-      <div className="md:hidden bg-white border-b border-slate-200 p-4 flex items-center justify-between sticky top-0 z-20">
-        <div className="flex items-center gap-2 font-bold text-primary-700 text-lg">
-          <Briefcase className="w-6 h-6" />
-          <span>Notaris Putri</span>
-        </div>
-        <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="p-2 text-slate-600">
-          {isMobileMenuOpen ? <X /> : <Menu />}
-        </button>
-      </div>
-
-      {/* Sidebar */}
-      <aside className={`
-        fixed inset-y-0 left-0 z-30 w-64 bg-white border-r border-slate-200 transform transition-transform duration-200 ease-in-out
-        md:translate-x-0 md:static md:h-screen md:sticky md:top-0
-        ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
-      `}>
-        <div className="h-full flex flex-col">
-          <div className="p-6 flex items-center gap-3 border-b border-slate-100">
+    <div className="min-h-screen flex flex-col md:flex-row bg-slate-50 no-print font-sans">
+      
+      {/* --- DESKTOP SIDEBAR (Hidden on Mobile) --- */}
+      <aside className="hidden md:flex flex-col w-64 bg-white border-r border-slate-200 h-screen sticky top-0">
+        <div className="p-6 flex items-center gap-3 border-b border-slate-100">
             <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center text-white">
               <Briefcase className="w-5 h-5" />
             </div>
@@ -64,13 +52,13 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange
                 <h1 className="font-bold text-lg text-slate-800 leading-tight">Notaris Putri</h1>
                 <span className="text-primary-600 text-sm font-bold">Office</span>
             </div>
-          </div>
+        </div>
 
-          <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+        <nav className="flex-1 p-4 space-y-1 overflow-y-auto custom-scrollbar">
             {navItems.map((item) => (
               <button
                 key={item.id}
-                onClick={() => handleNavClick(item.id)}
+                onClick={() => onTabChange(item.id)}
                 className={`
                   w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors
                   ${activeTab === item.id 
@@ -82,9 +70,9 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange
                 {item.label}
               </button>
             ))}
-          </nav>
+        </nav>
 
-          <div className="p-4 border-t border-slate-100 space-y-4">
+        <div className="p-4 border-t border-slate-100 space-y-4">
             <button 
                 onClick={handleLogout}
                 className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 transition-colors"
@@ -95,26 +83,64 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange
             
             <div className="bg-slate-50 p-4 rounded-xl">
               <p className="text-xs text-slate-500 mb-1">Versi Sistem</p>
-              <p className="text-xs font-semibold text-slate-700">v1.1.0 Login Enabled</p>
+              <p className="text-xs font-semibold text-slate-700">v1.2.0 Super App</p>
             </div>
-          </div>
         </div>
       </aside>
 
-      {/* Overlay for mobile */}
-      {isMobileMenuOpen && (
-        <div 
-          className="fixed inset-0 bg-black/20 z-20 md:hidden"
-          onClick={() => setIsMobileMenuOpen(false)}
-        />
-      )}
+      {/* --- MAIN CONTENT --- */}
+      <main className="flex-1 overflow-y-auto h-screen pb-20 md:pb-0">
+        {/* Mobile Top Header (Minimalist) */}
+        <div className="md:hidden bg-white px-5 py-4 flex items-center justify-between sticky top-0 z-20 shadow-sm border-b border-slate-100">
+             <div className="flex items-center gap-2">
+                <div className="w-8 h-8 bg-primary-600 rounded-full flex items-center justify-center text-white shadow-lg shadow-primary-200">
+                   <Briefcase className="w-4 h-4" />
+                </div>
+                <div>
+                   <h1 className="font-bold text-slate-800 text-sm leading-tight">Halo, Notaris Putri</h1>
+                   <p className="text-[10px] text-slate-500">Selamat bekerja!</p>
+                </div>
+             </div>
+             <button onClick={handleLogout} className="p-2 bg-slate-50 rounded-full text-slate-400">
+                <LogOut className="w-4 h-4" />
+             </button>
+        </div>
 
-      {/* Main Content */}
-      <main className="flex-1 overflow-y-auto h-screen">
         <div className="p-4 md:p-8 max-w-7xl mx-auto">
           {children}
         </div>
       </main>
+
+      {/* --- MOBILE BOTTOM NAVIGATION (Fixed) --- */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 px-6 py-3 flex justify-between items-center z-50 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+         {mobileNavItems.map((item) => (
+             <button
+                key={item.id}
+                onClick={() => onTabChange(item.id)}
+                className="flex flex-col items-center gap-1 min-w-[60px]"
+             >
+                <div className={`p-1.5 rounded-xl transition-all duration-300 ${activeTab === item.id ? 'bg-primary-100 text-primary-600 -translate-y-1' : 'text-slate-400'}`}>
+                    <item.icon className="w-5 h-5" />
+                </div>
+                <span className={`text-[10px] font-medium ${activeTab === item.id ? 'text-primary-700' : 'text-slate-400'}`}>
+                    {item.label}
+                </span>
+             </button>
+         ))}
+         {/* Menu More / Settings as the last item logic if needed, or simply settings */}
+         <button
+            onClick={() => onTabChange('settings')}
+             className="flex flex-col items-center gap-1 min-w-[60px]"
+         >
+            <div className={`p-1.5 rounded-xl transition-all duration-300 ${activeTab === 'settings' ? 'bg-primary-100 text-primary-600 -translate-y-1' : 'text-slate-400'}`}>
+                <Settings className="w-5 h-5" />
+            </div>
+            <span className={`text-[10px] font-medium ${activeTab === 'settings' ? 'text-primary-700' : 'text-slate-400'}`}>
+                Akun
+            </span>
+         </button>
+      </div>
+
     </div>
   );
 };

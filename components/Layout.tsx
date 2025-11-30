@@ -46,11 +46,11 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange
   const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser)}&background=eff6ff&color=2563eb&size=128`;
 
   return (
-    <div className="min-h-screen flex flex-col md:flex-row bg-slate-50 text-slate-900 no-print font-sans transition-colors duration-200">
+    <div className="h-screen w-full flex flex-col md:flex-row bg-slate-50 text-slate-900 no-print font-sans overflow-hidden">
       
       {/* --- DESKTOP SIDEBAR (Hidden on Mobile) --- */}
-      <aside className="hidden md:flex flex-col w-64 bg-white border-r border-slate-200 h-screen sticky top-0 transition-colors duration-200">
-        <div className="p-6 flex items-center gap-3 border-b border-slate-100">
+      <aside className="hidden md:flex flex-col w-64 bg-white border-r border-slate-200 h-full shrink-0">
+        <div className="p-6 flex items-center gap-3 border-b border-slate-100 shrink-0">
             <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center text-white">
               <Briefcase className="w-5 h-5" />
             </div>
@@ -60,7 +60,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange
             </div>
         </div>
 
-        <nav className="flex-1 p-4 space-y-1 overflow-y-auto custom-scrollbar">
+        <nav className="flex-1 p-4 space-y-1 overflow-y-auto no-scrollbar">
             {navItems.map((item) => (
               <button
                 key={item.id}
@@ -78,7 +78,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange
             ))}
         </nav>
 
-        <div className="p-4 border-t border-slate-100 space-y-4">
+        <div className="p-4 border-t border-slate-100 space-y-4 shrink-0">
             <button 
                 onClick={handleLogout}
                 className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 transition-colors"
@@ -94,10 +94,9 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange
         </div>
       </aside>
 
-      {/* --- MAIN CONTENT --- */}
-      <main className="flex-1 overflow-y-auto h-screen pb-20 md:pb-0">
-        {/* Mobile Top Header (Minimalist) */}
-        <div className="md:hidden bg-white px-5 py-4 flex items-center justify-between sticky top-0 z-20 shadow-sm border-b border-slate-100 transition-colors duration-200">
+      {/* --- MOBILE TOP HEADER (Fixed / Static) --- */}
+      {/* Moved OUTSIDE <main> so it doesn't scroll */}
+      <div className="md:hidden bg-white px-5 py-4 flex items-center justify-between shrink-0 shadow-sm border-b border-slate-100 z-30">
              <div className="flex items-center gap-2">
                 <div className="w-8 h-8 bg-primary-600 rounded-full flex items-center justify-center text-white shadow-lg shadow-primary-200">
                    <Briefcase className="w-4 h-4" />
@@ -151,15 +150,17 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange
                     </div>
                 )}
              </div>
-        </div>
+      </div>
 
-        <div className="p-4 md:p-8 max-w-7xl mx-auto">
+      {/* --- MAIN CONTENT (Scrollable) --- */}
+      <main className="flex-1 overflow-y-auto overflow-x-hidden no-scrollbar bg-slate-50 relative">
+        <div className="p-4 md:p-8 max-w-7xl mx-auto pb-24 md:pb-8">
           {children}
         </div>
       </main>
 
-      {/* --- MOBILE BOTTOM NAVIGATION (Fixed) --- */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 px-6 py-3 flex justify-around items-center z-50 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] transition-colors duration-200">
+      {/* --- MOBILE BOTTOM NAVIGATION (Fixed / Static) --- */}
+      <div className="md:hidden bg-white border-t border-slate-200 px-6 py-3 flex justify-around items-center shrink-0 z-30 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] safe-area-bottom">
          {mobileNavItems.map((item) => (
              <button
                 key={item.id}

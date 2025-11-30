@@ -1,3 +1,5 @@
+
+
 import React, { useState, useMemo } from 'react';
 import { Invoice, Expense } from '../types';
 import { Calendar, Printer, TrendingUp, TrendingDown, DollarSign, Wallet, FileBarChart, PieChart } from 'lucide-react';
@@ -341,11 +343,10 @@ export const ProfitLossReport: React.FC<ProfitLossReportProps> = ({ invoices, ex
              </div>
              <button 
                 onClick={reportType === 'MONTHLY' ? handlePrintMonthly : handlePrintAnnual}
-                className="bg-slate-800 text-white px-4 py-2 rounded-lg hover:bg-slate-900 flex items-center gap-2 transition shadow-sm"
+                className="bg-slate-800 text-white p-2 md:px-4 md:py-2 rounded-lg hover:bg-slate-900 flex items-center gap-2 transition shadow-sm"
             >
                 <Printer className="w-4 h-4" /> 
                 <span className="hidden md:inline">Cetak Laporan</span>
-                <span className="md:hidden">Download PDF</span>
             </button>
         </div>
 

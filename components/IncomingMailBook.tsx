@@ -1,16 +1,16 @@
 
-import React, { useState, useMemo, useEffect } from 'react';
-import { OutgoingMail } from '../types';
-import { Plus, Search, Trash2, X, Save, Send, Calendar, Mail, BookOpen, ArrowLeft, Printer } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { IncomingMail } from '../types';
+import { Plus, Search, Trash2, X, Save, Inbox, Calendar, Mail, User, BookOpen, ArrowLeft, Printer } from 'lucide-react';
 import { getCachedSettings } from '../services/storage';
 
-interface OutgoingMailBookProps {
-  mails: OutgoingMail[];
-  onSave: (mail: OutgoingMail) => void;
+interface IncomingMailBookProps {
+  mails: IncomingMail[];
+  onSave: (mail: IncomingMail) => void;
   onDelete: (id: string) => void;
 }
 
-export const OutgoingMailBook: React.FC<OutgoingMailBookProps> = ({ mails, onSave, onDelete }) => {
+export const IncomingMailBook: React.FC<IncomingMailBookProps> = ({ mails, onSave, onDelete }) => {
   const [viewState, setViewState] = useState<'list' | 'report'>('list');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -23,25 +23,25 @@ export const OutgoingMailBook: React.FC<OutgoingMailBookProps> = ({ mails, onSav
     'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
     'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
   ];
-  
+
   // Form State
-  const [formData, setFormData] = useState<Partial<OutgoingMail>>({
+  const [formData, setFormData] = useState<Partial<IncomingMail>>({
     date: new Date().toISOString().split('T')[0],
-    referenceNumber: '',
-    subject: '',
-    recipient: ''
+    mailNumber: '',
+    sender: '',
+    subject: ''
   });
 
-  // Filter Logic for List View
+  // Filter Logic
   const filteredMails = useMemo(() => {
     return mails.filter(m => 
-      m.fullNumber.toLowerCase().includes(searchQuery.toLowerCase()) || 
+      m.mailNumber.toLowerCase().includes(searchQuery.toLowerCase()) || 
       m.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      m.recipient.toLowerCase().includes(searchQuery.toLowerCase())
+      m.sender.toLowerCase().includes(searchQuery.toLowerCase())
     );
   }, [mails, searchQuery]);
 
-  // Filter Logic for Report View
+  // Report Data
   const reportData = useMemo(() => {
     return mails.filter(m => {
         const d = new Date(m.date);
@@ -49,59 +49,19 @@ export const OutgoingMailBook: React.FC<OutgoingMailBookProps> = ({ mails, onSav
     }).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   }, [mails, selectedMonth, selectedYear]);
 
-  // Helper: Roman Numerals for Month
-  const getRomanMonth = (dateStr: string) => {
-    const date = new Date(dateStr);
-    const months = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII"];
-    return months[date.getMonth()];
-  };
-
-  // Helper: Format Preview
-  const previewNumber = useMemo(() => {
-    if (!formData.date || !formData.referenceNumber) return '.../NPP-NOT/.../...';
-    const year = new Date(formData.date).getFullYear();
-    const roman = getRomanMonth(formData.date);
-    return `${formData.referenceNumber}/NPP-NOT/${roman}/${year}`;
-  }, [formData.date, formData.referenceNumber]);
-
-  // Suggest Next Number Logic
-  const suggestNextNumber = () => {
-    const currentYear = new Date().getFullYear();
-    const mailsThisYear = mails.filter(m => new Date(m.date).getFullYear() === currentYear);
-    
-    if (mailsThisYear.length === 0) return "1";
-
-    // Extract numbers and find max
-    let maxNum = 0;
-    mailsThisYear.forEach(m => {
-        const num = parseInt(m.referenceNumber);
-        if (!isNaN(num) && num > maxNum) maxNum = num;
-    });
-    
-    return (maxNum + 1).toString();
-  };
-
-  useEffect(() => {
-    if (isFormOpen && !formData.referenceNumber) {
-        setFormData(prev => ({ ...prev, referenceNumber: suggestNextNumber() }));
-    }
-  }, [isFormOpen]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.date || !formData.referenceNumber || !formData.subject) {
-        alert("Mohon lengkapi tanggal, nomor urut, dan perihal surat.");
+    if (!formData.date || !formData.mailNumber || !formData.subject || !formData.sender) {
+        alert("Mohon lengkapi semua data surat masuk.");
         return;
     }
 
-    const fullNumber = previewNumber;
-
-    const mailToSave: OutgoingMail = {
+    const mailToSave: IncomingMail = {
         id: formData.id || Math.random().toString(36).substr(2, 9),
         date: formData.date,
-        referenceNumber: formData.referenceNumber,
-        fullNumber: fullNumber,
-        recipient: formData.recipient || '',
+        mailNumber: formData.mailNumber, // Manual input
+        sender: formData.sender,
         subject: formData.subject,
         createdAt: formData.createdAt || Date.now()
     };
@@ -110,9 +70,9 @@ export const OutgoingMailBook: React.FC<OutgoingMailBookProps> = ({ mails, onSav
     setIsFormOpen(false);
     setFormData({
         date: new Date().toISOString().split('T')[0],
-        referenceNumber: '',
-        subject: '',
-        recipient: ''
+        mailNumber: '',
+        sender: '',
+        subject: ''
     });
   };
 
@@ -142,8 +102,8 @@ export const OutgoingMailBook: React.FC<OutgoingMailBookProps> = ({ mails, onSav
             <tr>
                 <td style="padding: 5px; border: 1px solid #000; text-align: center;">${idx + 1}</td>
                 <td style="padding: 5px; border: 1px solid #000; text-align: center;">${new Date(m.date).toLocaleDateString('id-ID')}</td>
-                <td style="padding: 5px; border: 1px solid #000;">${m.fullNumber}</td>
-                <td style="padding: 5px; border: 1px solid #000;">${m.recipient}</td>
+                <td style="padding: 5px; border: 1px solid #000;">${m.mailNumber}</td>
+                <td style="padding: 5px; border: 1px solid #000;">${m.sender}</td>
                 <td style="padding: 5px; border: 1px solid #000;">${m.subject}</td>
             </tr>
         `).join('');
@@ -161,7 +121,7 @@ export const OutgoingMailBook: React.FC<OutgoingMailBookProps> = ({ mails, onSav
             <div style="text-align: center; margin-bottom: 20px;">
                 <h1 style="font-size: 16px; font-weight: bold; text-transform: uppercase;">${settings.companyName}</h1>
                 <p style="font-size: 12px; margin-bottom: 10px;">${settings.companyAddress}</p>
-                <h2 style="font-size: 14px; font-weight: bold; text-decoration: underline; margin-top: 15px;">BUKU AGENDA SURAT KELUAR</h2>
+                <h2 style="font-size: 14px; font-weight: bold; text-decoration: underline; margin-top: 15px;">BUKU AGENDA SURAT MASUK</h2>
                 <p style="font-size: 12px; font-weight: bold;">Bulan: ${monthName} ${selectedYear}</p>
             </div>
 
@@ -169,9 +129,9 @@ export const OutgoingMailBook: React.FC<OutgoingMailBookProps> = ({ mails, onSav
                 <thead>
                     <tr style="background-color: #f3f4f6; font-weight: bold; text-align: center;">
                         <th style="padding: 5px; border: 1px solid #000; width: 5%;">No</th>
-                        <th style="padding: 5px; border: 1px solid #000; width: 15%;">Tanggal</th>
+                        <th style="padding: 5px; border: 1px solid #000; width: 15%;">Tanggal Terima</th>
                         <th style="padding: 5px; border: 1px solid #000; width: 25%;">Nomor Surat</th>
-                        <th style="padding: 5px; border: 1px solid #000; width: 20%;">Kepada</th>
+                        <th style="padding: 5px; border: 1px solid #000; width: 20%;">Pengirim</th>
                         <th style="padding: 5px; border: 1px solid #000; width: 35%;">Perihal</th>
                     </tr>
                 </thead>
@@ -191,7 +151,7 @@ export const OutgoingMailBook: React.FC<OutgoingMailBookProps> = ({ mails, onSav
 
     const opt = {
         margin: 10,
-        filename: `Laporan_Surat_Keluar_${monthName}_${selectedYear}.pdf`,
+        filename: `Laporan_Surat_Masuk_${monthName}_${selectedYear}.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
         html2canvas: { scale: 2 },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
@@ -209,7 +169,7 @@ export const OutgoingMailBook: React.FC<OutgoingMailBookProps> = ({ mails, onSav
                     <button onClick={() => setViewState('list')} className="p-2 hover:bg-slate-100 rounded-full text-slate-500 transition">
                         <ArrowLeft className="w-5 h-5" />
                     </button>
-                    <h2 className="text-2xl font-bold text-slate-800">Laporan Surat Keluar</h2>
+                    <h2 className="text-2xl font-bold text-slate-800">Laporan Surat Masuk</h2>
                 </div>
                 <button 
                     onClick={handlePrintReport}
@@ -219,7 +179,7 @@ export const OutgoingMailBook: React.FC<OutgoingMailBookProps> = ({ mails, onSav
                 </button>
             </div>
 
-            {/* Filter */}
+             {/* Filter */}
             <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-wrap gap-4 items-end">
                 <div>
                     <label className="block text-xs font-medium text-slate-500 mb-1">Bulan</label>
@@ -251,7 +211,7 @@ export const OutgoingMailBook: React.FC<OutgoingMailBookProps> = ({ mails, onSav
                             <th className="px-6 py-3 text-center w-16">No</th>
                             <th className="px-6 py-3 text-center w-32">Tanggal</th>
                             <th className="px-6 py-3">Nomor Surat</th>
-                            <th className="px-6 py-3">Kepada</th>
+                            <th className="px-6 py-3">Pengirim</th>
                             <th className="px-6 py-3">Perihal</th>
                         </tr>
                     </thead>
@@ -261,8 +221,8 @@ export const OutgoingMailBook: React.FC<OutgoingMailBookProps> = ({ mails, onSav
                                 <tr key={m.id}>
                                     <td className="px-6 py-3 text-center text-slate-500">{idx + 1}</td>
                                     <td className="px-6 py-3 text-center">{new Date(m.date).toLocaleDateString('id-ID')}</td>
-                                    <td className="px-6 py-3 font-mono text-xs">{m.fullNumber}</td>
-                                    <td className="px-6 py-3">{m.recipient}</td>
+                                    <td className="px-6 py-3 font-mono text-xs">{m.mailNumber}</td>
+                                    <td className="px-6 py-3">{m.sender}</td>
                                     <td className="px-6 py-3">{m.subject}</td>
                                 </tr>
                             ))
@@ -280,11 +240,10 @@ export const OutgoingMailBook: React.FC<OutgoingMailBookProps> = ({ mails, onSav
       )
   }
 
-  // --- LIST VIEW RENDER ---
   return (
     <div className="space-y-6">
         <div className="flex justify-between items-center">
-            <h2 className="text-2xl font-bold text-slate-800">Buku Surat Keluar</h2>
+            <h2 className="text-2xl font-bold text-slate-800">Buku Surat Masuk</h2>
             <div className="flex gap-2">
                  <button 
                     onClick={() => setViewState('report')} 
@@ -296,7 +255,7 @@ export const OutgoingMailBook: React.FC<OutgoingMailBookProps> = ({ mails, onSav
                     onClick={() => setIsFormOpen(true)} 
                     className="bg-primary-600 text-white p-2 md:px-4 md:py-2 rounded-lg hover:bg-primary-700 flex items-center gap-2 transition shadow-sm"
                 >
-                    <Plus className="w-4 h-4" /> <span className="hidden md:inline">Catat Surat Baru</span>
+                    <Plus className="w-4 h-4" /> <span className="hidden md:inline">Catat Surat Masuk</span>
                 </button>
             </div>
         </div>
@@ -307,7 +266,7 @@ export const OutgoingMailBook: React.FC<OutgoingMailBookProps> = ({ mails, onSav
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
                 <input 
                     type="text" 
-                    placeholder="Cari nomor surat, perihal, atau tujuan..." 
+                    placeholder="Cari nomor surat, pengirim, atau perihal..." 
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-lg outline-none text-sm focus:ring-2 focus:ring-primary-500" 
@@ -321,9 +280,9 @@ export const OutgoingMailBook: React.FC<OutgoingMailBookProps> = ({ mails, onSav
                 <table className="w-full text-sm text-left">
                     <thead className="bg-slate-50 text-slate-500 font-medium">
                         <tr>
-                            <th className="px-6 py-3 w-32">Tanggal</th>
+                            <th className="px-6 py-3 w-32">Tanggal Terima</th>
                             <th className="px-6 py-3 w-48">Nomor Surat</th>
-                            <th className="px-6 py-3 w-48">Tujuan</th>
+                            <th className="px-6 py-3 w-48">Pengirim / Dari</th>
                             <th className="px-6 py-3">Perihal / Judul</th>
                             <th className="px-6 py-3 text-right">Aksi</th>
                         </tr>
@@ -336,19 +295,19 @@ export const OutgoingMailBook: React.FC<OutgoingMailBookProps> = ({ mails, onSav
                                         {new Date(mail.date).toLocaleDateString('id-ID', {day: '2-digit', month: 'short', year: 'numeric'})}
                                     </td>
                                     <td className="px-6 py-4">
-                                        <span className="font-mono font-medium text-blue-700 bg-blue-50 px-2 py-1 rounded">
-                                            {mail.fullNumber}
+                                        <span className="font-mono font-medium text-slate-800 bg-slate-100 px-2 py-1 rounded">
+                                            {mail.mailNumber}
                                         </span>
                                     </td>
                                     <td className="px-6 py-4 text-slate-700">
-                                        {mail.recipient || '-'}
+                                        {mail.sender || '-'}
                                     </td>
                                     <td className="px-6 py-4 font-medium text-slate-800">
                                         {mail.subject}
                                     </td>
                                     <td className="px-6 py-4 text-right">
                                         <button 
-                                            onClick={() => { if(window.confirm('Hapus surat ini?')) onDelete(mail.id); }} 
+                                            onClick={() => { if(window.confirm('Hapus data surat masuk ini?')) onDelete(mail.id); }} 
                                             className="p-2 text-slate-400 hover:text-red-600 transition"
                                         >
                                             <Trash2 className="w-4 h-4" />
@@ -359,7 +318,7 @@ export const OutgoingMailBook: React.FC<OutgoingMailBookProps> = ({ mails, onSav
                         ) : (
                             <tr>
                                 <td colSpan={5} className="px-6 py-12 text-center text-slate-400 italic">
-                                    Belum ada data surat keluar.
+                                    Belum ada data surat masuk.
                                 </td>
                             </tr>
                         )}
@@ -374,7 +333,7 @@ export const OutgoingMailBook: React.FC<OutgoingMailBookProps> = ({ mails, onSav
                 <div className="bg-white rounded-xl shadow-xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200">
                     <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
                         <h3 className="font-bold text-slate-800 flex items-center gap-2">
-                            <Send className="w-4 h-4 text-primary-600" /> Catat Surat Keluar
+                            <Inbox className="w-4 h-4 text-primary-600" /> Catat Surat Masuk
                         </h3>
                         <button onClick={() => setIsFormOpen(false)} className="text-slate-400 hover:text-slate-600">
                             <X className="w-5 h-5" />
@@ -384,7 +343,7 @@ export const OutgoingMailBook: React.FC<OutgoingMailBookProps> = ({ mails, onSav
                     <form onSubmit={handleSubmit} className="p-6 space-y-5">
                         <div className="grid grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-1">Tanggal Surat</label>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">Tanggal Terima</label>
                                 <div className="relative">
                                     <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
                                     <input
@@ -396,32 +355,29 @@ export const OutgoingMailBook: React.FC<OutgoingMailBookProps> = ({ mails, onSav
                                 </div>
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-1">Nomor Urut</label>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">Nomor Surat (Manual)</label>
                                 <input
                                     type="text"
-                                    value={formData.referenceNumber}
-                                    onChange={(e) => setFormData({...formData, referenceNumber: e.target.value})}
-                                    placeholder="Contoh: 16"
+                                    value={formData.mailNumber}
+                                    onChange={(e) => setFormData({...formData, mailNumber: e.target.value})}
+                                    placeholder="Nomor pada surat fisik..."
                                     className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none font-mono"
                                 />
                             </div>
                         </div>
 
-                        <div className="bg-slate-50 p-3 rounded-lg border border-slate-200">
-                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Preview Nomor Surat</label>
-                            <p className="text-lg font-mono font-bold text-slate-800">{previewNumber}</p>
-                            <p className="text-[10px] text-slate-400 mt-1">Format: Nomor / NPP-NOT / Bulan(Romawi) / Tahun</p>
-                        </div>
-
                         <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-1">Tujuan Surat</label>
-                            <input
-                                type="text"
-                                value={formData.recipient}
-                                onChange={(e) => setFormData({...formData, recipient: e.target.value})}
-                                placeholder="Contoh: Kepala Kantor Pertanahan..."
-                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none"
-                            />
+                            <label className="block text-sm font-medium text-slate-700 mb-1">Surat Dari / Pengirim</label>
+                            <div className="relative">
+                                <User className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+                                <input
+                                    type="text"
+                                    value={formData.sender}
+                                    onChange={(e) => setFormData({...formData, sender: e.target.value})}
+                                    placeholder="Contoh: Dinas Kependudukan..."
+                                    className="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none"
+                                />
+                            </div>
                         </div>
 
                         <div>

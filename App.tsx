@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { Layout } from './components/Layout';
 import { LoginScreen } from './components/LoginScreen';
@@ -12,6 +13,7 @@ import { InvoiceGenerator, printInvoice, calculateItemValues, printReceipt } fro
 import { ExpenseTracker } from './components/ExpenseTracker';
 import { ProfitLossReport } from './components/ProfitLossReport';
 import { OutgoingMailBook } from './components/OutgoingMailBook';
+import { IncomingMailBook } from './components/IncomingMailBook';
 import { 
   subscribeClients, saveClient, deleteClient, 
   subscribeDocuments, saveDocument, updateDocument, deleteDocument,
@@ -20,12 +22,13 @@ import {
   subscribeEmployees, saveEmployee, deleteEmployee,
   subscribeInvoices, saveInvoice, deleteInvoice,
   subscribeExpenses, saveExpense, deleteExpense,
-  subscribeOutgoingMails, saveOutgoingMail, deleteOutgoingMail
+  subscribeOutgoingMails, saveOutgoingMail, deleteOutgoingMail,
+  subscribeIncomingMails, saveIncomingMail, deleteIncomingMail
 } from './services/storage';
 import { auth } from './services/firebaseService';
 import { signInAnonymously } from "firebase/auth";
-import { Client, CompanySettings, DocumentData, DocType, Deed, Employee, Invoice, PaymentRecord, Expense, OutgoingMail } from './types';
-import { Users, Search, Plus, Trash2, Eye, FileText, Briefcase, ArrowUpRight, Save, Pencil, Printer, ScrollText, BookOpen, ArrowDownAZ, ArrowLeft, UserCog, Link as LinkIcon, ExternalLink, MessageCircle, Mail, Truck, TrendingUp, BarChart3, Package, FileCheck, CreditCard, Calendar, User, Banknote, X, Wallet, Send, PieChart, Settings } from 'lucide-react';
+import { Client, CompanySettings, DocumentData, DocType, Deed, Employee, Invoice, PaymentRecord, Expense, OutgoingMail, IncomingMail } from './types';
+import { Users, Search, Plus, Trash2, Eye, FileText, Briefcase, ArrowUpRight, Save, Pencil, Printer, ScrollText, BookOpen, ArrowDownAZ, ArrowLeft, UserCog, Link as LinkIcon, ExternalLink, MessageCircle, Mail, Truck, TrendingUp, BarChart3, Package, FileCheck, CreditCard, Calendar, User, Banknote, X, Wallet, Send, PieChart, Settings, Inbox } from 'lucide-react';
 
 // --- Simple Custom SVG Line Chart Component ---
 const SimpleLineChart = ({ data }: { data: any[] }) => {
@@ -127,11 +130,11 @@ const ClientDetail: React.FC<{
             </div>
          </div>
          <div className="flex gap-2">
-            <button onClick={onEdit} className="px-4 py-2 flex items-center gap-2 border border-slate-300 rounded-lg hover:bg-slate-50 text-slate-700 transition">
-                <Pencil className="w-4 h-4" /> <span className="hidden sm:inline">Edit</span>
+            <button onClick={onEdit} className="p-2 md:px-4 md:py-2 flex items-center gap-2 border border-slate-300 rounded-lg hover:bg-slate-50 text-slate-700 transition">
+                <Pencil className="w-4 h-4" /> <span className="hidden md:inline">Edit</span>
             </button>
-            <button onClick={onDelete} className="px-4 py-2 flex items-center gap-2 bg-red-50 text-red-600 border border-red-100 rounded-lg hover:bg-red-100 transition">
-                <Trash2 className="w-4 h-4" /> <span className="hidden sm:inline">Hapus</span>
+            <button onClick={onDelete} className="p-2 md:px-4 md:py-2 flex items-center gap-2 bg-red-50 text-red-600 border border-red-100 rounded-lg hover:bg-red-100 transition">
+                <Trash2 className="w-4 h-4" /> <span className="hidden md:inline">Hapus</span>
             </button>
          </div>
       </div>
@@ -421,13 +424,13 @@ const InvoiceDetail: React.FC<{
                     </div>
                 </div>
                 <div className="flex gap-2 overflow-x-auto pb-2 md:pb-0">
-                    <button onClick={onPrint} className="px-3 py-2 flex items-center gap-2 border border-slate-300 rounded-lg hover:bg-slate-50 text-slate-700 text-sm whitespace-nowrap">
-                        <Printer className="w-4 h-4" /> Cetak
+                    <button onClick={onPrint} className="p-2 md:px-3 md:py-2 flex items-center gap-2 border border-slate-300 rounded-lg hover:bg-slate-50 text-slate-700 text-sm whitespace-nowrap">
+                        <Printer className="w-4 h-4" /> <span className="hidden md:inline">Cetak</span>
                     </button>
-                    <button onClick={onEdit} className="px-3 py-2 flex items-center gap-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 text-sm whitespace-nowrap">
-                        <Pencil className="w-4 h-4" /> Edit
+                    <button onClick={onEdit} className="p-2 md:px-3 md:py-2 flex items-center gap-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 text-sm whitespace-nowrap">
+                        <Pencil className="w-4 h-4" /> <span className="hidden md:inline">Edit</span>
                     </button>
-                    <button onClick={onDelete} className="px-3 py-2 flex items-center gap-2 bg-red-50 text-red-600 border border-red-100 rounded-lg hover:bg-red-100 text-sm whitespace-nowrap">
+                    <button onClick={onDelete} className="p-2 md:px-3 md:py-2 flex items-center gap-2 bg-red-50 text-red-600 border border-red-100 rounded-lg hover:bg-red-100 text-sm whitespace-nowrap">
                         <Trash2 className="w-4 h-4" />
                     </button>
                 </div>
@@ -666,6 +669,7 @@ const App = () => {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [outgoingMails, setOutgoingMails] = useState<OutgoingMail[]>([]);
+  const [incomingMails, setIncomingMails] = useState<IncomingMail[]>([]);
   
   // UI State
   const [clientViewState, setClientViewState] = useState<'list' | 'add' | 'detail'>('list');
@@ -816,6 +820,7 @@ const App = () => {
     let unsubInvoices: (() => void) | undefined;
     let unsubExpenses: (() => void) | undefined;
     let unsubOutgoingMails: (() => void) | undefined;
+    let unsubIncomingMails: (() => void) | undefined;
 
     const initData = async () => {
       try {
@@ -832,6 +837,7 @@ const App = () => {
         unsubInvoices = subscribeInvoices((data) => setInvoices(data));
         unsubExpenses = subscribeExpenses((data) => setExpenses(data));
         unsubOutgoingMails = subscribeOutgoingMails((data) => setOutgoingMails(data));
+        unsubIncomingMails = subscribeIncomingMails((data) => setIncomingMails(data));
         unsubSettings = subscribeSettings((data) => {
           setSettings(data);
           syncSettingsToLocalCache(data);
@@ -852,6 +858,7 @@ const App = () => {
       if (unsubInvoices) unsubInvoices();
       if (unsubExpenses) unsubExpenses();
       if (unsubOutgoingMails) unsubOutgoingMails();
+      if (unsubIncomingMails) unsubIncomingMails();
     };
   }, [isAuthenticated]);
 
@@ -871,6 +878,8 @@ const App = () => {
   const handleDeleteExpense = async (id: string) => { try { await deleteExpense(id); } catch (e: any) { alert(e.message); } }
   const handleSaveOutgoingMail = async (mail: OutgoingMail) => { try { await saveOutgoingMail(mail); alert('Surat keluar tersimpan!'); } catch (e: any) { alert(e.message); } }
   const handleDeleteOutgoingMail = async (id: string) => { try { await deleteOutgoingMail(id); } catch (e: any) { alert(e.message); } }
+  const handleSaveIncomingMail = async (mail: IncomingMail) => { try { await saveIncomingMail(mail); alert('Surat masuk tersimpan!'); } catch (e: any) { alert(e.message); } }
+  const handleDeleteIncomingMail = async (id: string) => { try { await deleteIncomingMail(id); } catch (e: any) { alert(e.message); } }
   const handleSaveSettings = async (e: React.FormEvent) => { e.preventDefault(); try { await saveSettings(settings); alert('Tersimpan!'); } catch (e: any) { alert(e.message); } };
   
   const handleUpdateInvoicePayment = async (updatedInvoice: Invoice) => {
@@ -902,7 +911,9 @@ const App = () => {
         <div className="space-y-6">
             <div className="flex justify-between items-center gap-4">
                 <h2 className="text-2xl font-bold text-slate-800">{type === 'RECEIPT' ? 'Riwayat Tanda Terima' : 'Riwayat Surat Jalan'}</h2>
-                <button onClick={() => { setDocViewState('create'); setSelectedDocument(null); }} className="bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 flex items-center gap-2 transition shadow-sm"><Plus className="w-4 h-4" /> Buat Baru</button>
+                <button onClick={() => { setDocViewState('create'); setSelectedDocument(null); }} className="bg-primary-600 text-white p-2 md:px-4 md:py-2 rounded-lg hover:bg-primary-700 flex items-center gap-2 transition shadow-sm">
+                    <Plus className="w-4 h-4" /> <span className="hidden md:inline">Buat Baru</span>
+                </button>
             </div>
             <div className="bg-white rounded-xl shadow-sm border border-slate-200">
                 <div className="p-4 border-b border-slate-100"><div className="relative max-w-md"><Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" /><input type="text" placeholder="Cari..." className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg outline-none text-sm" value={docSearchQuery} onChange={(e) => setDocSearchQuery(e.target.value)} /></div></div>
@@ -917,6 +928,7 @@ const App = () => {
       { id: 'clients', label: 'Klien', icon: Users, color: 'text-blue-600', bg: 'bg-blue-100' },
       { id: 'akta', label: 'Akta', icon: ScrollText, color: 'text-violet-600', bg: 'bg-violet-100' },
       { id: 'outgoing_mail', label: 'Surat Keluar', icon: Send, color: 'text-indigo-600', bg: 'bg-indigo-100' },
+      { id: 'incoming_mail', label: 'Surat Masuk', icon: Inbox, color: 'text-cyan-600', bg: 'bg-cyan-100' },
       { id: 'invoice', label: 'Tagihan', icon: CreditCard, color: 'text-teal-600', bg: 'bg-teal-100' },
       { id: 'expenses', label: 'Biaya', icon: Wallet, color: 'text-red-600', bg: 'bg-red-100' },
       { id: 'reports', label: 'Laporan', icon: PieChart, color: 'text-orange-600', bg: 'bg-orange-100' },
@@ -1042,12 +1054,15 @@ const App = () => {
         </div> 
       )}
 
-      {activeTab === 'clients' && (<div className="space-y-6">{clientViewState === 'list' && (<><div className="flex justify-between items-center"><h2 className="text-2xl font-bold text-slate-800">Data Klien</h2><button onClick={() => { setClientViewState('add'); setSelectedClient(null); }} className="bg-primary-600 text-white px-4 py-2 rounded-lg flex gap-2 text-sm"><Plus className="w-4 h-4"/> Tambah</button></div><div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4"><input type="text" placeholder="Cari..." className="w-full px-4 py-2 border rounded-lg mb-4 text-sm" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} /><table className="w-full text-sm text-left"><thead className="bg-slate-50"><tr><th className="p-4">Nama</th><th className="p-4 hidden md:table-cell">Kontak</th><th className="p-4 hidden md:table-cell">Tipe</th><th className="p-4 text-right">Aksi</th></tr></thead><tbody>{filteredClients.map(c => (<tr key={c.id} className="border-b"><td className="p-4 font-bold"><div>{c.name}</div><div className="md:hidden text-xs font-normal text-slate-500">{c.type}</div></td><td className="p-4 hidden md:table-cell"><a href={getWaUrl(c.contactNumber)} target="_blank" rel="noopener noreferrer" className="text-slate-600 hover:text-green-600 hover:underline flex items-center gap-1 w-fit"><MessageCircle className="w-3 h-3"/>{c.contactNumber}</a></td><td className="p-4 hidden md:table-cell">{c.type}</td><td className="p-4 text-right"><button onClick={() => { setClientViewState('detail'); setSelectedClient(c); }} className="text-primary-600 text-xs bg-primary-50 px-3 py-1 rounded-full">Lihat</button></td></tr>))}</tbody></table></div></>)}{clientViewState === 'add' && <ClientForm onSave={handleSaveClient} onCancel={() => setClientViewState('list')} initialData={selectedClient || undefined} />}{clientViewState === 'detail' && selectedClient && <ClientDetail client={selectedClient} onBack={() => setClientViewState('list')} onEdit={() => setClientViewState('add')} onDelete={() => handleDeleteClient(selectedClient.id)} />}</div>)}
+      {activeTab === 'clients' && (<div className="space-y-6">{clientViewState === 'list' && (<><div className="flex justify-between items-center"><h2 className="text-2xl font-bold text-slate-800">Data Klien</h2><button onClick={() => { setClientViewState('add'); setSelectedClient(null); }} className="bg-primary-600 text-white p-2 md:px-4 md:py-2 rounded-lg flex gap-2 text-sm items-center"><Plus className="w-4 h-4"/> <span className="hidden md:inline">Tambah</span></button></div><div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4"><input type="text" placeholder="Cari..." className="w-full px-4 py-2 border rounded-lg mb-4 text-sm" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} /><table className="w-full text-sm text-left"><thead className="bg-slate-50"><tr><th className="p-4">Nama</th><th className="p-4 hidden md:table-cell">Kontak</th><th className="p-4 hidden md:table-cell">Tipe</th><th className="p-4 text-right">Aksi</th></tr></thead><tbody>{filteredClients.map(c => (<tr key={c.id} className="border-b"><td className="p-4 font-bold"><div>{c.name}</div><div className="md:hidden text-xs font-normal text-slate-500">{c.type}</div></td><td className="p-4 hidden md:table-cell"><a href={getWaUrl(c.contactNumber)} target="_blank" rel="noopener noreferrer" className="text-slate-600 hover:text-green-600 hover:underline flex items-center gap-1 w-fit"><MessageCircle className="w-3 h-3"/>{c.contactNumber}</a></td><td className="p-4 hidden md:table-cell">{c.type}</td><td className="p-4 text-right"><button onClick={() => { setClientViewState('detail'); setSelectedClient(c); }} className="text-primary-600 text-xs bg-primary-50 px-3 py-1 rounded-full">Lihat</button></td></tr>))}</tbody></table></div></>)}{clientViewState === 'add' && <ClientForm onSave={handleSaveClient} onCancel={() => setClientViewState('list')} initialData={selectedClient || undefined} />}{clientViewState === 'detail' && selectedClient && <ClientDetail client={selectedClient} onBack={() => setClientViewState('list')} onEdit={() => setClientViewState('add')} onDelete={() => handleDeleteClient(selectedClient.id)} />}</div>)}
 
-      {/* ... (Akta Tab remains same) ... */}
-      {activeTab === 'akta' && (<div className="space-y-6">{deedViewState === 'list' ? (<><div className="flex justify-between items-center"><h2 className="text-2xl font-bold text-slate-800">Daftar Akta</h2><div className="hidden md:flex gap-2"><button onClick={() => setDeedViewState('report_alphabetical')} className="bg-white border border-slate-300 text-slate-700 px-3 py-2 rounded-lg hover:bg-slate-50 flex items-center gap-2 transition shadow-sm text-sm"><ArrowDownAZ className="w-4 h-4" /> A-Z</button><button onClick={() => setDeedViewState('report_monthly')} className="bg-white border border-slate-300 text-slate-700 px-3 py-2 rounded-lg hover:bg-slate-50 flex items-center gap-2 transition shadow-sm text-sm"><BookOpen className="w-4 h-4" /> Laporan</button><button onClick={() => { setDeedViewState('create'); setSelectedDeed(null); }} className="bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 flex items-center gap-2 transition shadow-sm text-sm"><Plus className="w-4 h-4" /> Baru</button></div><button onClick={() => { setDeedViewState('create'); setSelectedDeed(null); }} className="md:hidden bg-primary-600 text-white p-2 rounded-lg shadow-sm"><Plus className="w-4 h-4" /></button></div>
-      {/* Mobile Action Buttons for Reports */}
-      <div className="md:hidden flex gap-2 mb-4 overflow-x-auto pb-2"><button onClick={() => setDeedViewState('report_monthly')} className="flex-shrink-0 bg-white border border-slate-200 px-3 py-1.5 rounded-lg text-xs font-medium">Laporan Bulanan</button><button onClick={() => setDeedViewState('report_alphabetical')} className="flex-shrink-0 bg-white border border-slate-200 px-3 py-1.5 rounded-lg text-xs font-medium">Klapper A-Z</button></div>
+      {/* ... (Akta Tab) ... */}
+      {activeTab === 'akta' && (<div className="space-y-6">{deedViewState === 'list' ? (<><div className="flex justify-between items-center"><h2 className="text-2xl font-bold text-slate-800">Daftar Akta</h2>
+      <div className="flex gap-2">
+        <button onClick={() => setDeedViewState('report_alphabetical')} className="bg-white border border-slate-300 text-slate-700 p-2 md:px-3 md:py-2 rounded-lg hover:bg-slate-50 flex items-center gap-2 transition shadow-sm text-sm"><ArrowDownAZ className="w-4 h-4" /> <span className="hidden md:inline">A-Z</span></button>
+        <button onClick={() => setDeedViewState('report_monthly')} className="bg-white border border-slate-300 text-slate-700 p-2 md:px-3 md:py-2 rounded-lg hover:bg-slate-50 flex items-center gap-2 transition shadow-sm text-sm"><BookOpen className="w-4 h-4" /> <span className="hidden md:inline">Laporan</span></button>
+        <button onClick={() => { setDeedViewState('create'); setSelectedDeed(null); }} className="bg-primary-600 text-white p-2 md:px-4 md:py-2 rounded-lg hover:bg-primary-700 flex items-center gap-2 transition shadow-sm text-sm"><Plus className="w-4 h-4" /> <span className="hidden md:inline">Baru</span></button>
+      </div></div>
       <div className="bg-white rounded-xl shadow-sm border border-slate-200"><div className="p-4 border-b"><input type="text" placeholder="Cari..." className="w-full px-4 py-2 border rounded-lg text-sm" value={deedSearchQuery} onChange={e => setDeedSearchQuery(e.target.value)} /></div><div className="overflow-x-auto"><table className="w-full text-sm text-left"><thead className="bg-slate-50"><tr><th className="p-4">No. Akta</th><th className="p-4">Judul</th><th className="p-4 hidden md:table-cell">Klien</th><th className="p-4 text-right">Aksi</th></tr></thead><tbody>{deeds.filter(d => d.deedNumber.toLowerCase().includes(deedSearchQuery.toLowerCase()) || d.deedTitle.toLowerCase().includes(deedSearchQuery.toLowerCase()) || d.clientName.toLowerCase().includes(deedSearchQuery.toLowerCase())).map(d => (<tr key={d.id} className="border-b"><td className="p-4 font-bold font-mono">{d.deedNumber}</td><td className="p-4"><div className="line-clamp-2">{d.deedTitle}</div><div className="md:hidden text-xs text-slate-500 mt-1">{d.clientName}</div></td><td className="p-4 hidden md:table-cell">{d.clientName}</td><td className="p-4 text-right flex justify-end gap-2"><button onClick={() => { setSelectedDeed(d); setDeedViewState('edit'); }}><Pencil className="w-4 h-4 text-blue-600" /></button><button onClick={() => handleDeleteDeed(d.id)}><Trash2 className="w-4 h-4 text-red-600" /></button></td></tr>))}</tbody></table></div></div></>) : deedViewState === 'report_monthly' ? <DeedReport deeds={deeds} onBack={() => setDeedViewState('list')} /> : deedViewState === 'report_alphabetical' ? <DeedAlphabeticalReport deeds={deeds} onBack={() => setDeedViewState('list')} /> : <DeedForm clients={clients} deeds={deeds} onSave={handleSaveDeed} onCancel={() => setDeedViewState('list')} onAddClient={handleDirectAddClient} initialData={selectedDeed || undefined} />}</div>)}
       
       {/* INVOICE TAB */}
@@ -1057,7 +1072,7 @@ const App = () => {
                 <>
                     <div className="flex justify-between items-center">
                         <h2 className="text-2xl font-bold text-slate-800">Daftar Invoice</h2>
-                        <button onClick={() => { setInvoiceViewState('create'); setSelectedInvoice(null); }} className="bg-primary-600 text-white px-4 py-2 rounded-lg flex gap-2 text-sm"><Plus className="w-4 h-4"/> Buat Invoice</button>
+                        <button onClick={() => { setInvoiceViewState('create'); setSelectedInvoice(null); }} className="bg-primary-600 text-white p-2 md:px-4 md:py-2 rounded-lg flex gap-2 text-sm items-center"><Plus className="w-4 h-4"/> <span className="hidden md:inline">Buat Invoice</span></button>
                     </div>
 
                     {/* SUMMARY CARD (CASHFLOW) */}
@@ -1185,6 +1200,15 @@ const App = () => {
             onDelete={handleDeleteOutgoingMail}
         />
       )}
+      
+      {/* INCOMING MAIL TAB */}
+      {activeTab === 'incoming_mail' && (
+        <IncomingMailBook 
+            mails={incomingMails}
+            onSave={handleSaveIncomingMail}
+            onDelete={handleDeleteIncomingMail}
+        />
+      )}
 
       {/* REPORTS TAB */}
       {activeTab === 'reports' && (
@@ -1205,7 +1229,7 @@ const App = () => {
           <div className="space-y-6">
               {empViewState === 'list' ? (
                   <>
-                    <div className="flex justify-between items-center"><h2 className="text-2xl font-bold text-slate-800">Data Pegawai</h2><button onClick={() => { setEmpViewState('add'); setSelectedEmployee(null); }} className="bg-primary-600 text-white px-4 py-2 rounded-lg flex gap-2 text-sm"><Plus className="w-4 h-4"/> Tambah</button></div>
+                    <div className="flex justify-between items-center"><h2 className="text-2xl font-bold text-slate-800">Data Pegawai</h2><button onClick={() => { setEmpViewState('add'); setSelectedEmployee(null); }} className="bg-primary-600 text-white p-2 md:px-4 md:py-2 rounded-lg flex gap-2 text-sm items-center"><Plus className="w-4 h-4"/> <span className="hidden md:inline">Tambah</span></button></div>
                     <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4"><input type="text" placeholder="Cari..." className="w-full px-4 py-2 border rounded-lg mb-4 text-sm" value={empSearchQuery} onChange={e => setEmpSearchQuery(e.target.value)} />
                         <table className="w-full text-sm text-left"><thead className="bg-slate-50"><tr><th className="p-4">Nama</th><th className="p-4 hidden md:table-cell">Jabatan</th><th className="p-4 hidden md:table-cell">Telepon</th><th className="p-4 text-right">Aksi</th></tr></thead><tbody>
                             {filteredEmployees.map(e => (<tr key={e.id} className="border-b"><td className="p-4 font-medium"><div>{e.name}</div><div className="md:hidden text-xs text-slate-500">{e.role}</div></td><td className="p-4 hidden md:table-cell">{e.role}</td><td className="p-4 hidden md:table-cell">{e.phone}</td><td className="p-4 text-right flex justify-end gap-2"><button onClick={() => { setSelectedEmployee(e); setEmpViewState('add'); }}><Pencil className="w-4 h-4 text-blue-600" /></button><button onClick={() => handleDeleteEmployee(e.id)}><Trash2 className="w-4 h-4 text-red-600" /></button></td></tr>))}

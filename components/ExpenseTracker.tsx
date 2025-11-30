@@ -1,3 +1,5 @@
+
+
 import React, { useState, useMemo } from 'react';
 import { Expense } from '../types';
 import { Plus, Trash2, Pencil, Calendar, Wallet, TrendingDown, Search, X, Save, Banknote } from 'lucide-react';
@@ -101,9 +103,9 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ expenses, onSave
                 <h2 className="text-2xl font-bold text-slate-800">Biaya & Pengeluaran</h2>
                 <button 
                     onClick={() => handleOpenForm()} 
-                    className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 flex items-center gap-2 transition shadow-sm"
+                    className="bg-red-600 text-white p-2 md:px-4 md:py-2 rounded-lg hover:bg-red-700 flex items-center gap-2 transition shadow-sm"
                 >
-                    <Plus className="w-4 h-4" /> Catat Pengeluaran
+                    <Plus className="w-4 h-4" /> <span className="hidden md:inline">Catat Pengeluaran</span>
                 </button>
             </div>
 

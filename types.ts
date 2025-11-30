@@ -129,6 +129,15 @@ export interface OutgoingMail {
   createdAt: number;
 }
 
+export interface IncomingMail {
+  id: string;
+  date: string;
+  mailNumber: string; // Manual Input
+  sender: string; // Surat Dari
+  subject: string; // Perihal
+  createdAt: number;
+}
+
 export interface CompanySettings {
   companyName: string;
   companyAddress: string;

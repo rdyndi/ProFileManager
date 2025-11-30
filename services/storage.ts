@@ -7,7 +7,7 @@ import {
   getDoc 
 } from "firebase/firestore";
 import { db } from "./firebaseService";
-import { Client, DocumentData, CompanySettings, Deed, Employee, Invoice, Expense, OutgoingMail } from '../types';
+import { Client, DocumentData, CompanySettings, Deed, Employee, Invoice, Expense, OutgoingMail, IncomingMail } from '../types';
 
 // Nama Collection di Firestore
 const COLL_CLIENTS = 'clients';
@@ -17,6 +17,7 @@ const COLL_EMPLOYEES = 'employees';
 const COLL_INVOICES = 'invoices';
 const COLL_EXPENSES = 'expenses';
 const COLL_OUTGOING_MAILS = 'outgoing_mails';
+const COLL_INCOMING_MAILS = 'incoming_mails';
 const COLL_SETTINGS = 'settings';
 const DOC_SETTINGS_ID = 'company_profile'; // ID statis untuk settings
 
@@ -28,6 +29,7 @@ const LS_EMPLOYEES = 'app_employees_data';
 const LS_INVOICES = 'app_invoices_data';
 const LS_EXPENSES = 'app_expenses_data';
 const LS_OUTGOING_MAILS = 'app_outgoing_mails_data';
+const LS_INCOMING_MAILS = 'app_incoming_mails_data';
 const LS_SETTINGS = 'app_settings_data';
 
 // --- HELPERS LOCAL STORAGE ---
@@ -474,6 +476,59 @@ export const deleteOutgoingMail = async (id: string): Promise<void> => {
     await deleteDoc(doc(db, COLL_OUTGOING_MAILS, id));
   } catch (error) {
     console.error("Error deleting outgoing mail from Firebase");
+    throw error;
+  }
+};
+
+// --- INCOMING MAILS (Surat Masuk) ---
+
+export const subscribeIncomingMails = (callback: (data: IncomingMail[]) => void) => {
+  const localMails = getLocalData<IncomingMail>(LS_INCOMING_MAILS);
+  if (localMails.length > 0) {
+    localMails.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    callback(localMails);
+  }
+
+  const q = collection(db, COLL_INCOMING_MAILS);
+  return onSnapshot(q, (snapshot) => {
+    const mails = snapshot.docs.map(doc => ({...doc.data(), id: doc.id} as IncomingMail));
+    mails.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    const sanitizedMails = sanitizeData(mails);
+    setLocalData(LS_INCOMING_MAILS, sanitizedMails);
+    callback(sanitizedMails);
+  }, (error) => {
+    console.warn("Firestore incoming mail sync error:", error.message);
+  });
+};
+
+export const saveIncomingMail = async (mail: IncomingMail): Promise<void> => {
+  const dataToSave = sanitizeData(mail);
+  const mails = getLocalData<IncomingMail>(LS_INCOMING_MAILS);
+  const index = mails.findIndex(m => m.id === dataToSave.id);
+  if (index >= 0) {
+    mails[index] = dataToSave;
+  } else {
+    mails.push(dataToSave);
+  }
+  setLocalData(LS_INCOMING_MAILS, mails);
+
+  try {
+    const docRef = doc(db, COLL_INCOMING_MAILS, dataToSave.id);
+    await setDoc(docRef, dataToSave);
+  } catch (error) {
+    console.error("Error saving incoming mail to Firebase");
+    throw error;
+  }
+};
+
+export const deleteIncomingMail = async (id: string): Promise<void> => {
+  const mails = getLocalData<IncomingMail>(LS_INCOMING_MAILS).filter(m => m.id !== id);
+  setLocalData(LS_INCOMING_MAILS, mails);
+
+  try {
+    await deleteDoc(doc(db, COLL_INCOMING_MAILS, id));
+  } catch (error) {
+    console.error("Error deleting incoming mail from Firebase");
     throw error;
   }
 };

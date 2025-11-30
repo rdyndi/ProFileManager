@@ -705,6 +705,25 @@ const App = () => {
     const totalReceipts = documents.filter(d => d.type === 'RECEIPT').length;
     const totalDeliveries = documents.filter(d => d.type === 'DELIVERY').length;
     
+    // Outgoing Mail Logic
+    const currentYear = new Date().getFullYear();
+    const mailsThisYear = outgoingMails.filter(m => new Date(m.date).getFullYear() === currentYear);
+    
+    let lastMailNumber = '-';
+    let nextMailNumber = '1';
+
+    if (mailsThisYear.length > 0) {
+        // Find highest reference number
+        // We sort by parsed integer of referenceNumber desc
+        mailsThisYear.sort((a, b) => (parseInt(b.referenceNumber) || 0) - (parseInt(a.referenceNumber) || 0));
+        
+        const lastMail = mailsThisYear[0];
+        lastMailNumber = lastMail.fullNumber; // Show the full formatted number of the last mail
+        
+        const maxNum = parseInt(lastMail.referenceNumber) || 0;
+        nextMailNumber = (maxNum + 1).toString();
+    }
+
     // Chart Data Generation (Last 6 Months)
     const chartData = [];
     const today = new Date();
@@ -744,8 +763,8 @@ const App = () => {
         });
     }
 
-    return { totalReceipts, totalDeliveries, chartData };
-  }, [clients, deeds, documents]);
+    return { totalReceipts, totalDeliveries, chartData, lastMailNumber, nextMailNumber };
+  }, [clients, deeds, documents, outgoingMails]);
 
   // --- Derived Invoice Statistics (Cashflow) ---
   const invoiceStats = useMemo(() => {
@@ -954,7 +973,7 @@ const App = () => {
             <h2 className="text-xl md:text-2xl font-bold text-slate-800">Ringkasan</h2>
             
             {/* Stats Cards */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 md:gap-6">
                 <div className="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between">
                     <div>
                         <p className="text-[10px] md:text-sm text-slate-500 font-medium uppercase">Klien</p>
@@ -992,6 +1011,20 @@ const App = () => {
                     </div>
                     <div className="bg-orange-50 p-2 md:p-3 rounded-lg text-orange-600">
                         <Truck className="w-5 h-5 md:w-6 md:h-6" />
+                    </div>
+                </div>
+
+                {/* Surat Keluar Stats Card */}
+                <div className="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between">
+                    <div>
+                        <p className="text-[10px] md:text-sm text-slate-500 font-medium uppercase">Surat Keluar</p>
+                        <div className="flex flex-col mt-1">
+                            <span className="text-sm md:text-base font-bold text-slate-800">Next: {stats.nextMailNumber}</span>
+                            <span className="text-[10px] text-slate-400 truncate max-w-[100px]" title={stats.lastMailNumber}>Last: {stats.lastMailNumber}</span>
+                        </div>
+                    </div>
+                    <div className="bg-indigo-50 p-2 md:p-3 rounded-lg text-indigo-600">
+                        <Send className="w-5 h-5 md:w-6 md:h-6" />
                     </div>
                 </div>
             </div>

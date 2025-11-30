@@ -149,12 +149,18 @@ export const ProfitLossReport: React.FC<ProfitLossReportProps> = ({ invoices, ex
     const settings = getCachedSettings();
     const monthName = months[selectedMonth];
 
+    // Check if html2pdf is loaded
+    if (typeof (window as any).html2pdf === 'undefined') {
+        alert("Fitur PDF sedang dimuat. Silakan tunggu sebentar atau refresh halaman.");
+        return;
+    }
+
     const revenueRows = Object.entries(monthlyData.revenueByClient)
         .sort(([, a], [, b]) => (b as number) - (a as number))
         .map(([client, amount]) => `
             <tr>
-                <td class="py-1 px-2 border-b border-slate-200">${client}</td>
-                <td class="py-1 px-2 border-b border-slate-200 text-right">${currencyFormatter.format(amount as number)}</td>
+                <td style="padding: 4px 8px; border-bottom: 1px solid #e2e8f0;">${client}</td>
+                <td style="padding: 4px 8px; border-bottom: 1px solid #e2e8f0; text-align: right;">${currencyFormatter.format(amount as number)}</td>
             </tr>
         `).join('');
 
@@ -162,63 +168,69 @@ export const ProfitLossReport: React.FC<ProfitLossReportProps> = ({ invoices, ex
         .sort(([, a], [, b]) => (b as number) - (a as number))
         .map(([cat, amount]) => `
             <tr>
-                <td class="py-1 px-2 border-b border-slate-200">${cat}</td>
-                <td class="py-1 px-2 border-b border-slate-200 text-right text-red-600">(${currencyFormatter.format(amount as number)})</td>
+                <td style="padding: 4px 8px; border-bottom: 1px solid #e2e8f0;">${cat}</td>
+                <td style="padding: 4px 8px; border-bottom: 1px solid #e2e8f0; text-align: right; color: #dc2626;">(${currencyFormatter.format(amount as number)})</td>
             </tr>
         `).join('');
 
-    const printContent = `
-      <!DOCTYPE html><html><head><title>Laporan Laba Rugi - ${monthName} ${selectedYear}</title>
-      <script src="https://cdn.tailwindcss.com"></script>
-      <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-      <style>body { font-family: 'Inter', sans-serif; } @media print { .no-print { display: none; } }</style>
-      </head><body class="bg-white p-8 max-w-[21cm] mx-auto text-slate-900">
-        <div class="text-center mb-8 border-b-2 border-slate-800 pb-4">
-            <h1 class="text-xl font-bold uppercase">${settings.companyName}</h1>
-            <p class="text-sm text-slate-600">${settings.companyAddress}</p>
-            <h2 class="text-2xl font-bold mt-4 underline decoration-slate-400 underline-offset-4">LAPORAN LABA RUGI</h2>
-            <p class="text-sm font-medium mt-1 uppercase">Periode: ${monthName} ${selectedYear}</p>
-        </div>
-        <div class="grid grid-cols-2 gap-8 mb-8">
-            <div class="bg-green-50 p-4 rounded border border-green-100">
-                <p class="text-xs font-bold text-green-700 uppercase">Total Pendapatan</p>
-                <p class="text-xl font-bold text-green-800">${currencyFormatter.format(monthlyData.totalRevenue)}</p>
+    // Construct DOM Element for PDF
+    const element = document.createElement('div');
+    element.innerHTML = `
+        <div style="font-family: sans-serif; padding: 20px; color: #000; width: 100%;">
+            <div style="text-align: center; margin-bottom: 20px; border-bottom: 2px solid #000; padding-bottom: 10px;">
+                <h1 style="font-size: 18px; font-weight: bold; text-transform: uppercase; margin: 0;">${settings.companyName}</h1>
+                <p style="font-size: 12px; color: #555; margin: 5px 0;">${settings.companyAddress}</p>
+                <h2 style="font-size: 20px; font-weight: bold; margin-top: 15px; text-decoration: underline;">LAPORAN LABA RUGI</h2>
+                <p style="font-size: 12px; font-weight: bold; text-transform: uppercase; margin-top: 5px;">Periode: ${monthName} ${selectedYear}</p>
             </div>
-            <div class="bg-red-50 p-4 rounded border border-red-100 text-right">
-                <p class="text-xs font-bold text-red-700 uppercase">Total Beban</p>
-                <p class="text-xl font-bold text-red-800">(${currencyFormatter.format(monthlyData.totalExpense)})</p>
+            
+            <div style="display: flex; justify-content: space-between; margin-bottom: 20px; gap: 10px;">
+                <div style="width: 48%; background-color: #f0fdf4; padding: 15px; border: 1px solid #dcfce7; border-radius: 4px;">
+                    <p style="font-size: 10px; font-weight: bold; color: #15803d; text-transform: uppercase; margin: 0;">Total Pendapatan</p>
+                    <p style="font-size: 16px; font-weight: bold; color: #166534; margin: 5px 0 0 0;">${currencyFormatter.format(monthlyData.totalRevenue)}</p>
+                </div>
+                <div style="width: 48%; background-color: #fef2f2; padding: 15px; border: 1px solid #fee2e2; border-radius: 4px; text-align: right;">
+                    <p style="font-size: 10px; font-weight: bold; color: #b91c1c; text-transform: uppercase; margin: 0;">Total Beban</p>
+                    <p style="font-size: 16px; font-weight: bold; color: #991b1b; margin: 5px 0 0 0;">(${currencyFormatter.format(monthlyData.totalExpense)})</p>
+                </div>
             </div>
-        </div>
-        <div class="mb-6">
-            <h3 class="font-bold text-slate-800 border-b border-slate-800 mb-2 pb-1">PENDAPATAN USAHA</h3>
-            <table class="w-full text-xs">
-                ${revenueRows || '<tr><td colspan="2" class="italic text-slate-400 py-2">Tidak ada pendapatan</td></tr>'}
-            </table>
-        </div>
-        <div class="mb-6">
-            <h3 class="font-bold text-slate-800 border-b border-slate-800 mb-2 pb-1">BEBAN OPERASIONAL</h3>
-            <table class="w-full text-xs">
-                ${expenseRows || '<tr><td colspan="2" class="italic text-slate-400 py-2">Tidak ada beban</td></tr>'}
-            </table>
-        </div>
-        <div class="mt-8 border-t-2 border-slate-800 pt-4 flex justify-between items-center">
-            <h3 class="text-lg font-bold uppercase">LABA / (RUGI) BERSIH</h3>
-            <p class="text-2xl font-bold font-mono ${monthlyData.netProfit >= 0 ? 'text-green-700' : 'text-red-700'}">
-                ${currencyFormatter.format(monthlyData.netProfit)}
-            </p>
-        </div>
-        <div class="fixed bottom-0 left-0 w-full text-center py-2 text-[8px] text-slate-300 no-print">
-            Dicetak pada ${new Date().toLocaleString()}
-        </div>
-        <script>setTimeout(() => { window.print(); }, 500);</script>
-      </body></html>`;
 
-    const printWindow = window.open('', '_blank');
-    if (printWindow) {
-        printWindow.document.open();
-        printWindow.document.write(printContent);
-        printWindow.document.close();
-    }
+            <div style="margin-bottom: 20px;">
+                <h3 style="font-size: 14px; font-weight: bold; border-bottom: 1px solid #000; padding-bottom: 5px; margin-bottom: 10px;">PENDAPATAN USAHA</h3>
+                <table style="width: 100%; font-size: 10px; border-collapse: collapse;">
+                    ${revenueRows || '<tr><td colspan="2" style="font-style: italic; color: #999; padding: 5px 0;">Tidak ada pendapatan</td></tr>'}
+                </table>
+            </div>
+
+            <div style="margin-bottom: 20px;">
+                <h3 style="font-size: 14px; font-weight: bold; border-bottom: 1px solid #000; padding-bottom: 5px; margin-bottom: 10px;">BEBAN OPERASIONAL</h3>
+                <table style="width: 100%; font-size: 10px; border-collapse: collapse;">
+                    ${expenseRows || '<tr><td colspan="2" style="font-style: italic; color: #999; padding: 5px 0;">Tidak ada beban</td></tr>'}
+                </table>
+            </div>
+
+            <div style="margin-top: 30px; border-top: 2px solid #000; padding-top: 15px; display: flex; justify-content: space-between; align-items: center;">
+                <h3 style="font-size: 16px; font-weight: bold; text-transform: uppercase; margin: 0;">LABA / (RUGI) BERSIH</h3>
+                <p style="font-size: 20px; font-weight: bold; font-family: monospace; color: ${monthlyData.netProfit >= 0 ? '#15803d' : '#b91c1c'}; margin: 0;">
+                    ${currencyFormatter.format(monthlyData.netProfit)}
+                </p>
+            </div>
+            
+             <div style="text-align: center; margin-top: 40px; font-size: 8px; color: #cbd5e1;">
+                Dicetak pada ${new Date().toLocaleString('id-ID')}
+            </div>
+        </div>
+    `;
+
+    const opt = {
+        margin: 10,
+        filename: `Laporan_Laba_Rugi_${monthName}_${selectedYear}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2 },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
+
+    (window as any).html2pdf().set(opt).from(element).save();
   };
 
   const handlePrintAnnual = () => {
@@ -331,7 +343,9 @@ export const ProfitLossReport: React.FC<ProfitLossReportProps> = ({ invoices, ex
                 onClick={reportType === 'MONTHLY' ? handlePrintMonthly : handlePrintAnnual}
                 className="bg-slate-800 text-white px-4 py-2 rounded-lg hover:bg-slate-900 flex items-center gap-2 transition shadow-sm"
             >
-                <Printer className="w-4 h-4" /> Cetak Laporan
+                <Printer className="w-4 h-4" /> 
+                <span className="hidden md:inline">Cetak Laporan</span>
+                <span className="md:hidden">Download PDF</span>
             </button>
         </div>
 

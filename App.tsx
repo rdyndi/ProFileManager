@@ -657,7 +657,44 @@ const App = () => {
     return localStorage.getItem('isLoggedIn') === 'true';
   });
   
-  const [activeTab, setActiveTab] = useState('dashboard');
+  // Initialize Active Tab from URL Hash to support back button navigation from start
+  const getInitialTab = () => {
+      const hash = window.location.hash.replace('#', '');
+      return hash || 'dashboard';
+  };
+
+  const [activeTab, setActiveTab] = useState(getInitialTab());
+
+  // --- Browser History Integration ---
+  useEffect(() => {
+    const handlePopState = () => {
+        const currentHash = window.location.hash.replace('#', '');
+        setActiveTab(currentHash || 'dashboard');
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  const handleTabChange = (tabId: string) => {
+      if (activeTab === tabId) return;
+      
+      // Update State
+      setActiveTab(tabId);
+      
+      // Push to History
+      window.history.pushState(null, '', `#${tabId}`);
+      
+      // Reset scroll
+      window.scrollTo(0, 0);
+
+      // Reset view states when changing tabs
+      setClientViewState('list'); setSelectedClient(null); 
+      setDocViewState('list'); setSelectedDocument(null); 
+      setDeedViewState('list'); setSelectedDeed(null); 
+      setEmpViewState('list'); setSelectedEmployee(null); 
+      setInvoiceViewState('list'); setSelectedInvoice(null);
+  };
   
   // Data State (Real-time synced)
   const [clients, setClients] = useState<Client[]>([]);
@@ -867,7 +904,7 @@ const App = () => {
   // --- Handlers ---
   const handleSaveClient = async (client: Client) => { try { await saveClient(client); setClientViewState('list'); } catch (e: any) { alert(e.message); } };
   const handleDeleteClient = async (id: string) => { if (window.confirm('Hapus data?')) { try { await deleteClient(id); if(selectedClient?.id === id) setSelectedClient(null); setClientViewState('list'); } catch (e: any) { alert(e.message); } } };
-  const handleDirectAddClient = () => { setActiveTab('clients'); setClientViewState('add'); setSelectedClient(null); };
+  const handleDirectAddClient = () => { handleTabChange('clients'); setClientViewState('add'); setSelectedClient(null); };
   const handleSaveDocument = async (doc: DocumentData) => { try { if (docViewState === 'edit') await updateDocument(doc); else await saveDocument(doc); alert('Tersimpan!'); setDocViewState('list'); } catch (e: any) { alert(e.message); } };
   const handleDeleteDocument = async (id: string) => { if (window.confirm('Hapus dokumen?')) { try { await deleteDocument(id); } catch (e: any) { alert(e.message); } } }
   const handleSaveDeed = async (deed: Deed) => { try { await saveDeed(deed); alert('Tersimpan!'); setDeedViewState('list'); } catch (e: any) { alert(e.message); } }
@@ -946,14 +983,7 @@ const App = () => {
   return (
     <Layout 
         activeTab={activeTab} 
-        onTabChange={(tab) => { 
-            setActiveTab(tab); 
-            setClientViewState('list'); setSelectedClient(null); 
-            setDocViewState('list'); setSelectedDocument(null); 
-            setDeedViewState('list'); setSelectedDeed(null); 
-            setEmpViewState('list'); setSelectedEmployee(null); 
-            setInvoiceViewState('list'); setSelectedInvoice(null);
-        }}
+        onTabChange={handleTabChange}
         onLogout={handleLogout}
     >
       {/* --- DASHBOARD TAB --- */}
@@ -968,10 +998,7 @@ const App = () => {
                         <button 
                             key={item.id}
                             onClick={() => {
-                                setActiveTab(item.id);
-                                setClientViewState('list'); 
-                                setSelectedClient(null);
-                                setInvoiceViewState('list');
+                                handleTabChange(item.id);
                             }}
                             className="flex flex-col items-center gap-2"
                         >

@@ -39,16 +39,22 @@ export const DeedAlphabeticalReport: React.FC<DeedAlphabeticalReportProps> = ({ 
 
   // Helper: Format Nama Penghadap
   const formatAppearer = (appearer: DeedAppearer): string => {
-    let text = `<span class="font-bold uppercase">${appearer.name}</span>`;
+    let text = `<span style="font-weight: bold; text-transform: uppercase;">${appearer.name}</span>`;
     if (appearer.role === 'Proxy' && appearer.grantors && appearer.grantors.length > 0) {
         appearer.grantors.forEach(grantor => {
-            text += `<br/><span class="ml-2">Qq ${grantor.name.toUpperCase()}</span>`;
+            text += `<br/><span style="margin-left: 8px;">Qq ${grantor.name.toUpperCase()}</span>`;
         });
     }
     return text;
   };
 
   const handlePrint = () => {
+    // Check if html2pdf is loaded
+    if (typeof (window as any).html2pdf === 'undefined') {
+        alert("Fitur PDF sedang dimuat. Silakan tunggu sebentar atau refresh halaman.");
+        return;
+    }
+
     const settings = getCachedSettings();
     const monthName = months[selectedMonth];
 
@@ -76,23 +82,15 @@ export const DeedAlphabeticalReport: React.FC<DeedAlphabeticalReportProps> = ({ 
         signatureName = signatureName.substring(prefix2.length);
     }
 
-    // Column Widths (Optimized for A4 Portrait to prevent overlap)
-    // Adjusted widths to ensure headers like "NOMOR BULANAN" can wrap if needed without overflowing
-    const w1 = "7%";  // Nomor Urut
-    const w2 = "8%";  // Nomor Bulanan
-    const w3 = "15%"; // Tanggal
-    const w4 = "35%"; // Sifat Akta
-    const w5 = "35%"; // Nama Penghadap
-
     // Shared Header Template
     const tableHeader = `
         <thead>
-            <tr class="border-b border-black bg-white font-bold text-center uppercase text-[10px]">
-                <th style="width: ${w1}" class="py-1 px-1 border-r border-black break-words">NOMOR URUT</th>
-                <th style="width: ${w2}" class="py-1 px-1 border-r border-black break-words">NOMOR BULANAN</th>
-                <th style="width: ${w3}" class="py-1 px-1 border-r border-black break-words">TANGGAL</th>
-                <th style="width: ${w4}" class="py-1 px-1 border-r border-black break-words">SIFAT AKTA</th>
-                <th style="width: ${w5}" class="py-1 px-1 break-words">NAMA PENGHADAP</th>
+            <tr style="border-bottom: 1px solid #000; background-color: #fff; font-weight: bold; text-align: center; text-transform: uppercase; font-size: 10px;">
+                <th style="width: 7%; padding: 4px; border-right: 1px solid #000;">NO. URUT</th>
+                <th style="width: 8%; padding: 4px; border-right: 1px solid #000;">NO. BLN</th>
+                <th style="width: 15%; padding: 4px; border-right: 1px solid #000;">TANGGAL</th>
+                <th style="width: 35%; padding: 4px; border-right: 1px solid #000;">SIFAT AKTA</th>
+                <th style="width: 35%; padding: 4px;">NAMA PENGHADAP</th>
             </tr>
         </thead>
     `;
@@ -108,15 +106,15 @@ export const DeedAlphabeticalReport: React.FC<DeedAlphabeticalReportProps> = ({ 
         if (deedsForLetter.length === 0) {
             // Tampilan NIHIL
             sectionContent = `
-                <table class="w-full border border-black text-[10px] mb-4">
+                <table style="width: 100%; border: 1px solid #000; border-collapse: collapse; font-size: 10px; margin-bottom: 15px;">
                     ${tableHeader}
                     <tbody>
                         <tr>
-                            <td class="py-1 px-1 border-r border-black text-center font-bold">N</td>
-                            <td class="py-1 px-1 border-r border-black text-center font-bold">I</td>
-                            <td class="py-1 px-1 border-r border-black text-center font-bold">H</td>
-                            <td class="py-1 px-1 border-r border-black text-center font-bold">I</td>
-                            <td class="py-1 px-1 text-center font-bold">L</td>
+                            <td style="padding: 4px; border-right: 1px solid #000; text-align: center; font-weight: bold;">N</td>
+                            <td style="padding: 4px; border-right: 1px solid #000; text-align: center; font-weight: bold;">I</td>
+                            <td style="padding: 4px; border-right: 1px solid #000; text-align: center; font-weight: bold;">H</td>
+                            <td style="padding: 4px; border-right: 1px solid #000; text-align: center; font-weight: bold;">I</td>
+                            <td style="padding: 4px; text-align: center; font-weight: bold;">L</td>
                         </tr>
                     </tbody>
                 </table>
@@ -128,20 +126,20 @@ export const DeedAlphabeticalReport: React.FC<DeedAlphabeticalReportProps> = ({ 
                 const relevantAppearers = deed.appearers.filter(app => isNameStartWith(app.name, letter));
                 
                 const appearersHtml = relevantAppearers.map(app => 
-                    `<div class="mb-2 last:mb-0 leading-tight">${formatAppearer(app)}</div>`
+                    `<div style="margin-bottom: 5px; line-height: 1.2;">${formatAppearer(app)}</div>`
                 ).join('');
 
                 return `
-                    <tr class="border-b border-black align-top">
-                        <td class="py-1 px-1 text-center border-r border-black font-medium break-words">${deed.orderNumber}</td>
-                        <td class="py-1 px-1 text-center border-r border-black break-words">${monthlyIndex}</td>
-                        <td class="py-1 px-1 text-center border-r border-black break-words">
+                    <tr style="border-bottom: 1px solid #000; vertical-align: top;">
+                        <td style="padding: 4px; text-align: center; border-right: 1px solid #000;">${deed.orderNumber}</td>
+                        <td style="padding: 4px; text-align: center; border-right: 1px solid #000;">${monthlyIndex}</td>
+                        <td style="padding: 4px; text-align: center; border-right: 1px solid #000;">
                             ${new Date(deed.deedDate).toLocaleDateString('id-ID', {day: '2-digit', month: 'long', year: 'numeric'})}
                         </td>
-                        <td class="py-1 px-1 text-left border-r border-black font-medium leading-tight break-words">
+                        <td style="padding: 4px; text-align: left; border-right: 1px solid #000; font-weight: 500; line-height: 1.2;">
                             ${deed.deedTitle}
                         </td>
-                        <td class="py-1 px-1 text-left leading-tight break-words">
+                        <td style="padding: 4px; text-align: left; line-height: 1.2;">
                             ${appearersHtml}
                         </td>
                     </tr>
@@ -149,7 +147,7 @@ export const DeedAlphabeticalReport: React.FC<DeedAlphabeticalReportProps> = ({ 
             }).join('');
 
             sectionContent = `
-                <table class="w-full border border-black text-[10px] mb-4">
+                <table style="width: 100%; border: 1px solid #000; border-collapse: collapse; font-size: 10px; margin-bottom: 15px;">
                     ${tableHeader}
                     <tbody>
                         ${rows}
@@ -159,62 +157,44 @@ export const DeedAlphabeticalReport: React.FC<DeedAlphabeticalReportProps> = ({ 
         }
 
         return `
-            <div class="break-inside-avoid">
-                <div class="text-left font-bold text-sm mb-1 uppercase">${letter}</div>
+            <div style="page-break-inside: avoid; margin-bottom: 10px;">
+                <div style="text-align: left; font-weight: bold; font-size: 14px; margin-bottom: 4px; text-transform: uppercase;">${letter}</div>
                 ${sectionContent}
             </div>
         `;
     }).join('');
 
-    const printContent = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Daftar Klapper Akta - ${monthName} ${selectedYear}</title>
-        <script src="https://cdn.tailwindcss.com"></script>
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-        <style>
-          body { font-family: 'Inter', sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-          @page { size: A4 portrait; margin: 10mm; }
-          /* table-layout: fixed Ensures columns respect width percentages and don't expand to overflow */
-          table { width: 100%; border-collapse: collapse; font-size: 10px; table-layout: fixed; }
-          table, th, td { border-color: black; }
-          /* Ensure words break if they are too long for the column */
-          td, th { word-wrap: break-word; overflow-wrap: break-word; word-break: break-word; vertical-align: top; }
-          @media print {
-            body { background: white; }
-            .no-print { display: none; }
-          }
-        </style>
-      </head>
-      <body class="bg-white text-black">
-        <div class="mb-4">
-            <h1 class="text-sm font-bold uppercase text-left">Salinan Daftar Akta-Akta Notaris ${signatureName} Bulan ${monthName} ${selectedYear}</h1>
-        </div>
-        
-        <div>
-            ${contentHtml}
-        </div>
+    // Construct DOM Element for PDF
+    const element = document.createElement('div');
+    element.innerHTML = `
+        <div style="font-family: 'Inter', sans-serif; padding: 20px; color: #000; width: 100%;">
+            <div style="margin-bottom: 20px;">
+                <h1 style="font-size: 14px; font-weight: bold; text-transform: uppercase; text-align: left;">Salinan Daftar Akta-Akta Notaris ${signatureName} Bulan ${monthName} ${selectedYear}</h1>
+            </div>
+            
+            <div>
+                ${contentHtml}
+            </div>
 
-        <div class="mt-8 flex justify-end break-inside-avoid">
-             <div class="text-center w-1/2">
-                <p class="text-xs mb-4 leading-relaxed font-medium">Salinan Daftar Klapper dari Akta-Akta yang telah dibuat dihadapan saya, Notaris, selama bulan ${monthName} ${selectedYear}.</p>
-                <p class="mb-24 text-sm font-medium">Bandung Barat, ${signatureDateStr}</p>
-                <p class="font-bold text-md uppercase underline underline-offset-4">${signatureName}</p>
-             </div>
+            <div style="margin-top: 30px; display: flex; justify-content: flex-end; page-break-inside: avoid;">
+                 <div style="text-align: center; width: 50%;">
+                    <p style="font-size: 12px; margin-bottom: 15px; line-height: 1.5; font-weight: 500;">Salinan Daftar Klapper dari Akta-Akta yang telah dibuat dihadapan saya, Notaris, selama bulan ${monthName} ${selectedYear}.</p>
+                    <p style="margin-bottom: 80px; font-size: 12px; font-weight: 500;">Bandung Barat, ${signatureDateStr}</p>
+                    <p style="font-weight: bold; font-size: 14px; text-transform: uppercase; text-decoration: underline; text-underline-offset: 4px;">${signatureName}</p>
+                 </div>
+            </div>
         </div>
-
-        <script>setTimeout(() => { window.print(); }, 1000);</script>
-      </body>
-      </html>
     `;
 
-    const printWindow = window.open('', '_blank');
-    if (printWindow) {
-        printWindow.document.open();
-        printWindow.document.write(printContent);
-        printWindow.document.close();
-    }
+    const opt = {
+        margin: 10,
+        filename: `Klapper_Akta_${monthName}_${selectedYear}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2 },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
+
+    (window as any).html2pdf().set(opt).from(element).save();
   };
 
   return (
@@ -224,7 +204,13 @@ export const DeedAlphabeticalReport: React.FC<DeedAlphabeticalReportProps> = ({ 
             <button onClick={onBack} className="p-2 hover:bg-slate-100 rounded-full text-slate-500 transition"><ArrowLeft className="w-5 h-5" /></button>
             <h2 className="text-2xl font-bold text-slate-800">Daftar Klapper Akta (A-Z)</h2>
           </div>
-          <button onClick={handlePrint} className="bg-slate-800 text-white px-4 py-2 rounded-lg hover:bg-slate-900 flex items-center gap-2 transition shadow-sm"><Printer className="w-4 h-4" /> Cetak Laporan</button>
+          <button 
+            onClick={handlePrint} 
+            className="bg-slate-800 text-white p-2 md:px-4 md:py-2 rounded-lg hover:bg-slate-900 flex items-center gap-2 transition shadow-sm"
+          >
+            <Printer className="w-4 h-4" /> 
+            <span className="hidden md:inline">Download PDF</span>
+          </button>
        </div>
 
        <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-wrap gap-4 items-end">

@@ -7,7 +7,7 @@ import {
   getDoc 
 } from "firebase/firestore";
 import { db } from "./firebaseService";
-import { Client, DocumentData, CompanySettings, Deed, Employee, Invoice, Expense, OutgoingMail, IncomingMail } from '../types';
+import { Client, DocumentData, CompanySettings, Deed, Employee, Invoice, Expense, OutgoingMail, IncomingMail, PPATRecord } from '../types';
 
 // Nama Collection di Firestore
 const COLL_CLIENTS = 'clients';
@@ -18,6 +18,7 @@ const COLL_INVOICES = 'invoices';
 const COLL_EXPENSES = 'expenses';
 const COLL_OUTGOING_MAILS = 'outgoing_mails';
 const COLL_INCOMING_MAILS = 'incoming_mails';
+const COLL_PPAT_RECORDS = 'ppat_records';
 const COLL_SETTINGS = 'settings';
 const DOC_SETTINGS_ID = 'company_profile'; // ID statis untuk settings
 
@@ -30,6 +31,7 @@ const LS_INVOICES = 'app_invoices_data';
 const LS_EXPENSES = 'app_expenses_data';
 const LS_OUTGOING_MAILS = 'app_outgoing_mails_data';
 const LS_INCOMING_MAILS = 'app_incoming_mails_data';
+const LS_PPAT_RECORDS = 'app_ppat_records_data';
 const LS_SETTINGS = 'app_settings_data';
 
 // --- HELPERS LOCAL STORAGE ---
@@ -529,6 +531,59 @@ export const deleteIncomingMail = async (id: string): Promise<void> => {
     await deleteDoc(doc(db, COLL_INCOMING_MAILS, id));
   } catch (error) {
     console.error("Error deleting incoming mail from Firebase");
+    throw error;
+  }
+};
+
+// --- PPAT RECORDS (ADM PPAT) ---
+
+export const subscribePPATRecords = (callback: (data: PPATRecord[]) => void) => {
+  const localRecords = getLocalData<PPATRecord>(LS_PPAT_RECORDS);
+  if (localRecords.length > 0) {
+    localRecords.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    callback(localRecords);
+  }
+
+  const q = collection(db, COLL_PPAT_RECORDS);
+  return onSnapshot(q, (snapshot) => {
+    const records = snapshot.docs.map(doc => ({...doc.data(), id: doc.id} as PPATRecord));
+    records.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    const sanitizedRecords = sanitizeData(records);
+    setLocalData(LS_PPAT_RECORDS, sanitizedRecords);
+    callback(sanitizedRecords);
+  }, (error) => {
+    console.warn("Firestore PPAT records sync error:", error.message);
+  });
+};
+
+export const savePPATRecord = async (record: PPATRecord): Promise<void> => {
+  const dataToSave = sanitizeData(record);
+  const records = getLocalData<PPATRecord>(LS_PPAT_RECORDS);
+  const index = records.findIndex(r => r.id === dataToSave.id);
+  if (index >= 0) {
+    records[index] = dataToSave;
+  } else {
+    records.push(dataToSave);
+  }
+  setLocalData(LS_PPAT_RECORDS, records);
+
+  try {
+    const docRef = doc(db, COLL_PPAT_RECORDS, dataToSave.id);
+    await setDoc(docRef, dataToSave);
+  } catch (error) {
+    console.error("Error saving PPAT record to Firebase");
+    throw error;
+  }
+};
+
+export const deletePPATRecord = async (id: string): Promise<void> => {
+  const records = getLocalData<PPATRecord>(LS_PPAT_RECORDS).filter(r => r.id !== id);
+  setLocalData(LS_PPAT_RECORDS, records);
+
+  try {
+    await deleteDoc(doc(db, COLL_PPAT_RECORDS, id));
+  } catch (error) {
+    console.error("Error deleting PPAT record from Firebase");
     throw error;
   }
 };

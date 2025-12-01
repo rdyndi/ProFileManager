@@ -138,6 +138,39 @@ export interface IncomingMail {
   createdAt: number;
 }
 
+export interface AdminFeeItem {
+  name: string;
+  amount: number;
+}
+
+export interface PPATRecord {
+  id: string;
+  title: string; // e.g. "PERHITUNGAN APHB IBU DENISA"
+  date: string;
+  
+  // Detail Dokumen
+  certificateType?: string; // Jenis Sertipikat (SHM, SHGB, dll)
+  certificateNumber?: string; // Nomor Sertipikat
+  certificateVillage?: string; // Desa / Kelurahan
+  nopPbb?: string; // NOP PBB
+
+  // Objek
+  landArea: number;
+  landNjop: number;
+  buildingArea: number;
+  buildingNjop: number;
+  
+  // Transaksi & Pajak
+  transactionValue: number;
+  npoptkp: number;
+  pphScale?: number; // 1 = full, 2 = 1/2, 3 = 1/3, etc.
+  
+  // Biaya Lain
+  adminFees: AdminFeeItem[];
+  
+  createdAt: number;
+}
+
 export interface CompanySettings {
   companyName: string;
   companyAddress: string;

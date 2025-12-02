@@ -1,6 +1,7 @@
+
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Layout } from './components/Layout';
-import { LoginScreen } from './components/LoginScreen';
+// import { LoginScreen } from './components/LoginScreen';
 import { ClientForm } from './components/ClientForm';
 import { EmployeeForm } from './components/EmployeeForm';
 import { DocumentGenerator, printDocument } from './components/DocumentGenerator';
@@ -13,7 +14,7 @@ import { ProfitLossReport } from './components/ProfitLossReport';
 import { OutgoingMailBook } from './components/OutgoingMailBook';
 import { IncomingMailBook } from './components/IncomingMailBook';
 import { PPATCostCalculator } from './components/PPATCostCalculator';
-import { TrackingJobBook } from './components/TrackingJobBook'; // Import Tracking Component
+import { TrackingJobBook } from './components/TrackingJobBook'; 
 import { 
   subscribeClients, saveClient, deleteClient, 
   subscribeDocuments, saveDocument, updateDocument, deleteDocument,
@@ -25,10 +26,10 @@ import {
   subscribeOutgoingMails, saveOutgoingMail, deleteOutgoingMail,
   subscribeIncomingMails, saveIncomingMail, deleteIncomingMail,
   subscribePPATRecords, savePPATRecord, deletePPATRecord,
-  subscribeTrackingJobs, saveTrackingJob, deleteTrackingJob // Import Tracking Services
+  subscribeTrackingJobs, saveTrackingJob, deleteTrackingJob
 } from './services/storage';
-import { auth } from './services/firebaseService';
-import { signInAnonymously } from "firebase/auth";
+// import { auth } from './services/firebaseService';
+// import { signInAnonymously } from "firebase/auth";
 import { Client, CompanySettings, DocumentData, DocType, Deed, Employee, Invoice, PaymentRecord, Expense, OutgoingMail, IncomingMail, PPATRecord, TrackingJob } from './types';
 import { Users, Search, Plus, Trash2, FileText, Briefcase, Save, Pencil, Printer, ScrollText, BookOpen, ArrowDownAZ, ArrowLeft, UserCog, Link as LinkIcon, ExternalLink, MessageCircle, Mail, Truck, TrendingUp, CreditCard, Banknote, X, Wallet, Send, PieChart, Inbox, FileCheck, Calculator, ClipboardList } from 'lucide-react';
 
@@ -41,7 +42,7 @@ const SimpleLineChart = ({ data }: { data: any[] }) => {
   const padding = 40;
   
   const maxValue = Math.max(
-    ...data.map(d => Math.max(d.clients, d.deeds, d.receipts, d.deliveries))
+    ...data.map(d => Math.max(d.clients || 0, d.deeds || 0, d.receipts || 0, d.deliveries || 0))
   ) || 10;
   
   const scaleY = (val: number) => height - padding - (val / (maxValue * 1.1)) * (height - padding * 2);
@@ -49,7 +50,7 @@ const SimpleLineChart = ({ data }: { data: any[] }) => {
 
   const createPath = (key: string) => {
     return data.map((d, i) => 
-      `${i === 0 ? 'M' : 'L'} ${scaleX(i)} ${scaleY(d[key])}`
+      `${i === 0 ? 'M' : 'L'} ${scaleX(i)} ${scaleY(d[key] || 0)}`
     ).join(' ');
   };
 
@@ -92,6 +93,7 @@ const ClientDetail: React.FC<{
   onEdit: () => void;
   onDelete: () => void;
 }> = ({ client, onBack, onEdit, onDelete }) => {
+  if (!client) return null;
   const getWaUrl = (number: string) => {
     let clean = number.replace(/\D/g, '');
     if (clean.startsWith('0')) clean = '62' + clean.slice(1);
@@ -227,7 +229,7 @@ const ClientDetail: React.FC<{
   );
 };
 
-// --- Invoice Detail Component ---
+// ... InvoiceDetail component ...
 const InvoiceDetail: React.FC<{
     invoice: Invoice;
     onBack: () => void;
@@ -236,10 +238,11 @@ const InvoiceDetail: React.FC<{
     onPrint: () => void;
     onUpdateInvoice: (invoice: Invoice) => void; 
 }> = ({ invoice, onBack, onEdit, onDelete, onPrint, onUpdateInvoice }) => {
+    if (!invoice) return null;
     
     let subTotal = 0;
     let totalTax = 0;
-    invoice.items.forEach(item => {
+    (invoice.items || []).forEach(item => {
         const { grossAmount, taxAmount } = calculateItemValues(item);
         subTotal += grossAmount;
         totalTax += taxAmount;
@@ -527,10 +530,16 @@ const App = () => {
   const [settings, setSettings] = useState<CompanySettings>({ companyName: '', companyAddress: '', companyEmail: '', companyPhone: '' });
 
   const stats = useMemo(() => {
-    const totalReceipts = documents.filter(d => d.type === 'RECEIPT').length;
-    const totalDeliveries = documents.filter(d => d.type === 'DELIVERY').length;
+    // Robust null checks for all arrays
+    const safeDocs = documents || [];
+    const safeMails = outgoingMails || [];
+    const safeClients = clients || [];
+    const safeDeeds = deeds || [];
+
+    const totalReceipts = safeDocs.filter(d => d && d.type === 'RECEIPT').length;
+    const totalDeliveries = safeDocs.filter(d => d && d.type === 'DELIVERY').length;
     const currentYear = new Date().getFullYear();
-    const mailsThisYear = outgoingMails.filter(m => new Date(m.date).getFullYear() === currentYear);
+    const mailsThisYear = safeMails.filter(m => m && new Date(m.date).getFullYear() === currentYear);
     
     let lastMailNumber = '-';
     let nextMailNumber = '1';
@@ -552,10 +561,10 @@ const App = () => {
         const yearKey = d.getFullYear();
         const label = d.toLocaleDateString('id-ID', { month: 'short', year: '2-digit' });
 
-        const countClients = clients.filter(c => { const cd = new Date(c.createdAt); return cd.getMonth() === monthKey && cd.getFullYear() === yearKey; }).length;
-        const countDeeds = deeds.filter(item => { const cd = new Date(item.deedDate); return cd.getMonth() === monthKey && cd.getFullYear() === yearKey; }).length;
-        const countReceipts = documents.filter(item => { const cd = new Date(item.date); return item.type === 'RECEIPT' && cd.getMonth() === monthKey && cd.getFullYear() === yearKey; }).length;
-        const countDeliveries = documents.filter(item => { const cd = new Date(item.date); return item.type === 'DELIVERY' && cd.getMonth() === monthKey && cd.getFullYear() === yearKey; }).length;
+        const countClients = safeClients.filter(c => { if(!c) return false; const cd = new Date(c.createdAt); return cd.getMonth() === monthKey && cd.getFullYear() === yearKey; }).length;
+        const countDeeds = safeDeeds.filter(item => { if(!item) return false; const cd = new Date(item.deedDate); return cd.getMonth() === monthKey && cd.getFullYear() === yearKey; }).length;
+        const countReceipts = safeDocs.filter(item => { if(!item) return false; const cd = new Date(item.date); return item.type === 'RECEIPT' && cd.getMonth() === monthKey && cd.getFullYear() === yearKey; }).length;
+        const countDeliveries = safeDocs.filter(item => { if(!item) return false; const cd = new Date(item.date); return item.type === 'DELIVERY' && cd.getMonth() === monthKey && cd.getFullYear() === yearKey; }).length;
 
         chartData.push({ month: label, clients: countClients, deeds: countDeeds, receipts: countReceipts, deliveries: countDeliveries });
     }
@@ -564,12 +573,17 @@ const App = () => {
   }, [clients, deeds, documents, outgoingMails]);
 
   const invoiceStats = useMemo(() => {
-    const filteredList = invoices.filter(i => i.invoiceNumber.toLowerCase().includes(invoiceSearchQuery.toLowerCase()) || i.clientName.toLowerCase().includes(invoiceSearchQuery.toLowerCase()));
+    const safeInvoices = invoices || [];
+    const filteredList = safeInvoices.filter(i => {
+        if(!i) return false;
+        const term = invoiceSearchQuery.toLowerCase();
+        return (i.invoiceNumber || '').toLowerCase().includes(term) || (i.clientName || '').toLowerCase().includes(term);
+    });
     let totalBilled = 0;
     let totalPaid = 0;
     filteredList.forEach(inv => {
-        totalBilled += inv.totalAmount;
-        const historySum = inv.paymentHistory?.reduce((sum, p) => sum + p.amount, 0) || 0;
+        totalBilled += (inv.totalAmount || 0);
+        const historySum = (inv.paymentHistory || []).reduce((sum, p) => sum + (p?.amount || 0), 0);
         const paid = historySum > 0 ? historySum : (inv.paymentAmount || 0);
         totalPaid += paid;
     });
@@ -592,8 +606,8 @@ const App = () => {
   };
 
   useEffect(() => {
-    if (!isAuthenticated) return;
-    signInAnonymously(auth).catch((error) => console.warn("Auth Warning: Login anonim gagal.", error));
+    // if (!isAuthenticated) return; // Removed Auth check logic as it's disabled now
+    // signInAnonymously(auth).catch((error) => console.warn("Auth Warning: Login anonim gagal.", error));
 
     const unsubClients = subscribeClients(setClients);
     const unsubDocs = subscribeDocuments(setDocuments);
@@ -604,13 +618,13 @@ const App = () => {
     const unsubOutgoingMails = subscribeOutgoingMails(setOutgoingMails);
     const unsubIncomingMails = subscribeIncomingMails(setIncomingMails);
     const unsubPpat = subscribePPATRecords(setPpatRecords);
-    const unsubTracking = subscribeTrackingJobs(setTrackingJobs); // Subscribe Tracking
+    const unsubTracking = subscribeTrackingJobs(setTrackingJobs); 
     const unsubSettings = subscribeSettings((data) => { setSettings(data); syncSettingsToLocalCache(data); });
 
     return () => {
       unsubClients(); unsubDocs(); unsubDeeds(); unsubSettings(); unsubEmployees(); unsubInvoices(); unsubExpenses(); unsubOutgoingMails(); unsubIncomingMails(); unsubPpat(); unsubTracking();
     };
-  }, [isAuthenticated]);
+  }, []);
 
   const handleSaveClient = async (client: Client) => { try { await saveClient(client); setClientViewState('list'); } catch (e: any) { alert(e.message); } };
   const handleDeleteClient = async (id: string) => { if (window.confirm('Hapus data?')) { try { await deleteClient(id); if(selectedClient?.id === id) setSelectedClient(null); setClientViewState('list'); } catch (e: any) { alert(e.message); } } };
@@ -640,12 +654,13 @@ const App = () => {
   const handleSaveTrackingJob = async (job: TrackingJob) => { try { await saveTrackingJob(job); alert('Pekerjaan tersimpan!'); } catch (e: any) { alert(e.message); } };
   const handleDeleteTrackingJob = async (id: string) => { try { await deleteTrackingJob(id); } catch (e: any) { alert(e.message); } };
 
-  const filteredClients = clients.filter(c => c.name.toLowerCase().includes(searchQuery.toLowerCase()) || c.type.toLowerCase().includes(searchQuery.toLowerCase()));
-  const filteredEmployees = employees.filter(e => e.name.toLowerCase().includes(empSearchQuery.toLowerCase()) || e.role.toLowerCase().includes(empSearchQuery.toLowerCase()));
+  const filteredClients = (clients || []).filter(c => c && ((c.name || '').toLowerCase().includes(searchQuery.toLowerCase()) || (c.type || '').toLowerCase().includes(searchQuery.toLowerCase())));
+  const filteredEmployees = (employees || []).filter(e => e && ((e.name || '').toLowerCase().includes(empSearchQuery.toLowerCase()) || (e.role || '').toLowerCase().includes(empSearchQuery.toLowerCase())));
   const getWaUrl = (number: string) => { let clean = number.replace(/\D/g, ''); if (clean.startsWith('0')) clean = '62' + clean.slice(1); return `https://wa.me/${clean}`; };
 
   const DocumentList = ({ type }: { type: DocType }) => {
-     const filteredDocs = documents.filter(d => d.type === type).filter(d => d.clientName.toLowerCase().includes(docSearchQuery.toLowerCase()) || d.referenceNo.toLowerCase().includes(docSearchQuery.toLowerCase()));
+     const safeDocs = documents || [];
+     const filteredDocs = safeDocs.filter(d => d && d.type === type).filter(d => (d.clientName || '').toLowerCase().includes(docSearchQuery.toLowerCase()) || (d.referenceNo || '').toLowerCase().includes(docSearchQuery.toLowerCase()));
      return (
         <div className="space-y-6">
             <div className="flex justify-between items-center gap-4">
@@ -723,7 +738,7 @@ const App = () => {
     }
   };
 
-  if (!isAuthenticated) return <LoginScreen onLogin={handleLogin} />;
+  // if (!isAuthenticated) return <LoginScreen onLogin={handleLogin} />; // Auth Disabled
 
   return (
     <Layout activeTab={activeTab} onTabChange={handleTabChange} onLogout={handleLogout}>
@@ -762,7 +777,10 @@ const App = () => {
                 <>
                     <div className="flex justify-between items-center"><h2 className="text-2xl font-bold text-slate-800">Data Klien</h2><button onClick={() => { setClientViewState('add'); setSelectedClient(null); }} className="bg-primary-600 text-white p-2 md:px-4 md:py-2 rounded-lg flex gap-2 text-sm items-center hover:bg-primary-700 transition"><Plus className="w-4 h-4"/> <span className="hidden md:inline">Tambah</span></button></div>
                     <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4"><input type="text" placeholder="Cari..." className="w-full px-4 py-2 border border-slate-300 rounded-lg mb-4 text-sm bg-white text-slate-900 outline-none focus:ring-2 focus:ring-primary-500" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
-                    <table className="w-full text-sm text-left text-slate-600"><thead className="bg-slate-50 text-slate-700"><tr><th className="p-4">Nama</th><th className="p-4 hidden md:table-cell">Kontak</th><th className="p-4 hidden md:table-cell">Tipe</th><th className="p-4 text-right">Aksi</th></tr></thead><tbody>{filteredClients.map(c => (<tr key={c.id} className="border-b border-slate-100 hover:bg-slate-50"><td className="p-4 font-bold text-slate-800"><div>{c.name}</div><div className="md:hidden text-xs font-normal text-slate-500">{c.type}</div></td><td className="p-4 hidden md:table-cell"><a href={getWaUrl(c.contactNumber)} target="_blank" rel="noopener noreferrer" className="text-slate-600 hover:text-green-600 hover:underline flex items-center gap-1 w-fit"><MessageCircle className="w-3 h-3"/>{c.contactNumber}</a></td><td className="p-4 hidden md:table-cell">{c.type}</td><td className="p-4 text-right"><button onClick={() => { setClientViewState('detail'); setSelectedClient(c); }} className="text-primary-600 text-xs bg-primary-50 px-3 py-1 rounded-full hover:bg-primary-100">Lihat</button></td></tr>))}</tbody></table></div>
+                    <table className="w-full text-sm text-left text-slate-600"><thead className="bg-slate-50 text-slate-700"><tr><th className="p-4">Nama</th><th className="p-4 hidden md:table-cell">Kontak</th><th className="p-4 hidden md:table-cell">Tipe</th><th className="p-4 text-right">Aksi</th></tr></thead><tbody>{filteredClients.map(c => {
+                        if (!c) return null;
+                        return (<tr key={c.id} className="border-b border-slate-100 hover:bg-slate-50"><td className="p-4 font-bold text-slate-800"><div>{c.name}</div><div className="md:hidden text-xs font-normal text-slate-500">{c.type}</div></td><td className="p-4 hidden md:table-cell"><a href={getWaUrl(c.contactNumber)} target="_blank" rel="noopener noreferrer" className="text-slate-600 hover:text-green-600 hover:underline flex items-center gap-1 w-fit"><MessageCircle className="w-3 h-3"/>{c.contactNumber}</a></td><td className="p-4 hidden md:table-cell">{c.type}</td><td className="p-4 text-right"><button onClick={() => { setClientViewState('detail'); setSelectedClient(c); }} className="text-primary-600 text-xs bg-primary-50 px-3 py-1 rounded-full hover:bg-primary-100">Lihat</button></td></tr>)
+                    })}</tbody></table></div>
                 </>
             )}
             {clientViewState === 'add' && <ClientForm onSave={handleSaveClient} onCancel={() => setClientViewState('list')} initialData={selectedClient || undefined} />}
@@ -771,7 +789,7 @@ const App = () => {
       )}
 
       {/* TRACKING PEKERJAAN TAB */}
-      {activeTab === 'tracking' && <TrackingJobBook jobs={trackingJobs} clients={clients} onSave={handleSaveTrackingJob} onDelete={handleDeleteTrackingJob} />}
+      {activeTab === 'tracking' && <TrackingJobBook jobs={trackingJobs || []} clients={clients || []} onSave={handleSaveTrackingJob} onDelete={handleDeleteTrackingJob} />}
 
       {activeTab === 'akta' && (
         <div className="space-y-6">
@@ -779,9 +797,9 @@ const App = () => {
                 <>
                     <div className="flex justify-between items-center"><h2 className="text-2xl font-bold text-slate-800">Daftar Akta</h2>
                     <div className="flex gap-2"><button onClick={() => setDeedViewState('report_alphabetical')} className="bg-white border border-slate-300 text-slate-700 p-2 md:px-3 md:py-2 rounded-lg hover:bg-slate-50 flex items-center gap-2 transition shadow-sm text-sm"><ArrowDownAZ className="w-4 h-4" /> <span className="hidden md:inline">A-Z</span></button><button onClick={() => setDeedViewState('report_monthly')} className="bg-white border border-slate-300 text-slate-700 p-2 md:px-3 md:py-2 rounded-lg hover:bg-slate-50 flex items-center gap-2 transition shadow-sm text-sm"><BookOpen className="w-4 h-4" /> <span className="hidden md:inline">Laporan</span></button><button onClick={() => { setDeedViewState('create'); setSelectedDeed(null); }} className="bg-primary-600 text-white p-2 md:px-4 md:py-2 rounded-lg hover:bg-primary-700 flex items-center gap-2 transition shadow-sm text-sm"><Plus className="w-4 h-4" /> <span className="hidden md:inline">Baru</span></button></div></div>
-                    <div className="bg-white rounded-xl shadow-sm border border-slate-200"><div className="p-4 border-b border-slate-100"><input type="text" placeholder="Cari..." className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm bg-white text-slate-900 outline-none focus:ring-2 focus:ring-primary-500" value={deedSearchQuery} onChange={e => setDeedSearchQuery(e.target.value)} /></div><div className="overflow-x-auto"><table className="w-full text-sm text-left text-slate-600"><thead className="bg-slate-50 text-slate-700"><tr><th className="p-4">No. Akta</th><th className="p-4">Judul</th><th className="p-4 hidden md:table-cell">Klien</th><th className="p-4 text-right">Aksi</th></tr></thead><tbody>{deeds.filter(d => d.deedNumber.toLowerCase().includes(deedSearchQuery.toLowerCase()) || d.deedTitle.toLowerCase().includes(deedSearchQuery.toLowerCase()) || d.clientName.toLowerCase().includes(deedSearchQuery.toLowerCase())).map(d => (<tr key={d.id} className="border-b border-slate-100 hover:bg-slate-50"><td className="p-4 font-bold font-mono text-slate-800">{d.deedNumber}</td><td className="p-4"><div className="line-clamp-2">{d.deedTitle}</div><div className="md:hidden text-xs text-slate-500 mt-1">{d.clientName}</div></td><td className="p-4 hidden md:table-cell">{d.clientName}</td><td className="p-4 text-right flex justify-end gap-2"><button onClick={() => { setSelectedDeed(d); setDeedViewState('edit'); }}><Pencil className="w-4 h-4 text-blue-600" /></button><button onClick={() => handleDeleteDeed(d.id)}><Trash2 className="w-4 h-4 text-red-600" /></button></td></tr>))}</tbody></table></div></div>
+                    <div className="bg-white rounded-xl shadow-sm border border-slate-200"><div className="p-4 border-b border-slate-100"><input type="text" placeholder="Cari..." className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm bg-white text-slate-900 outline-none focus:ring-2 focus:ring-primary-500" value={deedSearchQuery} onChange={e => setDeedSearchQuery(e.target.value)} /></div><div className="overflow-x-auto"><table className="w-full text-sm text-left text-slate-600"><thead className="bg-slate-50 text-slate-700"><tr><th className="p-4">No. Akta</th><th className="p-4">Judul</th><th className="p-4 hidden md:table-cell">Klien</th><th className="p-4 text-right">Aksi</th></tr></thead><tbody>{(deeds || []).filter(d => d && ((d.deedNumber || '').toLowerCase().includes(deedSearchQuery.toLowerCase()) || (d.deedTitle || '').toLowerCase().includes(deedSearchQuery.toLowerCase()) || (d.clientName || '').toLowerCase().includes(deedSearchQuery.toLowerCase()))).map(d => (<tr key={d.id} className="border-b border-slate-100 hover:bg-slate-50"><td className="p-4 font-bold font-mono text-slate-800">{d.deedNumber}</td><td className="p-4"><div className="line-clamp-2">{d.deedTitle}</div><div className="md:hidden text-xs text-slate-500 mt-1">{d.clientName}</div></td><td className="p-4 hidden md:table-cell">{d.clientName}</td><td className="p-4 text-right flex justify-end gap-2"><button onClick={() => { setSelectedDeed(d); setDeedViewState('edit'); }}><Pencil className="w-4 h-4 text-blue-600" /></button><button onClick={() => handleDeleteDeed(d.id)}><Trash2 className="w-4 h-4 text-red-600" /></button></td></tr>))}</tbody></table></div></div>
                 </>
-            ) : deedViewState === 'report_monthly' ? <DeedReport deeds={deeds} onBack={() => setDeedViewState('list')} /> : deedViewState === 'report_alphabetical' ? <DeedAlphabeticalReport deeds={deeds} onBack={() => setDeedViewState('list')} /> : <DeedForm clients={clients} deeds={deeds} onSave={handleSaveDeed} onCancel={() => setDeedViewState('list')} onAddClient={handleDirectAddClient} initialData={selectedDeed || undefined} />}
+            ) : deedViewState === 'report_monthly' ? <DeedReport deeds={deeds || []} onBack={() => setDeedViewState('list')} /> : deedViewState === 'report_alphabetical' ? <DeedAlphabeticalReport deeds={deeds || []} onBack={() => setDeedViewState('list')} /> : <DeedForm clients={clients || []} deeds={deeds || []} onSave={handleSaveDeed} onCancel={() => setDeedViewState('list')} onAddClient={handleDirectAddClient} initialData={selectedDeed || undefined} />}
         </div>
       )}
       
@@ -796,31 +814,36 @@ const App = () => {
                         <div className="bg-white p-4 md:p-5 rounded-xl shadow-sm border border-slate-200 border-l-4 border-l-red-500 min-w-[240px]"><div className="flex justify-between items-start mb-2"><div><p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Sisa Piutang</p><p className="text-lg md:text-2xl font-bold text-red-600 mt-1">{new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(invoiceStats.totalUnpaid)}</p></div><div className="p-2 bg-red-50 rounded-lg"><CreditCard className="w-4 h-4 md:w-5 md:h-5 text-red-600" /></div></div></div>
                     </div>
                     <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4"><input type="text" placeholder="Cari..." className="w-full px-4 py-2 border border-slate-300 rounded-lg mb-4 text-sm bg-white text-slate-900 outline-none focus:ring-2 focus:ring-primary-500" value={invoiceSearchQuery} onChange={e => setInvoiceSearchQuery(e.target.value)} />
-                        <div className="overflow-x-auto"><table className="w-full text-sm text-left text-slate-600"><thead className="bg-slate-50 text-slate-700"><tr><th className="p-4 hidden md:table-cell">Tanggal</th><th className="p-4">No. Invoice</th><th className="p-4 hidden md:table-cell">Klien</th><th className="p-4 hidden md:table-cell">Status</th><th className="p-4 text-right">Sisa Tagihan</th><th className="p-4 text-right">Aksi</th></tr></thead><tbody>{invoiceStats.filteredList.map(inv => { const historySum = inv.paymentHistory?.reduce((sum, p) => sum + p.amount, 0) || 0; const paid = historySum > 0 ? historySum : (inv.paymentAmount || 0); const remaining = Math.max(0, inv.totalAmount - paid); return (<tr key={inv.id} className="border-b border-slate-100 hover:bg-slate-50"><td className="p-4 hidden md:table-cell">{new Date(inv.date).toLocaleDateString()}</td><td className="p-4"><button onClick={() => { setSelectedInvoice(inv); setInvoiceViewState('detail'); }} className="font-mono font-bold text-blue-600 hover:text-blue-800 hover:underline">{inv.invoiceNumber}</button><div className="md:hidden text-xs text-slate-500 mt-1">{inv.clientName}</div><div className="md:hidden mt-1"><span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${inv.status === 'PAID' ? 'bg-green-100 text-green-700' : 'bg-red-50 text-red-600'}`}>{inv.status === 'PAID' ? 'LUNAS' : 'BELUM'}</span></div></td><td className="p-4 hidden md:table-cell">{inv.clientName}</td><td className="p-4 hidden md:table-cell"><span className={`px-2 py-1 rounded-full text-xs font-bold ${inv.status === 'PAID' ? 'bg-green-100 text-green-700' : 'bg-red-50 text-red-600'}`}>{inv.status === 'PAID' ? 'LUNAS' : 'BELUM LUNAS'}</span></td><td className="p-4 text-right font-mono text-red-600">{new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(remaining)}</td><td className="p-4 text-right flex justify-end gap-2"><button onClick={() => { setSelectedInvoice(inv); setInvoiceViewState('edit'); }} className="p-2 text-slate-400 hover:text-blue-600"><Pencil className="w-4 h-4" /></button><button onClick={() => handleDeleteInvoice(inv.id)} className="p-2 text-slate-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></button></td></tr>)})}</tbody></table></div>
+                        <div className="overflow-x-auto"><table className="w-full text-sm text-left text-slate-600"><thead className="bg-slate-50 text-slate-700"><tr><th className="p-4 hidden md:table-cell">Tanggal</th><th className="p-4">No. Invoice</th><th className="p-4 hidden md:table-cell">Klien</th><th className="p-4 hidden md:table-cell">Status</th><th className="p-4 text-right">Sisa Tagihan</th><th className="p-4 text-right">Aksi</th></tr></thead><tbody>{invoiceStats.filteredList.map(inv => { 
+                            if (!inv) return null;
+                            const historySum = (inv.paymentHistory || []).reduce((sum, p) => sum + (p?.amount || 0), 0); 
+                            const paid = historySum > 0 ? historySum : (inv.paymentAmount || 0); 
+                            const remaining = Math.max(0, inv.totalAmount - paid); 
+                            return (<tr key={inv.id} className="border-b border-slate-100 hover:bg-slate-50"><td className="p-4 hidden md:table-cell">{new Date(inv.date).toLocaleDateString()}</td><td className="p-4"><button onClick={() => { setSelectedInvoice(inv); setInvoiceViewState('detail'); }} className="font-mono font-bold text-blue-600 hover:text-blue-800 hover:underline">{inv.invoiceNumber}</button><div className="md:hidden text-xs text-slate-500 mt-1">{inv.clientName}</div><div className="md:hidden mt-1"><span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${inv.status === 'PAID' ? 'bg-green-100 text-green-700' : 'bg-red-50 text-red-600'}`}>{inv.status === 'PAID' ? 'LUNAS' : 'BELUM'}</span></div></td><td className="p-4 hidden md:table-cell">{inv.clientName}</td><td className="p-4 hidden md:table-cell"><span className={`px-2 py-1 rounded-full text-xs font-bold ${inv.status === 'PAID' ? 'bg-green-100 text-green-700' : 'bg-red-50 text-red-600'}`}>{inv.status === 'PAID' ? 'LUNAS' : 'BELUM LUNAS'}</span></td><td className="p-4 text-right font-mono text-red-600">{new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(remaining)}</td><td className="p-4 text-right flex justify-end gap-2"><button onClick={() => { setSelectedInvoice(inv); setInvoiceViewState('edit'); }} className="p-2 text-slate-400 hover:text-blue-600"><Pencil className="w-4 h-4" /></button><button onClick={() => handleDeleteInvoice(inv.id)} className="p-2 text-slate-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></button></td></tr>)})}</tbody></table></div>
                     </div>
                 </>
               ) : invoiceViewState === 'detail' && selectedInvoice ? (
                  <InvoiceDetail invoice={selectedInvoice} onBack={() => setInvoiceViewState('list')} onEdit={() => setInvoiceViewState('edit')} onDelete={() => handleDeleteInvoice(selectedInvoice.id)} onPrint={() => printInvoice(selectedInvoice)} onUpdateInvoice={handleUpdateInvoicePayment} />
               ) : (
-                <InvoiceGenerator clients={clients} existingInvoices={invoices} onSave={handleSaveInvoice} onCancel={() => setInvoiceViewState('list')} onAddClient={handleDirectAddClient} initialData={selectedInvoice} />
+                <InvoiceGenerator clients={clients || []} existingInvoices={invoices || []} onSave={handleSaveInvoice} onCancel={() => setInvoiceViewState('list')} onAddClient={handleDirectAddClient} initialData={selectedInvoice} />
               )}
           </div>
       )}
 
-      {activeTab === 'expenses' && <ExpenseTracker expenses={expenses} onSave={handleSaveExpense} onDelete={handleDeleteExpense} />}
-      {activeTab === 'outgoing_mail' && <OutgoingMailBook mails={outgoingMails} onSave={handleSaveOutgoingMail} onDelete={handleDeleteOutgoingMail} />}
-      {activeTab === 'incoming_mail' && <IncomingMailBook mails={incomingMails} onSave={handleSaveIncomingMail} onDelete={handleDeleteIncomingMail} />}
+      {activeTab === 'expenses' && <ExpenseTracker expenses={expenses || []} onSave={handleSaveExpense} onDelete={handleDeleteExpense} />}
+      {activeTab === 'outgoing_mail' && <OutgoingMailBook mails={outgoingMails || []} onSave={handleSaveOutgoingMail} onDelete={handleDeleteOutgoingMail} />}
+      {activeTab === 'incoming_mail' && <IncomingMailBook mails={incomingMails || []} onSave={handleSaveIncomingMail} onDelete={handleDeleteIncomingMail} />}
       
       {/* PPAT TAB */}
-      {activeTab === 'adm_ppat' && <PPATCostCalculator records={ppatRecords} onSave={handleSavePPATRecord} onDelete={handleDeletePPATRecord} />}
+      {activeTab === 'adm_ppat' && <PPATCostCalculator records={ppatRecords || []} onSave={handleSavePPATRecord} onDelete={handleDeletePPATRecord} />}
       
-      {activeTab === 'reports' && <ProfitLossReport invoices={invoices} expenses={expenses} />}
+      {activeTab === 'reports' && <ProfitLossReport invoices={invoices || []} expenses={expenses || []} />}
 
       {activeTab === 'receipt' && docViewState === 'list' && <DocumentList type="RECEIPT" />}
-      {activeTab === 'receipt' && docViewState !== 'list' && <DocumentGenerator type="RECEIPT" clients={clients} employees={employees} documents={documents} onSave={handleSaveDocument} onCancel={() => setDocViewState('list')} onAddClient={handleDirectAddClient} initialData={selectedDocument} />}
+      {activeTab === 'receipt' && docViewState !== 'list' && <DocumentGenerator type="RECEIPT" clients={clients || []} employees={employees || []} documents={documents || []} onSave={handleSaveDocument} onCancel={() => setDocViewState('list')} onAddClient={handleDirectAddClient} initialData={selectedDocument} />}
       
       {activeTab === 'delivery' && docViewState === 'list' && <DocumentList type="DELIVERY" />}
-      {activeTab === 'delivery' && docViewState !== 'list' && <DocumentGenerator type="DELIVERY" clients={clients} employees={employees} documents={documents} onSave={handleSaveDocument} onCancel={() => setDocViewState('list')} onAddClient={handleDirectAddClient} initialData={selectedDocument} />}
+      {activeTab === 'delivery' && docViewState !== 'list' && <DocumentGenerator type="DELIVERY" clients={clients || []} employees={employees || []} documents={documents || []} onSave={handleSaveDocument} onCancel={() => setDocViewState('list')} onAddClient={handleDirectAddClient} initialData={selectedDocument} />}
 
       {activeTab === 'employees' && (
           <div className="space-y-6">
@@ -828,7 +851,10 @@ const App = () => {
                   <>
                     <div className="flex justify-between items-center"><h2 className="text-2xl font-bold text-slate-800">Data Pegawai</h2><button onClick={() => { setEmpViewState('add'); setSelectedEmployee(null); }} className="bg-primary-600 text-white p-2 md:px-4 md:py-2 rounded-lg flex gap-2 text-sm items-center hover:bg-primary-700 transition"><Plus className="w-4 h-4"/> <span className="hidden md:inline">Tambah</span></button></div>
                     <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4"><input type="text" placeholder="Cari..." className="w-full px-4 py-2 border border-slate-300 rounded-lg mb-4 text-sm bg-white text-slate-900 outline-none focus:ring-2 focus:ring-primary-500" value={empSearchQuery} onChange={e => setEmpSearchQuery(e.target.value)} />
-                        <table className="w-full text-sm text-left text-slate-600"><thead className="bg-slate-50 text-slate-700"><tr><th className="p-4">Nama</th><th className="p-4 hidden md:table-cell">Jabatan</th><th className="p-4 hidden md:table-cell">Telepon</th><th className="p-4 text-right">Aksi</th></tr></thead><tbody>{filteredEmployees.map(e => (<tr key={e.id} className="border-b border-slate-100 hover:bg-slate-50"><td className="p-4 font-medium"><div>{e.name}</div><div className="md:hidden text-xs text-slate-500">{e.role}</div></td><td className="p-4 hidden md:table-cell">{e.role}</td><td className="p-4 hidden md:table-cell">{e.phone}</td><td className="p-4 text-right flex justify-end gap-2"><button onClick={() => { setSelectedEmployee(e); setEmpViewState('add'); }}><Pencil className="w-4 h-4 text-blue-600" /></button><button onClick={() => handleDeleteEmployee(e.id)}><Trash2 className="w-4 h-4 text-red-600" /></button></td></tr>))}</tbody></table>
+                        <table className="w-full text-sm text-left text-slate-600"><thead className="bg-slate-50 text-slate-700"><tr><th className="p-4">Nama</th><th className="p-4 hidden md:table-cell">Jabatan</th><th className="p-4 hidden md:table-cell">Telepon</th><th className="p-4 text-right">Aksi</th></tr></thead><tbody>{filteredEmployees.map(e => {
+                            if (!e) return null;
+                            return (<tr key={e.id} className="border-b border-slate-100 hover:bg-slate-50"><td className="p-4 font-medium"><div>{e.name}</div><div className="md:hidden text-xs text-slate-500">{e.role}</div></td><td className="p-4 hidden md:table-cell">{e.role}</td><td className="p-4 hidden md:table-cell">{e.phone}</td><td className="p-4 text-right flex justify-end gap-2"><button onClick={() => { setSelectedEmployee(e); setEmpViewState('add'); }}><Pencil className="w-4 h-4 text-blue-600" /></button><button onClick={() => handleDeleteEmployee(e.id)}><Trash2 className="w-4 h-4 text-red-600" /></button></td></tr>)
+                        })}</tbody></table>
                     </div>
                   </>
               ) : (

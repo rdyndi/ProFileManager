@@ -40,12 +40,15 @@ export const TrackingJobBook: React.FC<TrackingJobBookProps> = ({ jobs, clients,
 
   const [formData, setFormData] = useState<Partial<TrackingJob>>(initialFormState);
 
-  // Filter Logic
+  // Filter Logic - SAFEGUARDED against null/undefined
   const filteredJobs = useMemo(() => {
-    return jobs.filter(j => 
-        j.clientName.toLowerCase().includes(searchQuery.toLowerCase()) || 
-        j.jobName.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    return (jobs || []).filter(j => {
+        if (!j) return false;
+        const cName = j.clientName || '';
+        const jName = j.jobName || '';
+        return cName.toLowerCase().includes(searchQuery.toLowerCase()) || 
+               jName.toLowerCase().includes(searchQuery.toLowerCase());
+    });
   }, [jobs, searchQuery]);
 
   // Handlers
@@ -62,7 +65,7 @@ export const TrackingJobBook: React.FC<TrackingJobBookProps> = ({ jobs, clients,
 
   const handleClientChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const clientId = e.target.value;
-    const client = clients.find(c => c.id === clientId);
+    const client = (clients || []).find(c => c && c.id === clientId);
     setFormData({
         ...formData,
         clientId,
@@ -141,6 +144,8 @@ export const TrackingJobBook: React.FC<TrackingJobBookProps> = ({ jobs, clients,
             <div className="grid grid-cols-1 gap-4">
                 {filteredJobs.length > 0 ? (
                     filteredJobs.map(job => {
+                        if (!job) return null; // Safe check against null items
+                        
                         // Calculate Status: 
                         // If Needs Deed: All 3 (Delivered, Returned, Finished) must be checked.
                         // If No Deed: Only Delivered must be checked.
@@ -258,9 +263,10 @@ export const TrackingJobBook: React.FC<TrackingJobBookProps> = ({ jobs, clients,
                             className="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none bg-white focus:ring-2 focus:ring-primary-500"
                         >
                             <option value="">-- Pilih Klien --</option>
-                            {clients.map(c => (
-                                <option key={c.id} value={c.id}>{c.name}</option>
-                            ))}
+                            {(clients || []).map(c => {
+                                if (!c) return null;
+                                return <option key={c.id} value={c.id}>{c.name}</option>
+                            })}
                         </select>
                          {/* Fallback Input if client not in list or custom name needed */}
                         {!formData.clientId && (

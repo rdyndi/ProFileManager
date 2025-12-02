@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { PPATRecord, AdminFeeItem } from '../types';
 import { Printer, Plus, Trash2, Save, Search, Pencil, ArrowLeft, FileText, Calculator } from 'lucide-react';
@@ -385,7 +386,7 @@ export const PPATCostCalculator: React.FC<PPATCostCalculatorProps> = ({ records 
 
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
             {/* INPUT SECTION */}
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 space-y-6">
+            <div className="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-slate-200 space-y-6">
                 <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Judul Perhitungan</label>
                     <input type="text" value={title} onChange={e => setTitle(e.target.value)} placeholder="Contoh: PERHITUNGAN APHB IBU DENISA" className="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-primary-500 font-bold uppercase" />
@@ -541,7 +542,7 @@ export const PPATCostCalculator: React.FC<PPATCostCalculatorProps> = ({ records 
                                         value={item.name} 
                                         onChange={e => handleUpdateFee(idx, 'name', e.target.value)} 
                                         placeholder="Nama Biaya..."
-                                        className="flex-1 px-3 py-1.5 border border-slate-300 rounded-lg text-sm uppercase outline-none focus:ring-1 focus:ring-primary-500"
+                                        className="flex-1 min-w-0 px-3 py-1.5 border border-slate-300 rounded-lg text-sm uppercase outline-none focus:ring-1 focus:ring-primary-500"
                                     />
                                     <input 
                                         type="text" 
@@ -550,9 +551,9 @@ export const PPATCostCalculator: React.FC<PPATCostCalculatorProps> = ({ records 
                                         onFocus={(e) => e.target.select()}
                                         onChange={e => handleUpdateFee(idx, 'amount', parseMoney(e.target.value))} 
                                         placeholder="0"
-                                        className="w-32 px-3 py-1.5 border border-slate-300 rounded-lg text-sm text-right font-mono outline-none focus:ring-1 focus:ring-primary-500"
+                                        className="w-24 md:w-32 px-3 py-1.5 border border-slate-300 rounded-lg text-sm text-right font-mono outline-none focus:ring-1 focus:ring-primary-500"
                                     />
-                                    <button onClick={() => removeFee(idx)} className="text-slate-300 hover:text-red-500 transition"><Trash2 className="w-4 h-4" /></button>
+                                    <button onClick={() => removeFee(idx)} className="text-slate-300 hover:text-red-500 transition shrink-0 p-2"><Trash2 className="w-4 h-4" /></button>
                                 </div>
                             )
                         })}

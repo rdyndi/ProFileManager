@@ -177,3 +177,46 @@ export interface CompanySettings {
   companyEmail: string;
   companyPhone: string;
 }
+
+// --- TRACKING PEKERJAAN ---
+
+export type TrackingDeedStatus = 'Sudah Dibuat' | 'Draft Sedang Proses' | 'Draft Dikirim' | 'Draft Masih Ditinjau' | 'Draft Disetujui (Belum Cetak)' | 'Akta Sudah Dicetak';
+export type TrackingMinutesStatus = 'Tidak Perlu' | 'Sedang Proses' | 'Sudah Dikirim' | 'Sedang Ditandatangani' | 'Sudah Dikirim (Proses Akta)';
+export type TrackingAHUStatus = 'Sedang Diinput' | 'Peninjauan' | 'Sudah Dicetak';
+export type TrackingStatus = 'Sudah Terbit' | 'Belum Terbit';
+
+export interface TrackingJob {
+  id: string;
+  clientId: string;
+  clientName: string;
+  jobName: string;
+  createdAt: number;
+  updatedAt: number;
+
+  // Akta
+  needsDeed: boolean;
+  deedStatus?: TrackingDeedStatus;
+  deedNumber?: string;
+  deedDate?: string;
+  minutesStatus?: TrackingMinutesStatus;
+
+  // AHU
+  inputAHU: boolean;
+  ahuStatus?: TrackingAHUStatus;
+
+  // Pajak & NIB
+  printNPWP: boolean;
+  npwpStatus?: TrackingStatus;
+  
+  issueNIB: boolean;
+  nibStatus?: TrackingStatus;
+  nibConstraint?: string; // Kendala NIB
+
+  // Finalisasi
+  isJobDelivered: boolean; // Hasil Pekerjaan dikirim
+  isMinuteReturned: boolean; // Minuta dikembalikan
+  isMinuteFinished: boolean; // Minuta selesai
+
+  // Catatan Manual
+  manualProgress?: string;
+}

@@ -12,7 +12,8 @@ import { ExpenseTracker } from './components/ExpenseTracker';
 import { ProfitLossReport } from './components/ProfitLossReport';
 import { OutgoingMailBook } from './components/OutgoingMailBook';
 import { IncomingMailBook } from './components/IncomingMailBook';
-import { PPATCostCalculator } from './components/PPATCostCalculator'; // Import
+import { PPATCostCalculator } from './components/PPATCostCalculator';
+import { TrackingJobBook } from './components/TrackingJobBook'; // Import Tracking Component
 import { 
   subscribeClients, saveClient, deleteClient, 
   subscribeDocuments, saveDocument, updateDocument, deleteDocument,
@@ -23,12 +24,13 @@ import {
   subscribeExpenses, saveExpense, deleteExpense,
   subscribeOutgoingMails, saveOutgoingMail, deleteOutgoingMail,
   subscribeIncomingMails, saveIncomingMail, deleteIncomingMail,
-  subscribePPATRecords, savePPATRecord, deletePPATRecord // Imports
+  subscribePPATRecords, savePPATRecord, deletePPATRecord,
+  subscribeTrackingJobs, saveTrackingJob, deleteTrackingJob // Import Tracking Services
 } from './services/storage';
 import { auth } from './services/firebaseService';
 import { signInAnonymously } from "firebase/auth";
-import { Client, CompanySettings, DocumentData, DocType, Deed, Employee, Invoice, PaymentRecord, Expense, OutgoingMail, IncomingMail, PPATRecord } from './types';
-import { Users, Search, Plus, Trash2, FileText, Briefcase, Save, Pencil, Printer, ScrollText, BookOpen, ArrowDownAZ, ArrowLeft, UserCog, Link as LinkIcon, ExternalLink, MessageCircle, Mail, Truck, TrendingUp, CreditCard, Banknote, X, Wallet, Send, PieChart, Inbox, FileCheck, Calculator } from 'lucide-react';
+import { Client, CompanySettings, DocumentData, DocType, Deed, Employee, Invoice, PaymentRecord, Expense, OutgoingMail, IncomingMail, PPATRecord, TrackingJob } from './types';
+import { Users, Search, Plus, Trash2, FileText, Briefcase, Save, Pencil, Printer, ScrollText, BookOpen, ArrowDownAZ, ArrowLeft, UserCog, Link as LinkIcon, ExternalLink, MessageCircle, Mail, Truck, TrendingUp, CreditCard, Banknote, X, Wallet, Send, PieChart, Inbox, FileCheck, Calculator, ClipboardList } from 'lucide-react';
 
 // --- Simple Custom SVG Line Chart Component ---
 const SimpleLineChart = ({ data }: { data: any[] }) => {
@@ -504,7 +506,8 @@ const App = () => {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [outgoingMails, setOutgoingMails] = useState<OutgoingMail[]>([]);
   const [incomingMails, setIncomingMails] = useState<IncomingMail[]>([]);
-  const [ppatRecords, setPpatRecords] = useState<PPATRecord[]>([]); // New State
+  const [ppatRecords, setPpatRecords] = useState<PPATRecord[]>([]); 
+  const [trackingJobs, setTrackingJobs] = useState<TrackingJob[]>([]); // New State
   
   const [clientViewState, setClientViewState] = useState<'list' | 'add' | 'detail'>('list');
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
@@ -600,11 +603,12 @@ const App = () => {
     const unsubExpenses = subscribeExpenses(setExpenses);
     const unsubOutgoingMails = subscribeOutgoingMails(setOutgoingMails);
     const unsubIncomingMails = subscribeIncomingMails(setIncomingMails);
-    const unsubPpat = subscribePPATRecords(setPpatRecords); // Subscribe to PPAT
+    const unsubPpat = subscribePPATRecords(setPpatRecords);
+    const unsubTracking = subscribeTrackingJobs(setTrackingJobs); // Subscribe Tracking
     const unsubSettings = subscribeSettings((data) => { setSettings(data); syncSettingsToLocalCache(data); });
 
     return () => {
-      unsubClients(); unsubDocs(); unsubDeeds(); unsubSettings(); unsubEmployees(); unsubInvoices(); unsubExpenses(); unsubOutgoingMails(); unsubIncomingMails(); unsubPpat();
+      unsubClients(); unsubDocs(); unsubDeeds(); unsubSettings(); unsubEmployees(); unsubInvoices(); unsubExpenses(); unsubOutgoingMails(); unsubIncomingMails(); unsubPpat(); unsubTracking();
     };
   }, [isAuthenticated]);
 
@@ -632,6 +636,10 @@ const App = () => {
   const handleSavePPATRecord = async (record: PPATRecord) => { try { await savePPATRecord(record); alert('Rincian tersimpan!'); } catch (e: any) { alert(e.message); } };
   const handleDeletePPATRecord = async (id: string) => { try { await deletePPATRecord(id); } catch (e: any) { alert(e.message); } };
 
+  // Tracking Handlers
+  const handleSaveTrackingJob = async (job: TrackingJob) => { try { await saveTrackingJob(job); alert('Pekerjaan tersimpan!'); } catch (e: any) { alert(e.message); } };
+  const handleDeleteTrackingJob = async (id: string) => { try { await deleteTrackingJob(id); } catch (e: any) { alert(e.message); } };
+
   const filteredClients = clients.filter(c => c.name.toLowerCase().includes(searchQuery.toLowerCase()) || c.type.toLowerCase().includes(searchQuery.toLowerCase()));
   const filteredEmployees = employees.filter(e => e.name.toLowerCase().includes(empSearchQuery.toLowerCase()) || e.role.toLowerCase().includes(empSearchQuery.toLowerCase()));
   const getWaUrl = (number: string) => { let clean = number.replace(/\D/g, ''); if (clean.startsWith('0')) clean = '62' + clean.slice(1); return `https://wa.me/${clean}`; };
@@ -654,6 +662,7 @@ const App = () => {
 
   const defaultMobileFeatures = [
       { id: 'clients', label: 'Klien', icon: Users, color: 'text-blue-600', bg: 'bg-blue-100' },
+      { id: 'tracking', label: 'Tracking', icon: ClipboardList, color: 'text-violet-600', bg: 'bg-violet-100' }, // Added
       { id: 'akta', label: 'Akta', icon: ScrollText, color: 'text-violet-600', bg: 'bg-violet-100' },
       { id: 'adm_ppat', label: 'ADM PPAT', icon: Calculator, color: 'text-rose-600', bg: 'bg-rose-100' },
       { id: 'outgoing_mail', label: 'Surat Keluar', icon: Send, color: 'text-indigo-600', bg: 'bg-indigo-100' },
@@ -760,6 +769,9 @@ const App = () => {
             {clientViewState === 'detail' && selectedClient && <ClientDetail client={selectedClient} onBack={() => setClientViewState('list')} onEdit={() => setClientViewState('add')} onDelete={() => handleDeleteClient(selectedClient.id)} />}
         </div>
       )}
+
+      {/* TRACKING PEKERJAAN TAB */}
+      {activeTab === 'tracking' && <TrackingJobBook jobs={trackingJobs} clients={clients} onSave={handleSaveTrackingJob} onDelete={handleDeleteTrackingJob} />}
 
       {activeTab === 'akta' && (
         <div className="space-y-6">

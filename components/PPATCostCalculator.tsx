@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { PPATRecord, AdminFeeItem } from '../types';
 import { Printer, Plus, Trash2, Save, Search, Pencil, ArrowLeft, FileText, Calculator } from 'lucide-react';
@@ -49,16 +48,21 @@ export const PPATCostCalculator: React.FC<PPATCostCalculatorProps> = ({ records 
   // --- SAFE PARSING HELPERS (Prevents Crashing) ---
 
   const parseMoney = (val: any): number => {
-      if (val === undefined || val === null || val === '') return 0;
-      // Convert to string, remove non-digits
-      const str = String(val).replace(/[^0-9]/g, '');
-      const num = parseInt(str, 10);
-      return isNaN(num) ? 0 : num;
+      try {
+        if (val === undefined || val === null || val === '') return 0;
+        // Convert to string, remove non-digits
+        const str = String(val).replace(/[^0-9]/g, '');
+        const num = parseInt(str, 10);
+        return isNaN(num) ? 0 : num;
+      } catch (e) {
+        return 0;
+      }
   };
 
   const formatMoney = (val: number | undefined | null): string => {
       if (val === undefined || val === null || isNaN(val)) return '0';
-      if (val === 0) return '0'; // User requested 0 to show as "0"
+      // User requested 0 to show as "0" in inputs, but we want pretty formatting
+      // If it's literally 0, returning '0' is fine.
       try {
           return new Intl.NumberFormat('id-ID').format(val);
       } catch (e) {
@@ -68,31 +72,36 @@ export const PPATCostCalculator: React.FC<PPATCostCalculatorProps> = ({ records 
 
   // --- CALCULATIONS ---
   const calculation = useMemo(() => {
-      const safeLandArea = landArea || 0;
-      const safeLandNjop = landNjop || 0;
-      const safeBuildArea = buildingArea || 0;
-      const safeBuildNjop = buildingNjop || 0;
+      const safeLandArea = Number(landArea) || 0;
+      const safeLandNjop = Number(landNjop) || 0;
+      const safeBuildArea = Number(buildingArea) || 0;
+      const safeBuildNjop = Number(buildingNjop) || 0;
 
       const totalLand = safeLandArea * safeLandNjop;
       const totalBuilding = safeBuildArea * safeBuildNjop;
       const totalNjop = totalLand + totalBuilding;
       
       // BPHTB Logic
-      const safeTransVal = transactionValue || 0;
-      const safeNpoptkp = npoptkp || 0;
+      const safeTransVal = Number(transactionValue) || 0;
+      const safeNpoptkp = Number(npoptkp) || 0;
       const npopkp = Math.max(0, safeTransVal - safeNpoptkp);
       const bphtb = Math.floor(npopkp * 0.05);
 
-      // PPH Logic
-      // Scale 1 = Jual Beli Biasa (100% Value, 1 Payer)
-      // Scale N (e.g. 3) = APHB (Value/N per share, N-1 Payers)
+      // PPH Logic (APHB)
+      // Logic:
+      // 1. Transaction Value (Total)
+      // 2. Scale determines Share (e.g., 3 means 1/3 share)
+      // 3. Basis = Transaction / Scale
+      // 4. Payers = Scale - 1
+      // 5. Tax per payer = Basis * 2.5%
       
-      const scale = pphScale || 1;
+      const scale = Number(pphScale) || 1;
       let pphTotal = 0;
       const pphRows: { label: string; basis: number; tax: number }[] = [];
 
-      if (scale === 1) {
-          // Standard Jual Beli
+      if (scale <= 1) {
+          // Standard Jual Beli (1 Pihak)
+          // Tax on FULL transaction value
           const tax = Math.floor(safeTransVal * 0.025);
           pphRows.push({
               label: "NILAI PAJAK 2,5%",
@@ -110,7 +119,7 @@ export const PPATCostCalculator: React.FC<PPATCostCalculatorProps> = ({ records 
           for (let i = 1; i <= numberOfPayers; i++) {
               const tax = Math.floor(valuePerShare * 0.025);
               pphRows.push({
-                  label: `PPH BAYAR KE-${i} (Nilai: Rp ${formatMoney(valuePerShare)})`,
+                  label: `PPH BAYAR KE-${i} (Dasar: Rp ${formatMoney(valuePerShare)})`,
                   basis: valuePerShare,
                   tax: tax
               });
@@ -119,8 +128,9 @@ export const PPATCostCalculator: React.FC<PPATCostCalculatorProps> = ({ records 
       }
 
       // Admin Fees
-      // CRITICAL: Ensure reduce uses default array if adminFees is undefined
-      const totalAdmin = (adminFees || []).reduce((sum, item) => sum + (item?.amount || 0), 0);
+      // Safe reduce ensuring array exists and items are valid
+      const safeAdminFees = Array.isArray(adminFees) ? adminFees : [];
+      const totalAdmin = safeAdminFees.reduce((sum, item) => sum + (Number(item?.amount) || 0), 0);
 
       const grandTotal = bphtb + pphTotal + totalAdmin;
 
@@ -161,11 +171,11 @@ export const PPATCostCalculator: React.FC<PPATCostCalculatorProps> = ({ records 
           setNpoptkp(Number(record.npoptkp) || 0);
           setPphScale(Number(record.pphScale) || 1);
           
-          // CRITICAL: Check if adminFees exists and is array
+          // CRITICAL: Check if adminFees exists and is array, handle null items
           if (Array.isArray(record.adminFees) && record.adminFees.length > 0) {
               setAdminFees(record.adminFees.map(f => ({ 
-                  name: f.name || '', 
-                  amount: Number(f.amount) || 0 
+                  name: f?.name || '', 
+                  amount: Number(f?.amount) || 0 
               })));
           } else {
               setAdminFees(freshDefaults);
@@ -193,10 +203,13 @@ export const PPATCostCalculator: React.FC<PPATCostCalculatorProps> = ({ records 
       setViewState('form');
   };
 
-  const handleSubmit = () => {
-      if (!title) return alert("Judul perhitungan wajib diisi");
+  const constructRecord = (): PPATRecord | null => {
+      if (!title) {
+          alert("Judul perhitungan wajib diisi");
+          return null;
+      }
       
-      const record: PPATRecord = {
+      return {
           id: editingId || Math.random().toString(36).substr(2, 9),
           title,
           date,
@@ -214,6 +227,12 @@ export const PPATCostCalculator: React.FC<PPATCostCalculatorProps> = ({ records 
           adminFees: adminFees || [],
           createdAt: Date.now()
       };
+  };
+
+  const handleSubmit = () => {
+      const record = constructRecord();
+      if (!record) return;
+
       onSave(record);
       setViewState('list');
   };
@@ -237,6 +256,17 @@ export const PPATCostCalculator: React.FC<PPATCostCalculatorProps> = ({ records 
   };
 
   const handlePrint = async () => {
+      // 1. SAVE TO SERVER FIRST
+      const record = constructRecord();
+      if (!record) return;
+
+      if (!editingId) {
+          setEditingId(record.id);
+      }
+      
+      onSave(record);
+
+      // 2. GENERATE PDF
       try {
           if (typeof (window as any).html2pdf === 'undefined') {
               alert("Fitur PDF sedang dimuat. Silakan tunggu sebentar.");
@@ -250,10 +280,10 @@ export const PPATCostCalculator: React.FC<PPATCostCalculatorProps> = ({ records 
           }
           
           const opt = {
-            margin: [10, 10, 10, 10],
+            margin: 0, // Set margin to 0 to respect CSS padding/margins perfectly
             filename: `Rincian_${(title || 'Biaya').replace(/\s+/g, '_')}.pdf`,
             image: { type: 'jpeg', quality: 0.98 },
-            html2canvas: { scale: 2, useCORS: true },
+            html2canvas: { scale: 2, useCORS: true, scrollY: 0 }, 
             jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
         };
 
@@ -296,7 +326,8 @@ export const PPATCostCalculator: React.FC<PPATCostCalculatorProps> = ({ records 
                       if (!rec) return null;
                       // Quick Calc for List Preview
                       const tVal = Number(rec.transactionValue) || 0;
-                      const fees = (rec.adminFees || []).reduce((s, i) => s + (Number(i?.amount) || 0), 0);
+                      // Safe reduce
+                      const fees = Array.isArray(rec.adminFees) ? rec.adminFees.reduce((s, i) => s + (Number(i?.amount) || 0), 0) : 0;
                       
                       return (
                       <div key={rec.id} className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 hover:border-primary-300 transition group">
@@ -533,7 +564,8 @@ export const PPATCostCalculator: React.FC<PPATCostCalculatorProps> = ({ records 
             {/* PREVIEW SECTION (HIDDEN PRINT AREA) */}
             <div className="bg-slate-100 p-4 md:p-8 rounded-xl overflow-auto flex justify-center items-start shadow-inner">
                  {/* This div is visible in the UI as a preview, and also used by html2pdf */}
-                <div id="print-area-ppat" className="bg-white w-full max-w-[210mm] p-8 shadow-lg text-black font-sans text-sm relative">
+                 {/* UPDATE: Ensure width is 210mm, margins 0 in opt, and use internal padding. box-sizing border-box prevents overflow */}
+                <div id="print-area-ppat" className="bg-white shadow-lg text-black font-sans text-sm relative" style={{width: '210mm', minWidth: '210mm', minHeight: '297mm', padding: '15mm', boxSizing: 'border-box'}}>
                     
                     {/* PDF Header */}
                     <div className="text-center font-bold text-xl uppercase border-b-4 border-green-800 pb-2 mb-2 tracking-wide">
@@ -664,7 +696,7 @@ export const PPATCostCalculator: React.FC<PPATCostCalculatorProps> = ({ records 
                     <div className="font-bold mb-1 ml-1 text-xs uppercase border-b border-black pb-1 mt-4">BIAYA ADMINISTRASI & LAIN-LAIN</div>
                     <table className="cost-table" style={{border: 'none', width: '100%'}}>
                         <tbody>
-                            {(adminFees || []).map((fee, idx) => {
+                            {(Array.isArray(adminFees) ? adminFees : []).map((fee, idx) => {
                                 if (!fee) return null;
                                 return (
                                 <tr key={idx} style={{border: 'none'}}>

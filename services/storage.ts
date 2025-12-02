@@ -7,7 +7,7 @@ import {
   getDoc 
 } from "firebase/firestore";
 import { db } from "./firebaseService";
-import { Client, DocumentData, CompanySettings, Deed, Employee, Invoice, Expense, OutgoingMail, IncomingMail, PPATRecord } from '../types';
+import { Client, DocumentData, CompanySettings, Deed, Employee, Invoice, Expense, OutgoingMail, IncomingMail, PPATRecord, TrackingJob } from '../types';
 
 // Nama Collection di Firestore
 const COLL_CLIENTS = 'clients';
@@ -19,6 +19,7 @@ const COLL_EXPENSES = 'expenses';
 const COLL_OUTGOING_MAILS = 'outgoing_mails';
 const COLL_INCOMING_MAILS = 'incoming_mails';
 const COLL_PPAT_RECORDS = 'ppat_records';
+const COLL_TRACKING_JOBS = 'tracking_jobs'; // New Collection
 const COLL_SETTINGS = 'settings';
 const DOC_SETTINGS_ID = 'company_profile'; // ID statis untuk settings
 
@@ -32,6 +33,7 @@ const LS_EXPENSES = 'app_expenses_data';
 const LS_OUTGOING_MAILS = 'app_outgoing_mails_data';
 const LS_INCOMING_MAILS = 'app_incoming_mails_data';
 const LS_PPAT_RECORDS = 'app_ppat_records_data';
+const LS_TRACKING_JOBS = 'app_tracking_jobs_data'; // New Key
 const LS_SETTINGS = 'app_settings_data';
 
 // --- HELPERS LOCAL STORAGE ---
@@ -584,6 +586,60 @@ export const deletePPATRecord = async (id: string): Promise<void> => {
     await deleteDoc(doc(db, COLL_PPAT_RECORDS, id));
   } catch (error) {
     console.error("Error deleting PPAT record from Firebase");
+    throw error;
+  }
+};
+
+
+// --- TRACKING JOBS (Daftar Pekerjaan) ---
+
+export const subscribeTrackingJobs = (callback: (data: TrackingJob[]) => void) => {
+  const localJobs = getLocalData<TrackingJob>(LS_TRACKING_JOBS);
+  if (localJobs.length > 0) {
+    localJobs.sort((a, b) => b.updatedAt - a.updatedAt);
+    callback(localJobs);
+  }
+
+  const q = collection(db, COLL_TRACKING_JOBS);
+  return onSnapshot(q, (snapshot) => {
+    const jobs = snapshot.docs.map(doc => ({...doc.data(), id: doc.id} as TrackingJob));
+    jobs.sort((a, b) => b.updatedAt - a.updatedAt);
+    const sanitizedJobs = sanitizeData(jobs);
+    setLocalData(LS_TRACKING_JOBS, sanitizedJobs);
+    callback(sanitizedJobs);
+  }, (error) => {
+    console.warn("Firestore tracking jobs sync error:", error.message);
+  });
+};
+
+export const saveTrackingJob = async (job: TrackingJob): Promise<void> => {
+  const dataToSave = sanitizeData(job);
+  const jobs = getLocalData<TrackingJob>(LS_TRACKING_JOBS);
+  const index = jobs.findIndex(j => j.id === dataToSave.id);
+  if (index >= 0) {
+    jobs[index] = dataToSave;
+  } else {
+    jobs.push(dataToSave);
+  }
+  setLocalData(LS_TRACKING_JOBS, jobs);
+
+  try {
+    const docRef = doc(db, COLL_TRACKING_JOBS, dataToSave.id);
+    await setDoc(docRef, dataToSave);
+  } catch (error) {
+    console.error("Error saving tracking job to Firebase");
+    throw error;
+  }
+};
+
+export const deleteTrackingJob = async (id: string): Promise<void> => {
+  const jobs = getLocalData<TrackingJob>(LS_TRACKING_JOBS).filter(j => j.id !== id);
+  setLocalData(LS_TRACKING_JOBS, jobs);
+
+  try {
+    await deleteDoc(doc(db, COLL_TRACKING_JOBS, id));
+  } catch (error) {
+    console.error("Error deleting tracking job from Firebase");
     throw error;
   }
 };

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { LayoutDashboard, Users, FileText, Truck, Settings, Briefcase, ScrollText, UserCog, LogOut, CreditCard, Wallet, PieChart, Send, Home, ChevronDown, Inbox, Calculator } from 'lucide-react';
+import { LayoutDashboard, Users, FileText, Truck, Settings, Briefcase, ScrollText, UserCog, LogOut, CreditCard, Wallet, PieChart, Send, Home, ChevronDown, Inbox, Calculator, ClipboardList } from 'lucide-react';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -15,6 +15,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange
   
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { id: 'tracking', label: 'Tracking Pekerjaan', icon: ClipboardList }, // Added Tracking
     { id: 'clients', label: 'Data Klien', icon: Users },
     { id: 'akta', label: 'Akta', icon: ScrollText },
     { id: 'adm_ppat', label: 'ADM PPAT', icon: Calculator },
@@ -32,6 +33,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange
   // Mobile Bottom Nav Items (Main Features)
   const mobileNavItems = [
     { id: 'dashboard', label: 'Beranda', icon: Home },
+    { id: 'tracking', label: 'Tracking', icon: ClipboardList },
     { id: 'clients', label: 'Klien', icon: Users },
     { id: 'akta', label: 'Akta', icon: ScrollText },
     { id: 'invoice', label: 'Tagihan', icon: CreditCard },

@@ -49,6 +49,7 @@ export const PPATCostCalculator: React.FC<PPATCostCalculatorProps> = ({ records 
 
   const parseMoney = (val: any): number => {
       try {
+        if (typeof val === 'number') return isNaN(val) ? 0 : val;
         if (val === undefined || val === null || val === '') return 0;
         // Convert to string, remove non-digits
         const str = String(val).replace(/[^0-9]/g, '');
@@ -61,8 +62,6 @@ export const PPATCostCalculator: React.FC<PPATCostCalculatorProps> = ({ records 
 
   const formatMoney = (val: number | undefined | null): string => {
       if (val === undefined || val === null || isNaN(val)) return '0';
-      // User requested 0 to show as "0" in inputs, but we want pretty formatting
-      // If it's literally 0, returning '0' is fine.
       try {
           return new Intl.NumberFormat('id-ID').format(val);
       } catch (e) {
@@ -72,79 +71,80 @@ export const PPATCostCalculator: React.FC<PPATCostCalculatorProps> = ({ records 
 
   // --- CALCULATIONS ---
   const calculation = useMemo(() => {
-      const safeLandArea = Number(landArea) || 0;
-      const safeLandNjop = Number(landNjop) || 0;
-      const safeBuildArea = Number(buildingArea) || 0;
-      const safeBuildNjop = Number(buildingNjop) || 0;
+      try {
+          const safeLandArea = Number(landArea) || 0;
+          const safeLandNjop = Number(landNjop) || 0;
+          const safeBuildArea = Number(buildingArea) || 0;
+          const safeBuildNjop = Number(buildingNjop) || 0;
 
-      const totalLand = safeLandArea * safeLandNjop;
-      const totalBuilding = safeBuildArea * safeBuildNjop;
-      const totalNjop = totalLand + totalBuilding;
-      
-      // BPHTB Logic
-      const safeTransVal = Number(transactionValue) || 0;
-      const safeNpoptkp = Number(npoptkp) || 0;
-      const npopkp = Math.max(0, safeTransVal - safeNpoptkp);
-      const bphtb = Math.floor(npopkp * 0.05);
+          const totalLand = safeLandArea * safeLandNjop;
+          const totalBuilding = safeBuildArea * safeBuildNjop;
+          const totalNjop = totalLand + totalBuilding;
+          
+          // BPHTB Logic
+          const safeTransVal = Number(transactionValue) || 0;
+          const safeNpoptkp = Number(npoptkp) || 0;
+          const npopkp = Math.max(0, safeTransVal - safeNpoptkp);
+          const bphtb = Math.floor(npopkp * 0.05);
 
-      // PPH Logic (APHB)
-      // Logic:
-      // 1. Transaction Value (Total)
-      // 2. Scale determines Share (e.g., 3 means 1/3 share)
-      // 3. Basis = Transaction / Scale
-      // 4. Payers = Scale - 1
-      // 5. Tax per payer = Basis * 2.5%
-      
-      const scale = Number(pphScale) || 1;
-      let pphTotal = 0;
-      const pphRows: { label: string; basis: number; tax: number }[] = [];
+          // PPH Logic (APHB)
+          const scale = Number(pphScale) || 1;
+          let pphTotal = 0;
+          const pphRows: { label: string; basis: number; tax: number }[] = [];
 
-      if (scale <= 1) {
-          // Standard Jual Beli (1 Pihak)
-          // Tax on FULL transaction value
-          const tax = Math.floor(safeTransVal * 0.025);
-          pphRows.push({
-              label: "NILAI PAJAK 2,5%",
-              basis: safeTransVal,
-              tax: tax
-          });
-          pphTotal = tax;
-      } else {
-          // APHB Case
-          // Value per share = Transaction / Scale
-          const valuePerShare = Math.floor(safeTransVal / scale);
-          // Number of payers = Scale - 1 (e.g., 3 parties, 1 keeps, 2 pay/release)
-          const numberOfPayers = scale - 1;
-
-          for (let i = 1; i <= numberOfPayers; i++) {
-              const tax = Math.floor(valuePerShare * 0.025);
+          if (scale <= 1) {
+              // Standard Jual Beli (1 Pihak)
+              const tax = Math.floor(safeTransVal * 0.025);
               pphRows.push({
-                  label: `PPH BAYAR KE-${i} (Dasar: Rp ${formatMoney(valuePerShare)})`,
-                  basis: valuePerShare,
+                  label: "NILAI PAJAK 2,5%",
+                  basis: safeTransVal,
                   tax: tax
               });
-              pphTotal += tax;
+              pphTotal = tax;
+          } else {
+              // APHB Case
+              const valuePerShare = Math.floor(safeTransVal / scale);
+              // Number of payers = Scale - 1
+              const numberOfPayers = scale - 1;
+
+              for (let i = 1; i <= numberOfPayers; i++) {
+                  const tax = Math.floor(valuePerShare * 0.025);
+                  pphRows.push({
+                      label: `PPH BAYAR KE-${i} (Dasar: Rp ${formatMoney(valuePerShare)})`,
+                      basis: valuePerShare,
+                      tax: tax
+                  });
+                  pphTotal += tax;
+              }
           }
+
+          // Admin Fees
+          const safeAdminFees = Array.isArray(adminFees) ? adminFees : [];
+          const totalAdmin = safeAdminFees.reduce((sum, item) => {
+              const amt = Number(item?.amount);
+              return sum + (isNaN(amt) ? 0 : amt);
+          }, 0);
+
+          const grandTotal = bphtb + pphTotal + totalAdmin;
+
+          return {
+              totalLand,
+              totalBuilding,
+              totalNjop,
+              npopkp,
+              bphtb,
+              pphRows,
+              pphTotal,
+              totalAdmin,
+              grandTotal
+          };
+      } catch (e) {
+          console.error("Calculation Error:", e);
+          return {
+              totalLand: 0, totalBuilding: 0, totalNjop: 0, npopkp: 0, bphtb: 0,
+              pphRows: [], pphTotal: 0, totalAdmin: 0, grandTotal: 0
+          };
       }
-
-      // Admin Fees
-      // Safe reduce ensuring array exists and items are valid
-      const safeAdminFees = Array.isArray(adminFees) ? adminFees : [];
-      const totalAdmin = safeAdminFees.reduce((sum, item) => sum + (Number(item?.amount) || 0), 0);
-
-      const grandTotal = bphtb + pphTotal + totalAdmin;
-
-      return {
-          totalLand,
-          totalBuilding,
-          totalNjop,
-          npopkp,
-          bphtb,
-          pphRows, // Array of rows to render
-          pphTotal,
-          totalAdmin,
-          grandTotal
-      };
   }, [landArea, landNjop, buildingArea, buildingNjop, transactionValue, npoptkp, pphScale, adminFees]);
 
   // --- HANDLERS ---
@@ -171,7 +171,6 @@ export const PPATCostCalculator: React.FC<PPATCostCalculatorProps> = ({ records 
           setNpoptkp(Number(record.npoptkp) || 0);
           setPphScale(Number(record.pphScale) || 1);
           
-          // CRITICAL: Check if adminFees exists and is array, handle null items
           if (Array.isArray(record.adminFees) && record.adminFees.length > 0) {
               setAdminFees(record.adminFees.map(f => ({ 
                   name: f?.name || '', 
@@ -280,7 +279,7 @@ export const PPATCostCalculator: React.FC<PPATCostCalculatorProps> = ({ records 
           }
           
           const opt = {
-            margin: 0, // Set margin to 0 to respect CSS padding/margins perfectly
+            margin: 0, 
             filename: `Rincian_${(title || 'Biaya').replace(/\s+/g, '_')}.pdf`,
             image: { type: 'jpeg', quality: 0.98 },
             html2canvas: { scale: 2, useCORS: true, scrollY: 0 }, 
@@ -564,8 +563,8 @@ export const PPATCostCalculator: React.FC<PPATCostCalculatorProps> = ({ records 
             {/* PREVIEW SECTION (HIDDEN PRINT AREA) */}
             <div className="bg-slate-100 p-4 md:p-8 rounded-xl overflow-auto flex justify-center items-start shadow-inner">
                  {/* This div is visible in the UI as a preview, and also used by html2pdf */}
-                 {/* UPDATE: Ensure width is 210mm, margins 0 in opt, and use internal padding. box-sizing border-box prevents overflow */}
-                <div id="print-area-ppat" className="bg-white shadow-lg text-black font-sans text-sm relative" style={{width: '210mm', minWidth: '210mm', minHeight: '297mm', padding: '15mm', boxSizing: 'border-box'}}>
+                 {/* UPDATE: Reduced minHeight to 290mm to avoid blank second page, ensure strict width */}
+                <div id="print-area-ppat" className="bg-white shadow-lg text-black font-sans text-sm relative" style={{width: '210mm', minWidth: '210mm', minHeight: '290mm', padding: '12mm', boxSizing: 'border-box'}}>
                     
                     {/* PDF Header */}
                     <div className="text-center font-bold text-xl uppercase border-b-4 border-green-800 pb-2 mb-2 tracking-wide">
@@ -574,7 +573,7 @@ export const PPATCostCalculator: React.FC<PPATCostCalculatorProps> = ({ records 
                     <div className="border-t border-green-800 mb-6"></div>
                     
                     {/* Info Block */}
-                     <div className="mb-6 text-xs font-medium">
+                     <div className="mb-4 text-xs font-medium">
                         <table style={{width: '100%', border: 'none'}}>
                             <tbody>
                                 <tr>
@@ -602,8 +601,8 @@ export const PPATCostCalculator: React.FC<PPATCostCalculatorProps> = ({ records 
                     </div>
 
                     <style>{`
-                        .cost-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 11px; }
-                        .cost-table th, .cost-table td { border: 1px solid #000; padding: 4px 8px; }
+                        .cost-table { width: 100%; border-collapse: collapse; margin-bottom: 12px; font-size: 11px; }
+                        .cost-table th, .cost-table td { border: 1px solid #000; padding: 3px 6px; }
                         .cost-table th { text-align: center; font-weight: bold; background-color: #f9fafb; text-transform: uppercase; }
                         .text-right { text-align: right; }
                         .text-center { text-align: center; }
@@ -693,7 +692,7 @@ export const PPATCostCalculator: React.FC<PPATCostCalculatorProps> = ({ records 
                     </table>
 
                     {/* Table 4: Admin Fees */}
-                    <div className="font-bold mb-1 ml-1 text-xs uppercase border-b border-black pb-1 mt-4">BIAYA ADMINISTRASI & LAIN-LAIN</div>
+                    <div className="font-bold mb-1 ml-1 text-xs uppercase border-b border-black pb-1 mt-2">BIAYA ADMINISTRASI & LAIN-LAIN</div>
                     <table className="cost-table" style={{border: 'none', width: '100%'}}>
                         <tbody>
                             {(Array.isArray(adminFees) ? adminFees : []).map((fee, idx) => {

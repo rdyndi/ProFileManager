@@ -31,7 +31,7 @@ import {
 // import { auth } from './services/firebaseService';
 // import { signInAnonymously } from "firebase/auth";
 import { Client, CompanySettings, DocumentData, DocType, Deed, Employee, Invoice, PaymentRecord, Expense, OutgoingMail, IncomingMail, PPATRecord, TrackingJob } from './types';
-import { Users, Search, Plus, Trash2, FileText, Briefcase, Save, Pencil, Printer, ScrollText, BookOpen, ArrowDownAZ, ArrowLeft, UserCog, Link as LinkIcon, ExternalLink, MessageCircle, Mail, Truck, TrendingUp, CreditCard, Banknote, X, Wallet, Send, PieChart, Inbox, FileCheck, Calculator, ClipboardList } from 'lucide-react';
+import { Users, Search, Plus, Trash2, FileText, Briefcase, Save, Pencil, Printer, ScrollText, BookOpen, ArrowDownAZ, ArrowLeft, UserCog, Link as LinkIcon, ExternalLink, MessageCircle, Mail, Truck, TrendingUp, CreditCard, Banknote, X, Wallet, Send, PieChart, Inbox, FileCheck, Calculator, ClipboardList, Building2, CheckCircle, Clock } from 'lucide-react';
 
 // --- Simple Custom SVG Line Chart Component ---
 const SimpleLineChart = ({ data }: { data: any[] }) => {
@@ -479,6 +479,9 @@ const App = () => {
 
   const [activeTab, setActiveTab] = useState(getInitialTab());
 
+  // Settings Tab State
+  const [settingsTab, setSettingsTab] = useState<'profile' | 'employees'>('profile');
+
   useEffect(() => {
     const handlePopState = () => {
         const currentHash = window.location.hash.replace('#', '');
@@ -535,11 +538,21 @@ const App = () => {
     const safeMails = outgoingMails || [];
     const safeClients = clients || [];
     const safeDeeds = deeds || [];
+    const safeJobs = trackingJobs || [];
 
     const totalReceipts = safeDocs.filter(d => d && d.type === 'RECEIPT').length;
     const totalDeliveries = safeDocs.filter(d => d && d.type === 'DELIVERY').length;
     const currentYear = new Date().getFullYear();
     const mailsThisYear = safeMails.filter(m => m && new Date(m.date).getFullYear() === currentYear);
+    
+    // Count Ongoing Jobs
+    const ongoingJobsCount = safeJobs.filter(j => {
+        if (!j) return false;
+        const isFinished = j.needsDeed 
+            ? (j.isJobDelivered && j.isMinuteReturned && j.isMinuteFinished)
+            : j.isJobDelivered;
+        return !isFinished;
+    }).length;
     
     let lastMailNumber = '-';
     let nextMailNumber = '1';
@@ -569,8 +582,8 @@ const App = () => {
         chartData.push({ month: label, clients: countClients, deeds: countDeeds, receipts: countReceipts, deliveries: countDeliveries });
     }
 
-    return { totalReceipts, totalDeliveries, chartData, lastMailNumber, nextMailNumber };
-  }, [clients, deeds, documents, outgoingMails]);
+    return { totalReceipts, totalDeliveries, chartData, lastMailNumber, nextMailNumber, ongoingJobsCount };
+  }, [clients, deeds, documents, outgoingMails, trackingJobs]);
 
   const invoiceStats = useMemo(() => {
     const safeInvoices = invoices || [];
@@ -687,7 +700,6 @@ const App = () => {
       { id: 'reports', label: 'Laporan', icon: PieChart, color: 'text-orange-600', bg: 'bg-orange-100' },
       { id: 'receipt', label: 'Tanda Terima', icon: FileCheck, color: 'text-emerald-600', bg: 'bg-emerald-100' },
       { id: 'delivery', label: 'Surat Jalan', icon: Truck, color: 'text-amber-600', bg: 'bg-amber-100' },
-      { id: 'employees', label: 'Pegawai', icon: UserCog, color: 'text-gray-600', bg: 'bg-gray-100' },
   ];
 
   const [menuItems, setMenuItems] = useState(() => {
@@ -758,12 +770,76 @@ const App = () => {
             
             <h2 className="text-xl md:text-2xl font-bold text-slate-800">Ringkasan</h2>
             <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 md:gap-6">
+                 {/* Tracking Card - New */}
+                 <div onClick={() => handleTabChange('tracking')} className="bg-pink-50 p-4 md:p-6 rounded-xl shadow-sm border border-pink-100 flex items-center justify-between cursor-pointer hover:shadow-md transition-all active:scale-95"><div><p className="text-[10px] md:text-sm text-pink-600 font-medium uppercase">Pekerjaan</p><h3 className="text-xl md:text-3xl font-bold text-pink-800 mt-1">{stats.ongoingJobsCount}</h3></div><div className="bg-white p-2 md:p-3 rounded-lg text-pink-600 shadow-sm"><ClipboardList className="w-5 h-5 md:w-6 md:h-6" /></div></div>
+                
                 <div onClick={() => handleTabChange('clients')} className="bg-blue-50 p-4 md:p-6 rounded-xl shadow-sm border border-blue-100 flex items-center justify-between cursor-pointer hover:shadow-md transition-all active:scale-95"><div><p className="text-[10px] md:text-sm text-blue-600 font-medium uppercase">Klien</p><h3 className="text-xl md:text-3xl font-bold text-blue-800 mt-1">{clients.length}</h3></div><div className="bg-white p-2 md:p-3 rounded-lg text-blue-600 shadow-sm"><Users className="w-5 h-5 md:w-6 md:h-6" /></div></div>
                 <div className="bg-violet-50 p-4 md:p-6 rounded-xl shadow-sm border border-violet-100 flex items-center justify-between"><div><p className="text-[10px] md:text-sm text-violet-600 font-medium uppercase">Akta</p><h3 className="text-xl md:text-3xl font-bold text-violet-800 mt-1">{deeds.length}</h3></div><div className="bg-white p-2 md:p-3 rounded-lg text-violet-600 shadow-sm"><ScrollText className="w-5 h-5 md:w-6 md:h-6" /></div></div>
                 <div className="bg-green-50 p-4 md:p-6 rounded-xl shadow-sm border border-green-100 flex items-center justify-between"><div><p className="text-[10px] md:text-sm text-green-600 font-medium uppercase">Tanda Terima</p><h3 className="text-xl md:text-3xl font-bold text-green-800 mt-1">{stats.totalReceipts}</h3></div><div className="bg-white p-2 md:p-3 rounded-lg text-green-600 shadow-sm"><FileCheck className="w-5 h-5 md:w-6 md:h-6" /></div></div>
                 <div className="bg-orange-50 p-4 md:p-6 rounded-xl shadow-sm border border-orange-100 flex items-center justify-between"><div><p className="text-[10px] md:text-sm text-orange-600 font-medium uppercase">Surat Jalan</p><h3 className="text-xl md:text-3xl font-bold text-orange-800 mt-1">{stats.totalDeliveries}</h3></div><div className="bg-white p-2 md:p-3 rounded-lg text-orange-600 shadow-sm"><Truck className="w-5 h-5 md:w-6 md:h-6" /></div></div>
-                <div className="bg-indigo-50 p-4 md:p-6 rounded-xl shadow-sm border border-indigo-100 flex items-center justify-between"><div><p className="text-[10px] md:text-sm text-indigo-600 font-medium uppercase">Surat Keluar</p><div className="flex flex-col mt-1"><span className="text-sm md:text-base font-bold text-indigo-800">Next: {stats.nextMailNumber}</span><span className="text-[10px] text-indigo-400 truncate max-w-[100px]" title={stats.lastMailNumber}>Last: {stats.lastMailNumber}</span></div></div><div className="bg-white p-2 md:p-3 rounded-lg text-indigo-600 shadow-sm"><Send className="w-5 h-5 md:w-6 md:h-6" /></div></div>
             </div>
+
+             {/* Recent Jobs Section - New */}
+             <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+                    <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                        <ClipboardList className="w-4 h-4 text-pink-600"/>
+                        Status Pekerjaan Terkini (On Progress)
+                    </h3>
+                    <button onClick={() => handleTabChange('tracking')} className="text-xs text-primary-600 font-medium hover:underline">Lihat Semua</button>
+                </div>
+                <div className="overflow-x-auto">
+                    <table className="w-full text-sm text-left">
+                        <thead className="bg-slate-50 text-slate-500 font-medium text-xs">
+                            <tr>
+                                <th className="px-6 py-3">Klien</th>
+                                <th className="px-6 py-3">Pekerjaan</th>
+                                <th className="px-6 py-3">Status Akta</th>
+                                <th className="px-6 py-3">Progress</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                             {(trackingJobs || [])
+                                .filter(j => {
+                                    if(!j) return false;
+                                    const isFinished = j.needsDeed 
+                                        ? (j.isJobDelivered && j.isMinuteReturned && j.isMinuteFinished)
+                                        : j.isJobDelivered;
+                                    return !isFinished;
+                                })
+                                .slice(0, 5) // Show top 5
+                                .map(job => (
+                                <tr key={job.id} className="hover:bg-slate-50">
+                                    <td className="px-6 py-3 font-medium text-slate-700">{job.clientName}</td>
+                                    <td className="px-6 py-3 text-slate-600">{job.jobName}</td>
+                                    <td className="px-6 py-3">
+                                        {job.needsDeed ? (
+                                            <span className={`text-xs px-2 py-0.5 rounded ${job.deedStatus === 'Akta Sudah Dicetak' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>
+                                                {job.deedStatus}
+                                            </span>
+                                        ) : <span className="text-xs text-slate-400">-</span>}
+                                    </td>
+                                    <td className="px-6 py-3">
+                                        <div className="flex items-center gap-1">
+                                             <div className={`w-2 h-2 rounded-full ${job.isJobDelivered ? 'bg-green-500' : 'bg-slate-300'}`} title="Dikirim"></div>
+                                             {job.needsDeed && (
+                                                <>
+                                                    <div className={`w-2 h-2 rounded-full ${job.isMinuteReturned ? 'bg-green-500' : 'bg-slate-300'}`} title="Minuta Kembali"></div>
+                                                    <div className={`w-2 h-2 rounded-full ${job.isMinuteFinished ? 'bg-green-500' : 'bg-slate-300'}`} title="Minuta Arsip"></div>
+                                                </>
+                                             )}
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                            {stats.ongoingJobsCount === 0 && (
+                                <tr><td colSpan={4} className="px-6 py-8 text-center text-slate-400 italic">Tidak ada pekerjaan yang sedang berjalan.</td></tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+             </div>
+
             <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 hidden md:block">
                 <div className="flex items-center gap-2 mb-6 border-b border-slate-100 pb-4"><TrendingUp className="w-5 h-5 text-primary-600" /><h3 className="text-lg font-bold text-slate-800">Statistik Bulanan (6 Bulan Terakhir)</h3></div>
                 <div className="w-full"><SimpleLineChart data={stats.chartData} /></div>
@@ -845,36 +921,76 @@ const App = () => {
       {activeTab === 'delivery' && docViewState === 'list' && <DocumentList type="DELIVERY" />}
       {activeTab === 'delivery' && docViewState !== 'list' && <DocumentGenerator type="DELIVERY" clients={clients || []} employees={employees || []} documents={documents || []} onSave={handleSaveDocument} onCancel={() => setDocViewState('list')} onAddClient={handleDirectAddClient} initialData={selectedDocument} />}
 
-      {activeTab === 'employees' && (
-          <div className="space-y-6">
-              {empViewState === 'list' ? (
-                  <>
-                    <div className="flex justify-between items-center"><h2 className="text-2xl font-bold text-slate-800">Data Pegawai</h2><button onClick={() => { setEmpViewState('add'); setSelectedEmployee(null); }} className="bg-primary-600 text-white p-2 md:px-4 md:py-2 rounded-lg flex gap-2 text-sm items-center hover:bg-primary-700 transition"><Plus className="w-4 h-4"/> <span className="hidden md:inline">Tambah</span></button></div>
-                    <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4"><input type="text" placeholder="Cari..." className="w-full px-4 py-2 border border-slate-300 rounded-lg mb-4 text-sm bg-white text-slate-900 outline-none focus:ring-2 focus:ring-primary-500" value={empSearchQuery} onChange={e => setEmpSearchQuery(e.target.value)} />
-                        <table className="w-full text-sm text-left text-slate-600"><thead className="bg-slate-50 text-slate-700"><tr><th className="p-4">Nama</th><th className="p-4 hidden md:table-cell">Jabatan</th><th className="p-4 hidden md:table-cell">Telepon</th><th className="p-4 text-right">Aksi</th></tr></thead><tbody>{filteredEmployees.map(e => {
-                            if (!e) return null;
-                            return (<tr key={e.id} className="border-b border-slate-100 hover:bg-slate-50"><td className="p-4 font-medium"><div>{e.name}</div><div className="md:hidden text-xs text-slate-500">{e.role}</div></td><td className="p-4 hidden md:table-cell">{e.role}</td><td className="p-4 hidden md:table-cell">{e.phone}</td><td className="p-4 text-right flex justify-end gap-2"><button onClick={() => { setSelectedEmployee(e); setEmpViewState('add'); }}><Pencil className="w-4 h-4 text-blue-600" /></button><button onClick={() => handleDeleteEmployee(e.id)}><Trash2 className="w-4 h-4 text-red-600" /></button></td></tr>)
-                        })}</tbody></table>
-                    </div>
-                  </>
-              ) : (
-                  <EmployeeForm onSave={handleSaveEmployee} onCancel={() => setEmpViewState('list')} initialData={selectedEmployee || undefined} />
-              )}
-          </div>
-      )}
-
+      {/* -- COMBINED SETTINGS & EMPLOYEES TAB -- */}
       {activeTab === 'settings' && (
-        <div className="max-w-2xl mx-auto space-y-6">
+        <div className="max-w-4xl mx-auto space-y-6">
             <h2 className="text-2xl font-bold text-slate-800">Pengaturan</h2>
-            <form onSubmit={handleSaveSettings} className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-                <div className="space-y-4">
-                    <div><label className="text-sm text-slate-700 font-medium">Nama</label><input type="text" value={settings.companyName} onChange={e=>setSettings({...settings, companyName:e.target.value})} className="w-full border border-slate-300 p-2 rounded mt-1 outline-none focus:ring-2 focus:ring-primary-500 bg-white text-slate-900"/></div>
-                    <div><label className="text-sm text-slate-700 font-medium">Alamat</label><textarea value={settings.companyAddress} onChange={e=>setSettings({...settings, companyAddress:e.target.value})} className="w-full border border-slate-300 p-2 rounded mt-1 outline-none focus:ring-2 focus:ring-primary-500 bg-white text-slate-900"/></div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4"><div><label className="text-sm text-slate-700 font-medium">Email</label><input type="text" value={settings.companyEmail} onChange={e=>setSettings({...settings, companyEmail:e.target.value})} className="w-full border border-slate-300 p-2 rounded mt-1 outline-none focus:ring-2 focus:ring-primary-500 bg-white text-slate-900"/></div><div><label className="text-sm text-slate-700 font-medium">Telp</label><input type="text" value={settings.companyPhone} onChange={e=>setSettings({...settings, companyPhone:e.target.value})} className="w-full border border-slate-300 p-2 rounded mt-1 outline-none focus:ring-2 focus:ring-primary-500 bg-white text-slate-900"/></div></div>
-                    <button className="bg-primary-600 text-white px-4 py-2 rounded mt-4 w-full md:w-auto hover:bg-primary-700 transition">Simpan</button>
+            
+            {/* TABS NAVIGATION */}
+            <div className="flex space-x-1 rounded-xl bg-slate-100 p-1 mb-6 w-fit">
+                <button
+                    onClick={() => setSettingsTab('profile')}
+                    className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium leading-5 transition ${
+                        settingsTab === 'profile'
+                            ? 'bg-white text-primary-700 shadow'
+                            : 'text-slate-600 hover:bg-white/[0.12] hover:text-slate-800'
+                    }`}
+                >
+                    <Building2 className="w-4 h-4" />
+                    Profil Kantor
+                </button>
+                <button
+                    onClick={() => setSettingsTab('employees')}
+                    className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium leading-5 transition ${
+                        settingsTab === 'employees'
+                            ? 'bg-white text-primary-700 shadow'
+                            : 'text-slate-600 hover:bg-white/[0.12] hover:text-slate-800'
+                    }`}
+                >
+                    <Users className="w-4 h-4" />
+                    Data Pegawai
+                </button>
+            </div>
+
+            {/* TAB CONTENT: PROFILE */}
+            {settingsTab === 'profile' && (
+                <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+                    <form onSubmit={handleSaveSettings} className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 max-w-2xl">
+                        <div className="space-y-4">
+                            <div><label className="text-sm text-slate-700 font-medium">Nama Kantor</label><input type="text" value={settings.companyName} onChange={e=>setSettings({...settings, companyName:e.target.value})} className="w-full border border-slate-300 p-2 rounded mt-1 outline-none focus:ring-2 focus:ring-primary-500 bg-white text-slate-900"/></div>
+                            <div><label className="text-sm text-slate-700 font-medium">Alamat Lengkap</label><textarea value={settings.companyAddress} onChange={e=>setSettings({...settings, companyAddress:e.target.value})} className="w-full border border-slate-300 p-2 rounded mt-1 outline-none focus:ring-2 focus:ring-primary-500 bg-white text-slate-900" rows={3}/></div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4"><div><label className="text-sm text-slate-700 font-medium">Email Resmi</label><input type="text" value={settings.companyEmail} onChange={e=>setSettings({...settings, companyEmail:e.target.value})} className="w-full border border-slate-300 p-2 rounded mt-1 outline-none focus:ring-2 focus:ring-primary-500 bg-white text-slate-900"/></div><div><label className="text-sm text-slate-700 font-medium">No. Telepon</label><input type="text" value={settings.companyPhone} onChange={e=>setSettings({...settings, companyPhone:e.target.value})} className="w-full border border-slate-300 p-2 rounded mt-1 outline-none focus:ring-2 focus:ring-primary-500 bg-white text-slate-900"/></div></div>
+                            <button className="bg-primary-600 text-white px-4 py-2 rounded mt-4 w-full md:w-auto hover:bg-primary-700 transition flex items-center justify-center gap-2"><Save className="w-4 h-4"/> Simpan Pengaturan</button>
+                        </div>
+                    </form>
+                    <button onClick={handleLogout} className="w-full md:hidden bg-red-50 text-red-600 px-4 py-3 rounded-xl border border-red-100 flex justify-center items-center gap-2 font-medium hover:bg-red-100 transition mt-6"><X className="w-4 h-4" /> Keluar Aplikasi</button>
                 </div>
-            </form>
-            <button onClick={handleLogout} className="w-full md:hidden bg-red-50 text-red-600 px-4 py-3 rounded-xl border border-red-100 flex justify-center items-center gap-2 font-medium hover:bg-red-100 transition"><X className="w-4 h-4" /> Keluar Aplikasi</button>
+            )}
+
+            {/* TAB CONTENT: EMPLOYEES */}
+            {settingsTab === 'employees' && (
+                <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                  {empViewState === 'list' ? (
+                      <>
+                        <div className="flex justify-between items-center mb-4">
+                            <div>
+                                <h3 className="text-lg font-bold text-slate-800">Daftar Pegawai</h3>
+                                <p className="text-sm text-slate-500">Kelola data staff dan karyawan kantor.</p>
+                            </div>
+                            <button onClick={() => { setEmpViewState('add'); setSelectedEmployee(null); }} className="bg-primary-600 text-white p-2 md:px-4 md:py-2 rounded-lg flex gap-2 text-sm items-center hover:bg-primary-700 transition shadow-sm"><Plus className="w-4 h-4"/> <span className="hidden md:inline">Tambah Pegawai</span></button>
+                        </div>
+                        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4"><input type="text" placeholder="Cari pegawai..." className="w-full px-4 py-2 border border-slate-300 rounded-lg mb-4 text-sm bg-white text-slate-900 outline-none focus:ring-2 focus:ring-primary-500" value={empSearchQuery} onChange={e => setEmpSearchQuery(e.target.value)} />
+                            <table className="w-full text-sm text-left text-slate-600"><thead className="bg-slate-50 text-slate-700"><tr><th className="p-4">Nama</th><th className="p-4 hidden md:table-cell">Jabatan</th><th className="p-4 hidden md:table-cell">Telepon</th><th className="p-4 text-right">Aksi</th></tr></thead><tbody>{filteredEmployees.map(e => {
+                                if (!e) return null;
+                                return (<tr key={e.id} className="border-b border-slate-100 hover:bg-slate-50"><td className="p-4 font-medium"><div>{e.name}</div><div className="md:hidden text-xs text-slate-500">{e.role}</div></td><td className="p-4 hidden md:table-cell">{e.role}</td><td className="p-4 hidden md:table-cell">{e.phone}</td><td className="p-4 text-right flex justify-end gap-2"><button onClick={() => { setSelectedEmployee(e); setEmpViewState('add'); }} className="p-2 bg-blue-50 rounded hover:bg-blue-100 text-blue-600"><Pencil className="w-4 h-4" /></button><button onClick={() => handleDeleteEmployee(e.id)} className="p-2 bg-red-50 rounded hover:bg-red-100 text-red-600"><Trash2 className="w-4 h-4" /></button></td></tr>)
+                            })}</tbody></table>
+                        </div>
+                      </>
+                  ) : (
+                      <EmployeeForm onSave={handleSaveEmployee} onCancel={() => setEmpViewState('list')} initialData={selectedEmployee || undefined} />
+                  )}
+              </div>
+            )}
         </div>
       )}
     </Layout>

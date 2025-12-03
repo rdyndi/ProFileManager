@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Layout } from './components/Layout';
-// import { LoginScreen } from './components/LoginScreen';
+import { LoginScreen } from './components/LoginScreen'; // Enable Import
 import { ClientForm } from './components/ClientForm';
 import { EmployeeForm } from './components/EmployeeForm';
 import { DocumentGenerator, printDocument } from './components/DocumentGenerator';
@@ -28,10 +28,10 @@ import {
   subscribePPATRecords, savePPATRecord, deletePPATRecord,
   subscribeTrackingJobs, saveTrackingJob, deleteTrackingJob
 } from './services/storage';
-// import { auth } from './services/firebaseService';
-// import { signInAnonymously } from "firebase/auth";
+import { auth } from './services/firebaseService'; 
+import firebase from 'firebase/compat/app';
 import { Client, CompanySettings, DocumentData, DocType, Deed, Employee, Invoice, PaymentRecord, Expense, OutgoingMail, IncomingMail, PPATRecord, TrackingJob } from './types';
-import { Users, Search, Plus, Trash2, FileText, Briefcase, Save, Pencil, Printer, ScrollText, BookOpen, ArrowDownAZ, ArrowLeft, UserCog, Link as LinkIcon, ExternalLink, MessageCircle, Mail, Truck, TrendingUp, CreditCard, Banknote, X, Wallet, Send, PieChart, Inbox, FileCheck, Calculator, ClipboardList, Building2, CheckCircle, Clock } from 'lucide-react';
+import { Users, Search, Plus, Trash2, FileText, Briefcase, Save, Pencil, Printer, ScrollText, BookOpen, ArrowDownAZ, ArrowLeft, UserCog, Link as LinkIcon, ExternalLink, MessageCircle, Mail, Truck, TrendingUp, CreditCard, Banknote, X, Wallet, Send, PieChart, Inbox, FileCheck, Calculator, ClipboardList, Building2, CheckCircle, Clock, Loader2 } from 'lucide-react';
 
 // --- Simple Custom SVG Line Chart Component ---
 const SimpleLineChart = ({ data }: { data: any[] }) => {
@@ -86,6 +86,7 @@ const SimpleLineChart = ({ data }: { data: any[] }) => {
   );
 };
 
+// ... (Keep other components like ClientDetail, InvoiceDetail as they are) ...
 // --- Client Detail Component ---
 const ClientDetail: React.FC<{
   client: Client;
@@ -468,9 +469,8 @@ const InvoiceDetail: React.FC<{
 };
 
 const App = () => {
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
-    return localStorage.getItem('isLoggedIn') === 'true';
-  });
+  const [user, setUser] = useState<firebase.User | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
   
   const getInitialTab = () => {
       const hash = window.location.hash.replace('#', '');
@@ -481,6 +481,18 @@ const App = () => {
 
   // Settings Tab State
   const [settingsTab, setSettingsTab] = useState<'profile' | 'employees'>('profile');
+
+  // AUTH STATE OBSERVER
+  useEffect(() => {
+    const unsubscribe = auth.onAuthStateChanged((currentUser) => {
+      setUser(currentUser);
+      if (currentUser) {
+        localStorage.setItem('currentUser', currentUser.email?.split('@')[0] || 'User');
+      }
+      setAuthLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
 
   useEffect(() => {
     const handlePopState = () => {
@@ -513,7 +525,7 @@ const App = () => {
   const [outgoingMails, setOutgoingMails] = useState<OutgoingMail[]>([]);
   const [incomingMails, setIncomingMails] = useState<IncomingMail[]>([]);
   const [ppatRecords, setPpatRecords] = useState<PPATRecord[]>([]); 
-  const [trackingJobs, setTrackingJobs] = useState<TrackingJob[]>([]); // New State
+  const [trackingJobs, setTrackingJobs] = useState<TrackingJob[]>([]); 
   
   const [clientViewState, setClientViewState] = useState<'list' | 'add' | 'detail'>('list');
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
@@ -604,23 +616,19 @@ const App = () => {
     return { filteredList, totalBilled, totalPaid, totalUnpaid };
   }, [invoices, invoiceSearchQuery]);
 
-  const handleLogin = (status: boolean, username?: string) => {
-    if (status) {
-        localStorage.setItem('isLoggedIn', 'true');
-        if (username) localStorage.setItem('currentUser', username);
-        setIsAuthenticated(true);
+  const handleLogout = async () => {
+    try {
+      await auth.signOut();
+      // Optional: Clear local storage or reset states if needed, though onAuthStateChanged will handle the UI switch
+      localStorage.removeItem('currentUser');
+    } catch (error) {
+      console.error("Error signing out:", error);
     }
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('isLoggedIn');
-    localStorage.removeItem('currentUser');
-    setIsAuthenticated(false);
-  };
-
   useEffect(() => {
-    // if (!isAuthenticated) return; // Removed Auth check logic as it's disabled now
-    // signInAnonymously(auth).catch((error) => console.warn("Auth Warning: Login anonim gagal.", error));
+    // Only subscribe to data if user is logged in
+    if (!user) return;
 
     const unsubClients = subscribeClients(setClients);
     const unsubDocs = subscribeDocuments(setDocuments);
@@ -637,7 +645,7 @@ const App = () => {
     return () => {
       unsubClients(); unsubDocs(); unsubDeeds(); unsubSettings(); unsubEmployees(); unsubInvoices(); unsubExpenses(); unsubOutgoingMails(); unsubIncomingMails(); unsubPpat(); unsubTracking();
     };
-  }, []);
+  }, [user]); // Add user dependency
 
   const handleSaveClient = async (client: Client) => { try { await saveClient(client); setClientViewState('list'); } catch (e: any) { alert(e.message); } };
   const handleDeleteClient = async (id: string) => { if (window.confirm('Hapus data?')) { try { await deleteClient(id); if(selectedClient?.id === id) setSelectedClient(null); setClientViewState('list'); } catch (e: any) { alert(e.message); } } };
@@ -690,7 +698,7 @@ const App = () => {
 
   const defaultMobileFeatures = [
       { id: 'clients', label: 'Klien', icon: Users, color: 'text-blue-600', bg: 'bg-blue-100' },
-      { id: 'tracking', label: 'Tracking', icon: ClipboardList, color: 'text-violet-600', bg: 'bg-violet-100' }, // Added
+      { id: 'tracking', label: 'Tracking', icon: ClipboardList, color: 'text-violet-600', bg: 'bg-violet-100' }, 
       { id: 'akta', label: 'Akta', icon: ScrollText, color: 'text-violet-600', bg: 'bg-violet-100' },
       { id: 'adm_ppat', label: 'ADM PPAT', icon: Calculator, color: 'text-rose-600', bg: 'bg-rose-100' },
       { id: 'outgoing_mail', label: 'Surat Keluar', icon: Send, color: 'text-indigo-600', bg: 'bg-indigo-100' },
@@ -750,7 +758,22 @@ const App = () => {
     }
   };
 
-  // if (!isAuthenticated) return <LoginScreen onLogin={handleLogin} />; // Auth Disabled
+  // --- RENDERING ---
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="w-10 h-10 text-primary-600 animate-spin" />
+          <p className="text-slate-500 text-sm font-medium">Memuat data...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <LoginScreen />;
+  }
 
   return (
     <Layout activeTab={activeTab} onTabChange={handleTabChange} onLogout={handleLogout}>

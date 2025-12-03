@@ -1,11 +1,4 @@
-import { 
-  collection, 
-  doc, 
-  setDoc, 
-  deleteDoc, 
-  onSnapshot, 
-  getDoc 
-} from "firebase/firestore";
+
 import { db } from "./firebaseService";
 import { Client, DocumentData, CompanySettings, Deed, Employee, Invoice, Expense, OutgoingMail, IncomingMail, PPATRecord, TrackingJob } from '../types';
 
@@ -116,8 +109,8 @@ export const subscribeClients = (callback: (data: Client[]) => void) => {
       callback(localClients);
   }
 
-  const q = collection(db, COLL_CLIENTS);
-  return onSnapshot(q, (snapshot) => {
+  // v8 syntax: db.collection()
+  return db.collection(COLL_CLIENTS).onSnapshot((snapshot) => {
     const clients = snapshot.docs.map(doc => {
         const data = doc.data();
         return { ...data, id: doc.id } as Client; 
@@ -143,8 +136,7 @@ export const saveClient = async (client: Client): Promise<void> => {
   setLocalData(LS_CLIENTS, clients);
 
   try {
-    const docRef = doc(db, COLL_CLIENTS, clientData.id);
-    await setDoc(docRef, clientData);
+    await db.collection(COLL_CLIENTS).doc(clientData.id).set(clientData);
   } catch (error) {
     console.error("Error syncing client to Firebase");
     throw error;
@@ -156,7 +148,7 @@ export const deleteClient = async (id: string): Promise<void> => {
   setLocalData(LS_CLIENTS, clients);
 
   try {
-    await deleteDoc(doc(db, COLL_CLIENTS, id));
+    await db.collection(COLL_CLIENTS).doc(id).delete();
   } catch (error) {
     console.error("Error deleting client from Firebase");
     throw error;
@@ -171,8 +163,7 @@ export const subscribeEmployees = (callback: (data: Employee[]) => void) => {
       callback(localEmployees);
   }
 
-  const q = collection(db, COLL_EMPLOYEES);
-  return onSnapshot(q, (snapshot) => {
+  return db.collection(COLL_EMPLOYEES).onSnapshot((snapshot) => {
     const employees = snapshot.docs.map(doc => ({...doc.data(), id: doc.id} as Employee));
     const sanitizedEmployees = sanitizeData(employees);
     setLocalData(LS_EMPLOYEES, sanitizedEmployees);
@@ -194,8 +185,7 @@ export const saveEmployee = async (employee: Employee): Promise<void> => {
   setLocalData(LS_EMPLOYEES, employees);
 
   try {
-    const docRef = doc(db, COLL_EMPLOYEES, dataToSave.id);
-    await setDoc(docRef, dataToSave);
+    await db.collection(COLL_EMPLOYEES).doc(dataToSave.id).set(dataToSave);
   } catch (error) {
     console.error("Error saving employee to Firebase");
     throw error;
@@ -207,7 +197,7 @@ export const deleteEmployee = async (id: string): Promise<void> => {
   setLocalData(LS_EMPLOYEES, employees);
 
   try {
-    await deleteDoc(doc(db, COLL_EMPLOYEES, id));
+    await db.collection(COLL_EMPLOYEES).doc(id).delete();
   } catch (error) {
     console.error("Error deleting employee from Firebase");
     throw error;
@@ -224,8 +214,7 @@ export const subscribeDocuments = (callback: (data: DocumentData[]) => void) => 
       callback(localDocs);
   }
 
-  const q = collection(db, COLL_DOCS);
-  return onSnapshot(q, (snapshot) => {
+  return db.collection(COLL_DOCS).onSnapshot((snapshot) => {
     const docs = snapshot.docs.map(doc => ({...doc.data(), id: doc.id} as DocumentData));
     docs.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     const sanitizedDocs = sanitizeData(docs);
@@ -248,8 +237,7 @@ export const saveDocument = async (docData: DocumentData): Promise<void> => {
   setLocalData(LS_DOCS, docs);
 
   try {
-    const docRef = doc(db, COLL_DOCS, dataToSave.id);
-    await setDoc(docRef, dataToSave);
+    await db.collection(COLL_DOCS).doc(dataToSave.id).set(dataToSave);
   } catch (error) {
     console.error("Error saving document to Firebase");
     throw error;
@@ -265,7 +253,7 @@ export const deleteDocument = async (id: string): Promise<void> => {
   setLocalData(LS_DOCS, docs);
 
   try {
-    await deleteDoc(doc(db, COLL_DOCS, id));
+    await db.collection(COLL_DOCS).doc(id).delete();
   } catch (error) {
     console.error("Error deleting document from Firebase");
     throw error;
@@ -281,8 +269,7 @@ export const subscribeDeeds = (callback: (data: Deed[]) => void) => {
     callback(localDeeds);
   }
 
-  const q = collection(db, COLL_DEEDS);
-  return onSnapshot(q, (snapshot) => {
+  return db.collection(COLL_DEEDS).onSnapshot((snapshot) => {
     const deeds = snapshot.docs.map(doc => ({...doc.data(), id: doc.id} as Deed));
     deeds.sort((a, b) => b.createdAt - a.createdAt);
     const sanitizedDeeds = sanitizeData(deeds);
@@ -305,8 +292,7 @@ export const saveDeed = async (deed: Deed): Promise<void> => {
   setLocalData(LS_DEEDS, deeds);
 
   try {
-    const docRef = doc(db, COLL_DEEDS, dataToSave.id);
-    await setDoc(docRef, dataToSave);
+    await db.collection(COLL_DEEDS).doc(dataToSave.id).set(dataToSave);
   } catch (error) {
     console.error("Error saving deed to Firebase");
     throw error;
@@ -318,7 +304,7 @@ export const deleteDeed = async (id: string): Promise<void> => {
   setLocalData(LS_DEEDS, deeds);
 
   try {
-    await deleteDoc(doc(db, COLL_DEEDS, id));
+    await db.collection(COLL_DEEDS).doc(id).delete();
   } catch (error) {
     console.error("Error deleting deed from Firebase");
     throw error;
@@ -334,8 +320,7 @@ export const subscribeInvoices = (callback: (data: Invoice[]) => void) => {
     callback(localInvoices);
   }
 
-  const q = collection(db, COLL_INVOICES);
-  return onSnapshot(q, (snapshot) => {
+  return db.collection(COLL_INVOICES).onSnapshot((snapshot) => {
     const invoices = snapshot.docs.map(doc => ({...doc.data(), id: doc.id} as Invoice));
     invoices.sort((a, b) => b.createdAt - a.createdAt);
     const sanitizedInvoices = sanitizeData(invoices);
@@ -358,8 +343,7 @@ export const saveInvoice = async (invoice: Invoice): Promise<void> => {
   setLocalData(LS_INVOICES, invoices);
 
   try {
-    const docRef = doc(db, COLL_INVOICES, dataToSave.id);
-    await setDoc(docRef, dataToSave);
+    await db.collection(COLL_INVOICES).doc(dataToSave.id).set(dataToSave);
   } catch (error) {
     console.error("Error saving invoice to Firebase");
     throw error;
@@ -371,7 +355,7 @@ export const deleteInvoice = async (id: string): Promise<void> => {
   setLocalData(LS_INVOICES, invoices);
 
   try {
-    await deleteDoc(doc(db, COLL_INVOICES, id));
+    await db.collection(COLL_INVOICES).doc(id).delete();
   } catch (error) {
     console.error("Error deleting invoice from Firebase");
     throw error;
@@ -387,8 +371,7 @@ export const subscribeExpenses = (callback: (data: Expense[]) => void) => {
     callback(localExpenses);
   }
 
-  const q = collection(db, COLL_EXPENSES);
-  return onSnapshot(q, (snapshot) => {
+  return db.collection(COLL_EXPENSES).onSnapshot((snapshot) => {
     const expenses = snapshot.docs.map(doc => ({...doc.data(), id: doc.id} as Expense));
     expenses.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     const sanitizedExpenses = sanitizeData(expenses);
@@ -411,8 +394,7 @@ export const saveExpense = async (expense: Expense): Promise<void> => {
   setLocalData(LS_EXPENSES, expenses);
 
   try {
-    const docRef = doc(db, COLL_EXPENSES, dataToSave.id);
-    await setDoc(docRef, dataToSave);
+    await db.collection(COLL_EXPENSES).doc(dataToSave.id).set(dataToSave);
   } catch (error) {
     console.error("Error saving expense to Firebase");
     throw error;
@@ -424,7 +406,7 @@ export const deleteExpense = async (id: string): Promise<void> => {
   setLocalData(LS_EXPENSES, expenses);
 
   try {
-    await deleteDoc(doc(db, COLL_EXPENSES, id));
+    await db.collection(COLL_EXPENSES).doc(id).delete();
   } catch (error) {
     console.error("Error deleting expense from Firebase");
     throw error;
@@ -440,8 +422,7 @@ export const subscribeOutgoingMails = (callback: (data: OutgoingMail[]) => void)
     callback(localMails);
   }
 
-  const q = collection(db, COLL_OUTGOING_MAILS);
-  return onSnapshot(q, (snapshot) => {
+  return db.collection(COLL_OUTGOING_MAILS).onSnapshot((snapshot) => {
     const mails = snapshot.docs.map(doc => ({...doc.data(), id: doc.id} as OutgoingMail));
     mails.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     const sanitizedMails = sanitizeData(mails);
@@ -464,8 +445,7 @@ export const saveOutgoingMail = async (mail: OutgoingMail): Promise<void> => {
   setLocalData(LS_OUTGOING_MAILS, mails);
 
   try {
-    const docRef = doc(db, COLL_OUTGOING_MAILS, dataToSave.id);
-    await setDoc(docRef, dataToSave);
+    await db.collection(COLL_OUTGOING_MAILS).doc(dataToSave.id).set(dataToSave);
   } catch (error) {
     console.error("Error saving outgoing mail to Firebase");
     throw error;
@@ -477,7 +457,7 @@ export const deleteOutgoingMail = async (id: string): Promise<void> => {
   setLocalData(LS_OUTGOING_MAILS, mails);
 
   try {
-    await deleteDoc(doc(db, COLL_OUTGOING_MAILS, id));
+    await db.collection(COLL_OUTGOING_MAILS).doc(id).delete();
   } catch (error) {
     console.error("Error deleting outgoing mail from Firebase");
     throw error;
@@ -493,8 +473,7 @@ export const subscribeIncomingMails = (callback: (data: IncomingMail[]) => void)
     callback(localMails);
   }
 
-  const q = collection(db, COLL_INCOMING_MAILS);
-  return onSnapshot(q, (snapshot) => {
+  return db.collection(COLL_INCOMING_MAILS).onSnapshot((snapshot) => {
     const mails = snapshot.docs.map(doc => ({...doc.data(), id: doc.id} as IncomingMail));
     mails.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     const sanitizedMails = sanitizeData(mails);
@@ -517,8 +496,7 @@ export const saveIncomingMail = async (mail: IncomingMail): Promise<void> => {
   setLocalData(LS_INCOMING_MAILS, mails);
 
   try {
-    const docRef = doc(db, COLL_INCOMING_MAILS, dataToSave.id);
-    await setDoc(docRef, dataToSave);
+    await db.collection(COLL_INCOMING_MAILS).doc(dataToSave.id).set(dataToSave);
   } catch (error) {
     console.error("Error saving incoming mail to Firebase");
     throw error;
@@ -530,7 +508,7 @@ export const deleteIncomingMail = async (id: string): Promise<void> => {
   setLocalData(LS_INCOMING_MAILS, mails);
 
   try {
-    await deleteDoc(doc(db, COLL_INCOMING_MAILS, id));
+    await db.collection(COLL_INCOMING_MAILS).doc(id).delete();
   } catch (error) {
     console.error("Error deleting incoming mail from Firebase");
     throw error;
@@ -546,8 +524,7 @@ export const subscribePPATRecords = (callback: (data: PPATRecord[]) => void) => 
     callback(localRecords);
   }
 
-  const q = collection(db, COLL_PPAT_RECORDS);
-  return onSnapshot(q, (snapshot) => {
+  return db.collection(COLL_PPAT_RECORDS).onSnapshot((snapshot) => {
     const records = snapshot.docs.map(doc => ({...doc.data(), id: doc.id} as PPATRecord));
     records.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     const sanitizedRecords = sanitizeData(records);
@@ -570,8 +547,7 @@ export const savePPATRecord = async (record: PPATRecord): Promise<void> => {
   setLocalData(LS_PPAT_RECORDS, records);
 
   try {
-    const docRef = doc(db, COLL_PPAT_RECORDS, dataToSave.id);
-    await setDoc(docRef, dataToSave);
+    await db.collection(COLL_PPAT_RECORDS).doc(dataToSave.id).set(dataToSave);
   } catch (error) {
     console.error("Error saving PPAT record to Firebase");
     throw error;
@@ -583,7 +559,7 @@ export const deletePPATRecord = async (id: string): Promise<void> => {
   setLocalData(LS_PPAT_RECORDS, records);
 
   try {
-    await deleteDoc(doc(db, COLL_PPAT_RECORDS, id));
+    await db.collection(COLL_PPAT_RECORDS).doc(id).delete();
   } catch (error) {
     console.error("Error deleting PPAT record from Firebase");
     throw error;
@@ -600,8 +576,7 @@ export const subscribeTrackingJobs = (callback: (data: TrackingJob[]) => void) =
     callback(localJobs);
   }
 
-  const q = collection(db, COLL_TRACKING_JOBS);
-  return onSnapshot(q, (snapshot) => {
+  return db.collection(COLL_TRACKING_JOBS).onSnapshot((snapshot) => {
     const jobs = snapshot.docs.map(doc => ({...doc.data(), id: doc.id} as TrackingJob));
     jobs.sort((a, b) => b.updatedAt - a.updatedAt);
     const sanitizedJobs = sanitizeData(jobs);
@@ -624,8 +599,7 @@ export const saveTrackingJob = async (job: TrackingJob): Promise<void> => {
   setLocalData(LS_TRACKING_JOBS, jobs);
 
   try {
-    const docRef = doc(db, COLL_TRACKING_JOBS, dataToSave.id);
-    await setDoc(docRef, dataToSave);
+    await db.collection(COLL_TRACKING_JOBS).doc(dataToSave.id).set(dataToSave);
   } catch (error) {
     console.error("Error saving tracking job to Firebase");
     throw error;
@@ -637,7 +611,7 @@ export const deleteTrackingJob = async (id: string): Promise<void> => {
   setLocalData(LS_TRACKING_JOBS, jobs);
 
   try {
-    await deleteDoc(doc(db, COLL_TRACKING_JOBS, id));
+    await db.collection(COLL_TRACKING_JOBS).doc(id).delete();
   } catch (error) {
     console.error("Error deleting tracking job from Firebase");
     throw error;
@@ -666,9 +640,8 @@ export const subscribeSettings = (callback: (data: CompanySettings) => void) => 
     callback(defaultSettings);
   }
 
-  const docRef = doc(db, COLL_SETTINGS, DOC_SETTINGS_ID);
-  return onSnapshot(docRef, (docSnap) => {
-    if (docSnap.exists()) {
+  return db.collection(COLL_SETTINGS).doc(DOC_SETTINGS_ID).onSnapshot((docSnap) => {
+    if (docSnap.exists) {
       const serverSettings = docSnap.data() as CompanySettings;
       const sanitizedSettings = sanitizeData(serverSettings);
       setLocalData(LS_SETTINGS, sanitizedSettings);
@@ -708,8 +681,7 @@ export const saveSettings = async (settings: CompanySettings): Promise<void> => 
   const dataToSave = sanitizeData(settings);
   syncSettingsToLocalCache(dataToSave);
   try {
-    const docRef = doc(db, COLL_SETTINGS, DOC_SETTINGS_ID);
-    await setDoc(docRef, dataToSave);
+    await db.collection(COLL_SETTINGS).doc(DOC_SETTINGS_ID).set(dataToSave);
   } catch (error) {
     console.error("Error saving settings to Firebase");
     throw error;

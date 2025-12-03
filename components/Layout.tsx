@@ -239,7 +239,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange
                     <>
                         <div className="flex-1 text-left overflow-hidden">
                         <p className="text-sm font-bold text-slate-700 truncate">{currentUser}</p>
-                        <p className="text-[10px] text-slate-500 truncate">{currentUser === 'Putri' ? 'Notaris / PPAT' : 'Staff Kantor'}</p>
+                        <p className="text-[10px] text-slate-500 truncate">Staff Kantor</p>
                         </div>
                         <ChevronUp className={`w-4 h-4 text-slate-400 transition-transform ${isDesktopProfileOpen ? 'rotate-180' : ''}`} />
                     </>
@@ -279,7 +279,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange
                     <div className="absolute right-0 top-12 w-48 bg-white rounded-xl shadow-xl border border-slate-100 py-1 z-50 animate-in fade-in slide-in-from-top-2 origin-top-right">
                         <div className="px-4 py-3 border-b border-slate-50 mb-1 bg-slate-50/50">
                             <p className="text-xs font-bold text-slate-800">{currentUser}</p>
-                            <p className="text-[10px] text-slate-500">{currentUser === 'Putri' ? 'Notaris' : 'Staff Admin'}</p>
+                            <p className="text-[10px] text-slate-500">Staff Admin</p>
                         </div>
                         
                         <button 
